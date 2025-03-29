@@ -1,29 +1,65 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../../shared/Navbar/Navbar";
 import Footer from "../../shared/Footer/Footer";
+import { userService } from "../../../services/userService";
 
 const Profile = ({ loggedIn, setLoggedIn }) => {
-  const [fullName, setFullName] = useState("ניר המלך");
-  const [email, setEmail] = useState("test@test.com");
-  const [password, setPassword] = useState("123456");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setIsEditing(false); 
-    setMessage("הפרטים עודכנו בהצלחה ✅");
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await userService.getMe();
+        const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
+
+        if (!user) throw new Error("User not found");
+
+        setFullName(`${user.first_name} ${user.last_name}`);
+        setEmail(user.email);
+      } catch (err) {
+        console.error("❌ Failed to fetch user:", err);
+        setMessage("שגיאה בטעינת פרטי המשתמש");
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleSubmit = async () => {
+    try {
+      const [first_name, ...rest] = fullName.split(" ");
+      const last_name = rest.join(" ");
+
+      const dataToUpdate = {
+        first_name,
+        last_name,
+        email,
+      };
+
+      if (password.trim()) dataToUpdate.password = password;
+
+      await userService.updateMe(dataToUpdate);
+
+      setIsEditing(false);
+      setMessage("הפרטים עודכנו בהצלחה ✅");
+    } catch (err) {
+      console.error("❌ Update error:", err);
+      setMessage("שגיאה בעדכון הפרטים");
+    }
   };
 
   const handleEditClick = () => {
-    setMessage("");        
-    setIsEditing(true);    
+    setMessage("");
+    setIsEditing(true);
   };
 
   return (
     <div className="min-h-screen flex flex-col" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-
       <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 py-16">
         <div className="container mx-auto px-6">
           <div className="max-w-xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
@@ -41,7 +77,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit}>
+              <form>
                 <div className="mb-4">
                   <label htmlFor="fullName" className="block text-gray-700 text-sm font-bold mb-2">
                     שם מלא
@@ -53,7 +89,11 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                     onChange={(e) => setFullName(e.target.value)}
                     disabled={!isEditing}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none 
-                      ${isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"}`}
+                      ${
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
+                      }`}
                     required
                   />
                 </div>
@@ -69,14 +109,18 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={!isEditing}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none 
-                      ${isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"}`}
+                      ${
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
+                      }`}
                     required
                   />
                 </div>
 
                 <div className="mb-6">
                   <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
-                    סיסמה
+                    סיסמה חדשה
                   </label>
                   <input
                     type="password"
@@ -84,36 +128,40 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={!isEditing}
+                    placeholder="לא חובה"
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none 
-                      ${isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"}`}
-                    required
+                      ${
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
+                      }`}
                   />
                 </div>
+              </form>
 
-                {isEditing && (
+              <div className="mt-4">
+                {isEditing ? (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit}
                     className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
                   >
                     שמירה
                   </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleEditClick}
+                    className="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none transition duration-200"
+                  >
+                    עריכה
+                  </button>
                 )}
-              </form>
-
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={handleEditClick}
-                  className="w-full mt-4 bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none transition duration-200"
-                >
-                  עריכה
-                </button>
-              )}
+              </div>
             </div>
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
   );

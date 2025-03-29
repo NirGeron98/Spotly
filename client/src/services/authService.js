@@ -1,0 +1,91 @@
+import api from "./api";
+
+export const authService = {
+  /**
+   * Logs in a user with email and password
+   * @param {Object} credentials - User credentials
+   * @param {string} credentials.email - User email
+   * @param {string} credentials.password - User password
+   * @returns {Promise<Object>} - Response with user data and token
+   */
+  login: async ({ email, password }) => {
+    const response = await api.post("/users/login", { email, password });
+
+    // Store authentication data
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+    }
+
+    return response.data;
+  },
+
+  /**
+   * Logs out a user by removing auth data from localStorage
+   */
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  },
+
+  /**
+   * Registers a new user
+   * @param {Object} userData - User registration data
+   * @returns {Promise<Object>} - Response with user data and token
+   */
+  register: async (userData) => {
+    const response = await api.post("/users", userData);
+
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+    }
+
+    return response.data;
+  },
+
+  /**
+   * Checks if a user is authenticated
+   * @returns {boolean} - True if authenticated, false otherwise
+   */
+  isAuthenticated: () => {
+    return !!localStorage.getItem("token");
+  },
+
+  /**
+   * Gets the current user from localStorage
+   * @returns {Object|null} - User object or null if not authenticated
+   */
+  getCurrentUser: () => {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return null;
+
+    try {
+      return JSON.parse(userStr);
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+      return null;
+    }
+  },
+
+  /**
+   * Sends a request to reset password
+   * @param {string} email - User email
+   * @returns {Promise<Object>} - Response data
+   */
+  forgotPassword: async (email) => {
+    const response = await api.post("/users/forgot-password", { email });
+    return response.data;
+  },
+
+  /**
+   * Resets password with reset token
+   * @param {string} token - Reset token
+   * @param {string} password - New password
+   * @returns {Promise<Object>} - Response data
+   */
+  resetPassword: async (token, password) => {
+    const response = await api.post(`/users/reset-password/${token}`, { password });
+    return response.data;
+  }
+};

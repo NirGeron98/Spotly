@@ -29,6 +29,17 @@ export const userService = {
   login: async ({ email, password }) => {
     const response = await api.post("/users/login", { email, password });
     return response.data;
+  },
+
+  getMe: async () => {
+    const response = await api.get("/users/me");
+    console.log("getMe response:", response.data);
+    return response.data;
+  },
+
+  updateMe: async (updatedData) => {
+    const response = await api.patch("/users/updateMe", updatedData);
+    return response.data;
   }
   
 };
