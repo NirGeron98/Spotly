@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../../shared/Footer/Footer";
 import Navbar from "../../shared/Navbar/Navbar";
-import userService from "../../../services/userService";
+import {userService} from "../../../services/userService";
+import axios from "axios";
 
 const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [email, setEmail] = useState("");
@@ -10,11 +11,21 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    axios.get("/api/v1/ping")
+      .then((res) => console.log("✅ Connected to backend:", res.data))
+      .catch((err) => console.error("❌ Failed to connect to backend:", err));
+  }, []);
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const data = await userService.login({ email, password });
-
+  
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+  
       setLoggedIn(true);
       navigate("/dashboard");
     } catch (error) {
@@ -22,6 +33,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
       setError("אימייל או סיסמה שגויים");
     }
   };
+  
 
   const handleForgotPassword = () => {
     navigate("/forgot-password");

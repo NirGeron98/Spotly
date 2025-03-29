@@ -26,8 +26,9 @@ export const userService = {
     return response.data;
   },
 
-  login: async (email, password) => {
-    const response = await api.post("/login", { email, password });
+  login: async ({ email, password }) => {
+    const response = await api.post("/users/login", { email, password });
     return response.data;
   }
+  
 };

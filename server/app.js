@@ -15,10 +15,18 @@ const requestRouter = require("./routes/requestRoutes");
 //const spotRouter = require("./routes/spotRoutes");
 const app = express();
 
+app.get("/api/v1/ping", (req, res) => {
+  res.send("pong from server");
+});
+
 // GLOBAL MIDDLEWARES
 
 // Enabling CORS (Cross-Origin Resource Sharing)
-app.use(cors());
+app.use(cors({
+  origin: '*'
+}));
+
+
 // Set security HTTP headers
 app.use(helmet());
 
