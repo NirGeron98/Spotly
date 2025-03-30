@@ -8,7 +8,7 @@ import { userService } from '../../../services/userService';
 
 const Dashboard = ({ loggedIn, setLoggedIn }) => {
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState("משתמש");
+  const [firstName, setFirstName] = useState("משתמש");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -17,8 +17,8 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
         const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
 
         if (user && user.first_name) {
-          const full = `${user.first_name} ${user.last_name || ""}`.trim();
-          setFullName(full);
+          // const full = `${user.first_name} ${user.last_name || ""}`.trim();
+          setFirstName(user.first_name);
         }
       } catch (error) {
         console.error("❌ Failed to fetch user for dashboard:", error);
@@ -35,7 +35,7 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
       <main className="flex-1 py-16">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold text-blue-700 mb-4">איזה כיף שחזרת {fullName}!</h1>
+            <h1 className="text-4xl font-extrabold text-blue-700 mb-4">איזה כיף שחזרת {firstName}!</h1>
             <p className="text-gray-600 text-lg">בחר פעולה מתוך האפשרויות הבאות:</p>
           </div>
 

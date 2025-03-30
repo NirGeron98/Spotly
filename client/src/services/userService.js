@@ -40,6 +40,20 @@ export const userService = {
   updateMe: async (updatedData) => {
     const response = await api.patch("/users/updateMe", updatedData);
     return response.data;
+  },
+
+updatePassword: async (passwordData) => {
+  const response = await api.patch("/users/updateMyPassword", passwordData);
+  
+  if (response.data.token) {
+    localStorage.setItem("token", response.data.token);
+    localStorage.setItem("user", JSON.stringify(response.data.data.user));
   }
+
+  return response.data;
+}
+
+  
+  
   
 };
