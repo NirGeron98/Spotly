@@ -1,8 +1,9 @@
 import React from "react";
-import Footer from "../../shared/Footer/Footer";
-import RouteCard from "../../routes/RouteCard/RouteCard";
-import FeatureCard from "../../shared/FeatureCard/FeatureCard";
-import Navbar from "../../shared/Navbar/Navbar";
+import { useEffect } from 'react';
+import Footer from "../shared/Footer";
+import RouteCard from "../routes/RouteCard";
+import FeatureCard from "../shared/FeatureCard";
+import Navbar from "../shared/Navbar";
 
 import {
   FaCar,
@@ -15,7 +16,10 @@ import {
 } from "react-icons/fa";
 
 const Home = ({ loggedIn, setLoggedIn, isRegistering }) => {
-  console.log("Rendering Home component");
+
+  useEffect(() => {
+    document.title = "דף הבית | Spotly";
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col" dir="rtl">

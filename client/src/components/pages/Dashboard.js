@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCar, FaBuilding } from 'react-icons/fa';
-import ActionButton from '../../shared/ActionButton/ActionButton';
-import Navbar from "../../shared/Navbar/Navbar";
-import Footer from '../../shared/Footer/Footer';
-import { userService } from '../../../services/userService';
+import ActionButton from '../shared/ActionButton';
+import Navbar from "../shared/Navbar";
+import Footer from '../shared/Footer';
+import { userService } from '../../services/userService';
 
 const Dashboard = ({ loggedIn, setLoggedIn }) => {
+
+  document.title = "דף הבית | Spotly";
+
   const navigate = useNavigate();
   const [firstName, setFirstName] = useState("משתמש");
 

@@ -5,13 +5,13 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Home from "./components/pages/Home/Home";
-import Login from "./components/pages/Login/Login";
+import Home from "./components/pages/Home";
+import Login from "./components/pages/Login";
 import SignupStepOne from "./components/pages/Signup/SignupStepOne";
 import SignupStepTwo from "./components/pages/Signup/SignupStepTwo";
-import ForgotPassword from "./components/pages/ForgotPassword/ForgotPassword";
-import Dashboard from "./components/pages/Dashboard/Dashboard";
-import Profile from "./components/pages/Profile/Profile";
+import ForgotPassword from "./components/pages/ForgotPassword";
+import Dashboard from "./components/pages/Dashboard";
+import Profile from "./components/pages/Profile";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);

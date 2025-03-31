@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "../../shared/Navbar/Navbar";
-import Footer from "../../shared/Footer/Footer";
-import { userService } from "../../../services/userService";
+import Navbar from "../shared/Navbar";
+import Footer from "../shared/Footer";
+import { userService } from "../../services/userService";
 
 const Profile = ({ loggedIn, setLoggedIn }) => {
+
+  document.title = "ניהול פרופיל | Spotly";
+  
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Footer from "../../shared/Footer/Footer";
-import Navbar from "../../shared/Navbar/Navbar";
-import { authService } from "../../../services/authService";
+import Footer from "../shared/Footer";
+import Navbar from "../shared/Navbar";
+import { authService } from "../../services/authService";
 import axios from "axios";
 
 const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
@@ -12,6 +12,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    document.title = "התחברות | Spotly";
     axios.get("/api/v1/ping")
       .then((res) => console.log("✅ Connected to backend:", res.data))
       .catch((err) => console.error("❌ Failed to connect to backend:", err));
