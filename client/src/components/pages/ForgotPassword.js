@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import Footer from '../../shared/Footer/Footer';
-import Navbar from "../../shared/Navbar/Navbar";
+import Footer from '../shared/Footer';
+import Navbar from "../shared/Navbar";
 
 const ForgotPassword = ({ loggedIn, setLoggedIn, isRegistering }) => {
+
+  document.title = "שחזור סיסמה | Spotly";
+
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
 

@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../../shared/Navbar/Navbar';
-import Footer from '../../shared/Footer/Footer';
+import Navbar from '../../shared/Navbar';
+import Footer from '../../shared/Footer';
 
 const SignupStepOne = ({ loggedIn, setLoggedIn, isRegistering }) => {
+
+  document.title = 'הרשמה | Spotly';
   const navigate = useNavigate();
 
   const handleNext = () => {
