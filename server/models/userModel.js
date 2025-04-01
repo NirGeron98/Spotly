@@ -24,7 +24,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["admin", "building_manager", "user"],
+    enum: [
+      "admin",
+      "building_manager",
+      "user",
+      "building_resident",
+      "private_prop_owner",
+    ],
     default: "user",
   },
   priority_score: {
