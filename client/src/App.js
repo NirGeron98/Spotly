@@ -14,7 +14,7 @@ import Profile from "./components/pages/Profile";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [, setIsRegistering] = useState(false);
+  // const [, setIsRegistering] = useState(false);
 
   return (
     <Router>

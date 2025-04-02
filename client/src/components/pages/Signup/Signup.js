@@ -5,6 +5,7 @@ import Navbar from "../../shared/Navbar";
 import { authService } from "../../../services/authService";
 
 const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
+  document.title = 'הרשמה | Spotly';
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
