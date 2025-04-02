@@ -60,17 +60,24 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       buildingCode,
     } = formData;
 
+    if (!fullName || !email || !password || !passwordConfirm || !residenceType) {
+      setError("יש למלא את כל השדות חובה");
+      return;
+    }
+
     if (
-      !fullName ||
-      !email ||
-      !password ||
-      !passwordConfirm ||
-      !residenceType ||
-      !city ||
-      !street ||
-      !buildingNumber
+      (residenceType === "apartment" || residenceType === "house") &&
+      (!city || !street || !buildingNumber)
     ) {
-      setError("יש למלא את כל השדות החובה");
+      setError("יש למלא את פרטי הכתובת");
+      return;
+    }
+
+    if (
+      residenceType === "apartment" &&
+      (!buildingCode || !apartmentNumber || !parkingNumber || !parkingFloor)
+    ) {
+      setError("יש למלא את כל הפרטים הקשורים לדירה ולחנייה בבניין");
       return;
     }
 

@@ -9,9 +9,21 @@ import { userService } from '../../services/userService';
 const Dashboard = ({ loggedIn, setLoggedIn }) => {
 
   document.title = "דף הבית | Spotly";
-
   const navigate = useNavigate();
-  const [firstName, setFirstName] = useState("משתמש");
+
+  // טוען שם פרטי מה-localStorage אם קיים
+  const [firstName, setFirstName] = useState(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        return user?.first_name || "משתמש";
+      } catch (e) {
+        return "משתמש";
+      }
+    }
+    return "משתמש";
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -20,8 +32,8 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
         const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
 
         if (user && user.first_name) {
-          // const full = `${user.first_name} ${user.last_name || ""}`.trim();
           setFirstName(user.first_name);
+          localStorage.setItem("user", JSON.stringify(user)); // עדכון localStorage
         }
       } catch (error) {
         console.error("❌ Failed to fetch user for dashboard:", error);
