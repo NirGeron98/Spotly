@@ -7,8 +7,7 @@ import {
 } from "react-router-dom";
 import Home from "./components/pages/Home";
 import Login from "./components/pages/Login";
-import SignupStepOne from "./components/pages/Signup/SignupStepOne";
-import SignupStepTwo from "./components/pages/Signup/SignupStepTwo";
+import Signup from "./components/pages/Signup/Signup"; // ← איחוד
 import ForgotPassword from "./components/pages/ForgotPassword";
 import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
@@ -16,19 +15,6 @@ import Profile from "./components/pages/Profile";
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [, setIsRegistering] = useState(false);
-
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    city: "",
-    street: "",
-    houseNumber: "",
-    apartmentNumber: "",
-    parkingNumber: "",
-    residenceType: "",
-  });
 
   return (
     <Router>
@@ -48,20 +34,10 @@ function App() {
         <Route
           path="/signup"
           element={
-            <SignupStepOne
-              formData={formData}
-              setFormData={setFormData}
-              setIsRegistering={setIsRegistering}
-            />
-          }
-        />
-        <Route
-          path="/signup-details"
-          element={
-            <SignupStepTwo
-              formData={formData}
-              setFormData={setFormData}
-              setIsRegistering={setIsRegistering}
+            <Signup
+              loggedIn={loggedIn}
+              setLoggedIn={setLoggedIn}
+              isRegistering={true}
             />
           }
         />
