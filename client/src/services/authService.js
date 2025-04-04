@@ -74,18 +74,23 @@ export const authService = {
    * @returns {Promise<Object>} - Response data
    */
   forgotPassword: async (email) => {
-    const response = await api.post("/users/forgot-password", { email });
+    const response = await api.post("/users/forgotPassword", { email });
     return response.data;
   },
 
   /**
    * Resets password with reset token
    * @param {string} token - Reset token
-   * @param {string} password - New password
+   * @param {Object} passwordData - Password data
+   * @param {string} passwordData.password - New password
+   * @param {string} passwordData.passwordConfirm - Password confirmation
    * @returns {Promise<Object>} - Response data
    */
-  resetPassword: async (token, password) => {
-    const response = await api.post(`/users/reset-password/${token}`, { password });
+  resetPassword: async (token, passwordData) => {
+    const response = await api.patch(
+      `/users/resetPassword/${token}`,
+      passwordData
+    );
     return response.data;
-  }
+  },
 };

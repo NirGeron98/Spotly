@@ -9,6 +9,7 @@ import Home from "./components/pages/Home";
 import Login from "./components/pages/Login";
 import Signup from "./components/pages/Signup";
 import ForgotPassword from "./components/pages/ForgotPassword";
+import ResetPassword from "./components/pages/ResetPassword";
 import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
 import SearchParking from "./components/pages/SearchParking"; // ✅ חדש
@@ -44,7 +45,18 @@ function App() {
           }
         />
         <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          }
+        />
         <Route
           path="/signup"
           element={
