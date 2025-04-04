@@ -16,7 +16,7 @@ const ChatBot = () => {
   return (
     <>
       <button
-        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
+        className="fixed bottom-20 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
         onClick={() => setChatOpen((prev) => !prev)}
         aria-label="צ'אט תמיכה"
       >
@@ -24,7 +24,7 @@ const ChatBot = () => {
       </button>
 
       {chatOpen && (
-        <div className="fixed bottom-24 right-6 w-96 max-w-full bg-white rounded-xl shadow-xl p-4 z-50 border border-gray-300 max-h-[420px] overflow-auto transition-all duration-300">
+        <div className="fixed bottom-36 right-6 w-96 max-w-full bg-white rounded-xl shadow-xl p-4 z-50 border border-gray-300 max-h-[420px] overflow-auto transition-all duration-300">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-blue-800">שאלות נפוצות</h3>
             <button

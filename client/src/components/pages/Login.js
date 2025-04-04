@@ -45,7 +45,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" dir="rtl">
+    <div className="pt-[68px] min-h-screen flex flex-col" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
       <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 py-16">
         <div className="container mx-auto px-6">

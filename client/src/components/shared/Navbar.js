@@ -1,6 +1,12 @@
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { FaHome, FaUser, FaSignOutAlt, FaSignInAlt, FaUserPlus } from "react-icons/fa";
+import {
+  FaHome,
+  FaUser,
+  FaSignOutAlt,
+  FaSignInAlt,
+  FaUserPlus,
+} from "react-icons/fa";
 
 const Navbar = ({ loggedIn, setLoggedIn }) => {
   const navigate = useNavigate();
@@ -14,7 +20,10 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const isActive = (path) => {
     if (path === "/signup" || path === "/signup-details") {
-      return location.pathname === "/signup" || location.pathname === "/signup-details";
+      return (
+        location.pathname === "/signup" ||
+        location.pathname === "/signup-details"
+      );
     }
     if (loggedIn && path === "/" && location.pathname === "/dashboard") {
       return true;
@@ -23,7 +32,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   };
 
   return (
-    <nav className="bg-white shadow-sm py-3">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm py-3">
       <div className="container mx-auto px-6 flex justify-between items-center">
         <Link
           to="/"
@@ -38,7 +47,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
               <Link
                 to="/dashboard"
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
-                            ${isActive("/") ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"}`}
+                            ${
+                              isActive("/")
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            }`}
               >
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
@@ -47,7 +60,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
               <Link
                 to="/profile"
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
-                            ${isActive("/profile") ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"}`}
+                            ${
+                              isActive("/profile")
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            }`}
               >
                 <FaUser className="ml-1.5 text-lg" />
                 ניהול פרופיל
@@ -66,7 +83,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
               <Link
                 to="/"
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
-                            ${isActive("/") ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"}`}
+                            ${
+                              isActive("/")
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            }`}
               >
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
@@ -75,7 +96,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
               <Link
                 to="/login"
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
-                            ${isActive("/login") ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"}`}
+                            ${
+                              isActive("/login")
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            }`}
               >
                 <FaSignInAlt className="ml-1.5 text-lg" />
                 התחברות
@@ -84,7 +109,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
               <Link
                 to="/signup"
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
-                            ${isActive("/signup") ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"}`}
+                            ${
+                              isActive("/signup")
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            }`}
               >
                 <FaUserPlus className="ml-1.5 text-lg" />
                 הרשמה

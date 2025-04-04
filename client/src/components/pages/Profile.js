@@ -86,7 +86,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
   if (loading) return <div className="text-center py-10">טוען פרופיל...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col" dir="rtl">
+    <div className="pt-[68px] min-h-screen flex flex-col" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
       <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 py-16">

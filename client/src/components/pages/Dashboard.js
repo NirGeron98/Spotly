@@ -20,7 +20,7 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
+    <div className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <main className="flex-1 py-16">
         <div className="container mx-auto px-6">

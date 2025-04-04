@@ -19,7 +19,7 @@ const Home = ({ loggedIn, setLoggedIn, isRegistering }) => {
         isRegistering={isRegistering}
       />
 
-      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 pb-16">
+      <main className="pt-[68px] flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 pb-16">
         <WelcomeSection />
         <RoutesSection />
         <FeaturesSection />

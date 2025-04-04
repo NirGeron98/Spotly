@@ -12,6 +12,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [address, setAddress] = useState({ city: "", street: "", number: "" });
+  const [feedback, setFeedback] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -103,11 +105,10 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       setLoggedIn(true);
       setSuccess("נרשמת בהצלחה! מעביר אותך לדף הבית...");
 
-      // בהתאם ל־role, נוודא לאן להעביר את המשתמש
       if (user.role === "building_resident") {
-        navigate("/dashboard");  // אם המשתמש הוא building_resident, נווט לדף ה-dashboard
+        navigate("/dashboard");
       } else {
-        navigate("/search-parking");  // אחרת, נווט לדף ה-search-parking
+        navigate("/search-parking");
       }
     } catch (err) {
       console.error("Registration error:", err);
@@ -121,7 +122,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     "w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200";
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50">
+    <div className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
       <main className="flex-1 py-16">
         <div className="container mx-auto px-6">
@@ -193,7 +194,14 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                       {formData.residenceType === "house" && (
                         <div className="mb-6">
                           <h3 className="text-gray-700 text-md font-semibold mb-2">כתובת מדויקת</h3>
-                          <AddressMapSelector address={address} setAddress={setAddress} />
+                          <AddressMapSelector
+                            address={address}
+                            setAddress={setAddress}
+                            feedback={feedback}
+                            setFeedback={setFeedback}
+                            searching={searching}
+                            setSearching={setSearching}
+                          />
                         </div>
                       )}
                       {formData.residenceType === "apartment" && (
