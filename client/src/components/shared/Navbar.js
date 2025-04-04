@@ -7,8 +7,9 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
     setLoggedIn(false);
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const isActive = (path) => {

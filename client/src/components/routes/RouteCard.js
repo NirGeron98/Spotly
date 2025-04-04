@@ -2,7 +2,7 @@ import React from 'react';
 
 const RouteCard = ({ title, Icon, description, color }) => {
   return (
-    <div className={`w-full md:w-80 h-80 bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition transform hover:-translate-y-1 border-t-4 ${color}`}>
+    <div className={`w-full md:w-80 h-80 bg-white rounded-xl p-6 shadow-md border-t-4 ${color}`}>
       {/* כותרת */}
       <h2 className="text-xl font-bold text-center mb-4 text-gray-800">
         {title}

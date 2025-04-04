@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,14 +7,24 @@ import {
 } from "react-router-dom";
 import Home from "./components/pages/Home";
 import Login from "./components/pages/Login";
-import Signup from "./components/pages/Signup/Signup"; // ← איחוד
+import Signup from "./components/pages/Signup";
 import ForgotPassword from "./components/pages/ForgotPassword";
 import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
+import SearchParking from "./components/pages/SearchParking"; // ✅ חדש
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  // const [, setIsRegistering] = useState(false);
+  const [user, setUser] = useState(null); // שמירת פרטי המשתמש
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setLoggedIn(true); // אם יש משתמש, נסמן אותו כמחובר
+    }
+  }, []);
 
   return (
     <Router>
@@ -23,7 +33,11 @@ function App() {
           path="/"
           element={
             loggedIn ? (
-              <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              user?.role === "user" || user?.role === "private_prop_owner" ? (
+                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              )
             ) : (
               <Home />
             )
@@ -45,7 +59,11 @@ function App() {
           path="/dashboard"
           element={
             loggedIn ? (
-              <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              user?.role !== "user" && user?.role !== "private_prop_owner" ? (
+                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/search-parking" />
+              )
             ) : (
               <Navigate to="/login" />
             )
@@ -56,6 +74,16 @@ function App() {
           element={
             loggedIn ? (
               <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/search-parking"
+          element={
+            loggedIn ? (
+              <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
               <Navigate to="/login" />
             )

@@ -21,9 +21,19 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await authService.login({ email, password });
+      const res = await authService.login({ email, password });
+      const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
+
+      // Save user data to localStorage
+      localStorage.setItem("user", JSON.stringify(user));
       setLoggedIn(true);
-      navigate("/dashboard");
+
+      // Navigate based on role
+      if (user.role === "user" || user.role === "private_prop_owner") {
+        navigate("/search-parking"); // Redirect to SearchParking
+      } else {
+        navigate("/dashboard"); // Redirect to Dashboard for other roles
+      }
     } catch (error) {
       console.error("Login error:", error);
       setError("אימייל או סיסמה שגויים");

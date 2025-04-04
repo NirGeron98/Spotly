@@ -9,7 +9,6 @@ const Footer = () => {
             <p className="text-lg font-bold">© 2025 כל הזכויות שמורות</p>
           </div>
           <div className="flex space-x-6 space-x-reverse">
-            {/* אפשר להשתמש ב-<a> עם href אמיתי */}
             <a href="/terms" className="hover:text-white transition" aria-label="תנאי שימוש">
               תנאי שימוש
             </a>
