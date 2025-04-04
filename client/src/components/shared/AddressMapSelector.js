@@ -1,15 +1,20 @@
-// ...imports
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMapEvents,
+  Tooltip,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
 const defaultPosition = [32.0853, 34.7818];
 
 const markerIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/2776/2776067.png",
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
 });
 
 const LocationPicker = ({ onSelect }) => {
@@ -40,27 +45,36 @@ const AddressMapSelector = ({
           `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`
         );
         const data = await res.json();
+
         if (data?.address) {
+          const fallbackNumber =
+            data.display_name?.split(",")[0].match(/\d+/)?.[0] || "";
+
+          const numberFromAPI = data.address.house_number || fallbackNumber;
+          const finalNumber = numberFromAPI || address.number || "";
+
           setAddress((prev) => ({
-            ...prev,
             city:
               data.address.city ||
               data.address.town ||
               data.address.village ||
               prev.city,
             street: data.address.road || prev.street,
-            number: forceReplace
-              ? (data.address.house_number ? data.address.house_number : prev.number)
-              : (data.address.house_number || prev.number),
+            number: finalNumber,
           }));
-          setFeedback("✅ כתובת עודכנה לפי המפה");
+
+          if (finalNumber) {
+            setFeedback("✅ כתובת עודכנה לפי המפה");
+          } else {
+            setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
+          }
         }
       } catch (error) {
         console.error("Reverse geocode failed:", error);
         setFeedback("❌ לא הצלחנו לעדכן כתובת מהמפה");
       }
     },
-    [setAddress, setFeedback]
+    [setAddress, setFeedback, address.number]
   );
 
   const handleInputChange = (e) => {
@@ -72,19 +86,21 @@ const AddressMapSelector = ({
   };
 
   const handleMapSearch = async () => {
-    const query = `${address.street} ${address.number}, ${address.city}`.trim();
+    const query = `${address.street}, ${address.city}`.trim();
 
     if (!query) {
-      setFeedback("❌ יש להזין כתובת");
+      setFeedback("❌ יש להזין עיר ורחוב");
       return;
     }
 
-    setSearching?.(true);
+    setSearching(true);
     setFeedback("מחפש כתובת...");
 
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}`
       );
       const data = await res.json();
       if (data && data.length > 0) {
@@ -95,7 +111,6 @@ const AddressMapSelector = ({
         if (mapRef.current) {
           mapRef.current.setView([lat, lon], 16);
         }
-        setFeedback("✅ כתובת נמצאה");
       } else {
         setFeedback("❌ לא נמצאה כתובת מתאימה");
       }
@@ -103,7 +118,7 @@ const AddressMapSelector = ({
       console.error("Search failed:", error);
       setFeedback("❌ שגיאה בחיפוש כתובת");
     } finally {
-      setSearching?.(false);
+      setSearching(false);
     }
   };
 
@@ -120,13 +135,13 @@ const AddressMapSelector = ({
   }, []);
 
   return (
-    <div className="space-y-4">
-      {/* טופס ראשי */}
+    <div className="space-y-4" dir="rtl">
       <div className="text-right mb-2">
         <h2 className="text-lg font-semibold text-gray-800">כתובת</h2>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center">
+      {/* טופס ראשי */}
+      <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="relative w-full md:w-1/3">
           <input
             type="text"
@@ -154,38 +169,42 @@ const AddressMapSelector = ({
             placeholder="מספר"
             value={address.number}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            className={`w-full px-3 py-2 rounded-md ${
+              address.number
+                ? "border border-gray-300"
+                : "border border-red-400"
+            }`}
+            required
           />
         </div>
-        <button
-          onClick={handleMapSearch}
-          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition"
-        >
-          חפש
-        </button>
+        <div>
+          <button
+            onClick={handleMapSearch}
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition"
+          >
+            חפש
+          </button>
+        </div>
       </div>
 
-      {/* אינדיקציה לחיפוש */}
+      {/* פידבק ראשי */}
       {(feedback || searching) && (
         <div className="text-center mt-2">
-          {searching && (
-            <div className="flex justify-center items-center gap-2 mb-2 text-blue-700 font-medium">
+          {searching ? (
+            <div className="flex justify-center items-center gap-2 text-blue-700 font-medium">
               <div className="w-5 h-5 border-4 border-t-4 border-blue-600 rounded-full animate-spin" />
               <span>מחפש כתובת...</span>
             </div>
-          )}
-          {!searching && feedback && (
+          ) : (
             <div
               className={`text-sm font-medium flex items-center justify-center gap-2 ${
                 feedback.startsWith("✅")
                   ? "text-green-600"
                   : feedback.startsWith("❌")
                   ? "text-red-600"
-                  : "text-blue-700"
+                  : "text-yellow-600"
               }`}
             >
-              {feedback.startsWith("✅")}
-              {feedback.startsWith("❌")}
               {feedback}
             </div>
           )}
@@ -202,7 +221,7 @@ const AddressMapSelector = ({
         </button>
       </div>
 
-      {/* POPUP MAP MODAL */}
+      {/* פופ־אפ מפה */}
       {mapVisible && selectedPosition && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-3xl relative">
@@ -210,78 +229,85 @@ const AddressMapSelector = ({
               בחר מיקום על המפה או הזן כתובת מדויקת
             </h3>
 
-            {/* שדות הכתובת גם בתוך הפופ־אפ */}
-            <div className="flex flex-col md:flex-row gap-4 items-center mb-4">
-              <input
-                type="text"
-                name="city"
-                placeholder="עיר"
-                value={address.city}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <input
-                type="text"
-                name="street"
-                placeholder="רחוב"
-                value={address.street}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <input
-                type="text"
-                name="number"
-                placeholder="מספר"
-                value={address.number}
-                onChange={handleInputChange}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <button
-                onClick={handleMapSearch}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md"
-              >
-                חפש
-              </button>
+            <div className="flex flex-col md:flex-row gap-4 items-end mb-2">
+              <div className="relative w-full md:w-1/3">
+                <input
+                  type="text"
+                  name="city"
+                  placeholder="עיר"
+                  value={address.city}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="relative w-full md:w-1/3">
+                <input
+                  type="text"
+                  name="street"
+                  placeholder="רחוב"
+                  value={address.street}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="relative w-24">
+                <input
+                  type="text"
+                  name="number"
+                  placeholder="מספר"
+                  value={address.number}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 rounded-md ${
+                    address.number
+                      ? "border border-gray-300"
+                      : "border border-red-400"
+                  }`}
+                />
+              </div>
+              <div>
+                <button
+                  onClick={handleMapSearch}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+                >
+                  חפש
+                </button>
+              </div>
             </div>
 
-            {/* חיווי לפעולה */}
+            {/* פידבק בתוך הפופאפ */}
             {(feedback || searching) && (
-              <div className="text-center mb-4">
-                {searching && (
-                  <div className="flex justify-center items-center gap-2 mb-2 text-blue-700 font-medium">
+              <div className="text-center mb-2">
+                {searching ? (
+                  <div className="flex justify-center items-center gap-2 text-blue-700 font-medium">
                     <div className="w-5 h-5 border-4 border-t-4 border-blue-600 rounded-full animate-spin" />
                     <span>מחפש כתובת...</span>
                   </div>
-                )}
-                {!searching && feedback && (
+                ) : (
                   <div
                     className={`text-sm font-medium flex items-center justify-center gap-2 ${
                       feedback.startsWith("✅")
                         ? "text-green-600"
                         : feedback.startsWith("❌")
                         ? "text-red-600"
-                        : "text-blue-700"
+                        : "text-yellow-600"
                     }`}
                   >
-                    {feedback.startsWith("✅") && "✔️"}
-                    {feedback.startsWith("❌") && "❌"}
                     {feedback}
                   </div>
                 )}
               </div>
             )}
 
-            {/* המפה */}
             <MapContainer
               center={selectedPosition}
               zoom={16}
               style={{ height: "400px", width: "100%" }}
-              className="rounded-lg"
+              className="rounded-xl shadow-xl z-0"
               whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
             >
               <TileLayer
-                attribution="&copy; OpenStreetMap contributors"
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+                url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png"
               />
               <LocationPicker
                 onSelect={(latlng) => {
@@ -289,7 +315,11 @@ const AddressMapSelector = ({
                   handleReverseGeocode(latlng);
                 }}
               />
-              <Marker position={selectedPosition} icon={markerIcon} />
+              <Marker position={selectedPosition} icon={markerIcon}>
+                <Tooltip direction="top" offset={[0, -30]}>
+                  {address.street || "מיקום שנבחר"}
+                </Tooltip>
+              </Marker>
             </MapContainer>
 
             <div className="mt-4 flex justify-end gap-2">

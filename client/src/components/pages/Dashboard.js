@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCar, FaBuilding } from 'react-icons/fa';
-import ActionButton from '../shared/ActionButton';
+import ActionButton from '../common/ActionButton';
 import Navbar from "../shared/Navbar";
 import Footer from '../shared/Footer';
 
@@ -23,7 +23,7 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
     <div className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <main className="flex-1 py-16">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-extrabold text-blue-700 mb-4">שלום {firstName}!</h1>
             <p className="text-gray-600 text-lg">בחר פעולה מתוך האפשרויות הבאות:</p>

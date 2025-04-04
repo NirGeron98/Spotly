@@ -193,7 +193,6 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                       )}
                       {formData.residenceType === "house" && (
                         <div className="mb-6">
-                          <h3 className="text-gray-700 text-md font-semibold mb-2">כתובת מדויקת</h3>
                           <AddressMapSelector
                             address={address}
                             setAddress={setAddress}

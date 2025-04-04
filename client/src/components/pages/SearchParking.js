@@ -50,7 +50,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
     return (
       <>
-        <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">חיפוש חנייה או עמדת טעינה בתשלום</h1>
+        <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">חיפוש חנייה</h1>
         <p className="text-gray-600 text-lg mb-8 text-center">בחר מיקום, טווח מחירים וזמן זמינות</p>
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
           <AddressMapSelector

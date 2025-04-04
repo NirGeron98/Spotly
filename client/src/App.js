@@ -12,18 +12,20 @@ import ForgotPassword from "./components/pages/ForgotPassword";
 import ResetPassword from "./components/pages/ResetPassword";
 import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
-import SearchParking from "./components/pages/SearchParking"; // ✅ חדש
+import SearchParking from "./components/pages/SearchParking"; 
+import UsageHistory from "./components/pages/UsageHistory";
+
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [user, setUser] = useState(null); // שמירת פרטי המשתמש
+  const [user, setUser] = useState(null); 
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
-      setLoggedIn(true); // אם יש משתמש, נסמן אותו כמחובר
+      setLoggedIn(true); 
     }
   }, []);
 
@@ -100,6 +102,10 @@ function App() {
               <Navigate to="/login" />
             )
           }
+        />
+        <Route
+          path="/usage-history"
+          element={loggedIn ? <UsageHistory /> : <Navigate to="/login" />}
         />
       </Routes>
     </Router>
