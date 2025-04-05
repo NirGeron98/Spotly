@@ -30,7 +30,7 @@ const bookings = {
     },
     {
       start_time: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      end_time: new Date(Date.now() - 22 * 60 * 60 * 1000),
+      end_time: new Date(Date.now(  ) - 22 * 60 * 60 * 1000),
       status: "completed",
     },
     {

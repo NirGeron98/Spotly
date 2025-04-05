@@ -38,6 +38,24 @@ exports.updateBuildingResident = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+exports.getBuildingByCode = catchAsync(async (req, res, next) => {
+  const { code } = req.params;
+
+  const building = await Building.findOne({ code });
+
+  if (!building) {
+    return next(new AppError("No building found with that code", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      building,
+    },
+  });
+});
+
 exports.getAllBuildings = factory.getAll(Building);
 //exports.createBuilding = factory.createOne(Building);
 exports.createBuilding = catchAsync(async (req, res, next) => {

@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
+const Counter = require("./utils/counterModel");
 
 const buildingSchema = new mongoose.Schema({
+  serial_number: {
+    type: String,
+    unique: true,
+    index: true,
+  },
   manager_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   city: { type: String, required: true },
   street: { type: String, required: true },
@@ -18,6 +24,28 @@ const buildingSchema = new mongoose.Schema({
       //parking_spot: { type: mongoose.Schema.Types.ObjectId, ref: 'BuildingParkingSpot' }
     },
   ],
+});
+
+// Pre-save middleware to generate and assign serial number
+buildingSchema.pre("save", async function (next) {
+  if (!this.isNew) {
+    return next(); // Only generate serial for new buildings
+  }
+
+  try {
+    // Find and update the counter document, or create it if not exists
+    const counter = await Counter.findByIdAndUpdate(
+      { _id: "buildingId" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
+    // Format the serial number with leading zeros (e.g., BLD-00001)
+    this.serial_number = `BLD-${counter.seq.toString().padStart(5, "0")}`;
+    next();
+  } catch (error) {
+    return next(error);
+  }
 });
 
 const Building = mongoose.model("Building", buildingSchema);

@@ -22,6 +22,104 @@ const userSchema = new mongoose.Schema({
     lowercase: true, // casts uppercase to lowercase before saving in DB
     validate: [validator.isEmail, "Please provide a valid email"],
   },
+  phone_number: {
+    type: String,
+    trim: true,
+    required: [true, "Please provide your phone number"],
+    unique: [true, "This phone number is already taken"],
+  },
+  profile_picture: {
+    type: String,
+    default: "default.jpg",
+  },
+  building_manager_code: {
+    type: String,
+    required: function () {
+      return this.role === "building_manager";
+    },
+    unique: true,
+    validate: {
+      validator: function (code) {
+        // Validate the format of the building manager code
+        return /^[A-Z0-9]{6}$/.test(code); // Example: 8 alphanumeric characters
+      },
+      message: "Building manager code must be 6 alphanumeric characters",
+    },
+  },
+  address: {
+    city: {
+      type: String,
+      required: function () {
+        return this.role !== "user";
+      },
+    },
+    street: {
+      type: String,
+      required: function () {
+        return this.role !== "user"; // Only required for non-regular users
+      },
+    },
+    number: {
+      type: Number,
+      required: function () {
+        return this.role !== "user"; // Only required for non-regular users
+      },
+    },
+  },
+  preferred_charger_type: {
+    type: String,
+    enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other", null],
+  },
+  // Building and parking spot relationships
+  managed_buildings: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Building" }],
+    validate: {
+      validator: function (buildings) {
+        // Required for building managers and must have at least one building
+        return (
+          this.role !== "building_manager" ||
+          (buildings && buildings.length > 0)
+        );
+      },
+      message: "Building managers must manage at least one building",
+    },
+  },
+  resident_building: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Building",
+    validate: {
+      validator: function (building) {
+        // Required for building residents and must have a building
+        return this.role !== "building_resident" || building;
+      },
+      message: "Building residents must be assigned to a building",
+    },
+  },
+  owned_parking_spots: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "ParkingSpot" }],
+    validate: {
+      validator: function (spots) {
+        // Required for private property owners and must have at least one spot
+        return (
+          this.role !== "private_prop_owner" ||
+          this.role !== "building_resident" ||
+          (spots && spots.length > 0)
+        );
+      },
+      message: "Private property owners must own at least one parking spot",
+    },
+  },
+  payment_methods: [
+    {
+      type: {
+        type: String,
+        enum: ["credit_card", "paypal", "apple_pay", "google_pay", "other"],
+      },
+      is_default: Boolean,
+      last_four: String, // Last four digits of card
+      provider_token: String, // Token from payment provider (encrypted)
+    },
+  ],
   role: {
     type: String,
     enum: [
@@ -79,6 +177,7 @@ const userSchema = new mongoose.Schema({
   passwordResetExpires: Date,
 });
 
+// Pre-save middleware to update updated_at timestamp
 userSchema.pre("save", async function (next) {
   // If password wasn't modified, skip all this logic
   if (!this.isModified("password")) return next();

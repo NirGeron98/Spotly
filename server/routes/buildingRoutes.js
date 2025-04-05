@@ -8,6 +8,9 @@ router
   .get(buildingController.getAllBuildings)
   .post(authController.restrictTo("admin"), buildingController.createBuilding);
 
+// Move the byCode route before the :id route to avoid conflicts
+router.route("/byCode/:code").get(buildingController.getBuildingByCode);
+
 router
   .route("/:id")
   .get(buildingController.getBuilding)

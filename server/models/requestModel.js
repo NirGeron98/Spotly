@@ -45,10 +45,17 @@ const requestSchema = new mongoose.Schema({
   },
 });
 
-// requestSchema.index({ building: 1, status: 1 });
-// requestSchema.index({ user: 1, status: 1 });
-// requestSchema.index({ start_datetime: 1, end_datetime: 1, status: 1 });
-// requestSchema.index({ assigned_spot: 1, status: 1 });
+// Uncomment these indexes for better query performance
+requestSchema.index({ building: 1, status: 1 });
+requestSchema.index({ user: 1, status: 1 });
+requestSchema.index({ start_datetime: 1, end_datetime: 1, status: 1 });
+requestSchema.index({ assigned_spot: 1, status: 1 });
+
+// Add pre-save middleware to update timestamps
+requestSchema.pre("save", function (next) {
+  this.updated_at = Date.now();
+  next();
+});
 
 const Request = mongoose.model("Request", requestSchema);
 
