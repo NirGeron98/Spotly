@@ -5,14 +5,42 @@ import WelcomeSection from "../shared/WelcomeSection";
 import RoutesSection from "../routes/RoutesSection";
 import FeaturesSection from "../shared/FeaturesSection";
 import ChatBot from "../shared/ChatBot";
+import Popup from "../shared/Popup";
+import TermsContent from "../shared/TermsContent";
+import ContactContent from "../shared/ContactContent";
+import PrivacyPolicyContent from "../shared/PrivicyPolicyContent";
+import { useState } from "react";
 
 const Home = ({ loggedIn, setLoggedIn, isRegistering }) => {
+
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupDescription, setPopupDescription] = useState(null);
+
+
   useEffect(() => {
     document.title = "דף הבית | Spotly";
   }, []);
 
+const onTermsClick = ()=>{
+  setShowPopup(true);
+  setPopupTitle("תנאי שימוש");
+  setPopupDescription(<TermsContent />);
+}
+const onPrivicyPolicyClick = ()=>{
+  setShowPopup(true);
+  setPopupTitle("מדיניות פרטיות");
+  setPopupDescription(<PrivacyPolicyContent />);
+}
+const onContactClick = ()=>{
+  setShowPopup(true);
+  setPopupTitle("צור קשר");
+  setPopupDescription(<ContactContent />);
+}
+
   return (
-    <div className="min-h-screen flex flex-col" dir="rtl">
+  <div className={`min-h-screen flex flex-col relative ${showPopup ? 'overflow-hidden' : ''}`} dir="rtl">
+    {showPopup && <Popup onClose={() => setShowPopup(false)} description={popupDescription} title={popupTitle}/>}
       <Navbar
         loggedIn={loggedIn}
         setLoggedIn={setLoggedIn}
@@ -25,7 +53,7 @@ const Home = ({ loggedIn, setLoggedIn, isRegistering }) => {
         <FeaturesSection />
       </main>
 
-      <Footer />
+      <Footer onTermsClick={onTermsClick} onPrivicyPolicy={onPrivicyPolicyClick} onContact={onContactClick} />
       <ChatBot />
     </div>
   );
