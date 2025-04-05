@@ -39,7 +39,7 @@ const AddressMapSelector = ({
   const mapRef = useRef();
 
   const handleReverseGeocode = useCallback(
-    async (latlng, forceReplace = false) => {
+    async (latlng, force = false) => {
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`
@@ -49,9 +49,7 @@ const AddressMapSelector = ({
         if (data?.address) {
           const fallbackNumber =
             data.display_name?.split(",")[0].match(/\d+/)?.[0] || "";
-
           const numberFromAPI = data.address.house_number || fallbackNumber;
-          const finalNumber = numberFromAPI || address.number || "";
 
           setAddress((prev) => ({
             city:
@@ -60,21 +58,30 @@ const AddressMapSelector = ({
               data.address.village ||
               prev.city,
             street: data.address.road || prev.street,
-            number: finalNumber,
+            number:
+              numberFromAPI !== "" ? numberFromAPI : force ? "" : prev.number,
           }));
 
-          if (finalNumber) {
-            setFeedback("✅ כתובת עודכנה לפי המפה");
+          if (numberFromAPI) {
+            setFeedback("✅ הכתובת עודכנה לפי המפה");
           } else {
             setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
           }
+        } else {
+          if (force) {
+            setAddress((prev) => ({
+              ...prev,
+              number: "",
+            }));
+          }
+          setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
         }
       } catch (error) {
         console.error("Reverse geocode failed:", error);
         setFeedback("❌ לא הצלחנו לעדכן כתובת מהמפה");
       }
     },
-    [setAddress, setFeedback, address.number]
+    [setAddress, setFeedback]
   );
 
   const handleInputChange = (e) => {
@@ -107,7 +114,7 @@ const AddressMapSelector = ({
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
         setSelectedPosition([lat, lon]);
-        await handleReverseGeocode({ lat, lng: lon }, true);
+        await handleReverseGeocode({ lat, lng: lon }, false);
         if (mapRef.current) {
           mapRef.current.setView([lat, lon], 16);
         }
@@ -140,7 +147,6 @@ const AddressMapSelector = ({
         <h2 className="text-lg font-semibold text-gray-800">כתובת</h2>
       </div>
 
-      {/* טופס ראשי */}
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="relative w-full md:w-1/3">
           <input
@@ -187,7 +193,6 @@ const AddressMapSelector = ({
         </div>
       </div>
 
-      {/* פידבק ראשי */}
       {(feedback || searching) && (
         <div className="text-center mt-2">
           {searching ? (
@@ -221,7 +226,6 @@ const AddressMapSelector = ({
         </button>
       </div>
 
-      {/* פופ־אפ מפה */}
       {mapVisible && selectedPosition && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-3xl relative">
@@ -274,7 +278,6 @@ const AddressMapSelector = ({
               </div>
             </div>
 
-            {/* פידבק בתוך הפופאפ */}
             {(feedback || searching) && (
               <div className="text-center mb-2">
                 {searching ? (
