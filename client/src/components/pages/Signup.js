@@ -4,6 +4,7 @@ import Footer from "../shared/Footer";
 import Navbar from "../shared/Navbar";
 import { authService } from "../../services/authService";
 import AddressMapSelector from "../shared/AddressMapSelector";
+import TermsContent from "../shared/TermsContent"; // Import the TermsContent component
 
 const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   document.title = "הרשמה | Spotly";
@@ -14,10 +15,13 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [address, setAddress] = useState({ city: "", street: "", number: "" });
   const [feedback, setFeedback] = useState("");
   const [searching, setSearching] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsPopup, setShowTermsPopup] = useState(false); // State for showing the Terms popup
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phoneNumber: "",
     password: "",
     passwordConfirm: "",
     residenceType: "",
@@ -25,6 +29,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     parkingNumber: "",
     parkingFloor: "",
     buildingCode: "",
+
   });
 
   const handleNext = () => {
@@ -36,6 +41,11 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     }
     if (password !== passwordConfirm) {
       setError("הסיסמאות אינן תואמות");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(formData.phoneNumber)) {
+      setError("מספר הטלפון חייב להכיל 10 ספרות בדיוק");
       return;
     }
     setStep(2);
@@ -64,12 +74,21 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     const street = address.street;
     const buildingNumber = address.number;
 
-    if (!fullName || !email || !password || !passwordConfirm || !residenceType) {
+    if (
+      !fullName ||
+      !email ||
+      !password ||
+      !passwordConfirm ||
+      !residenceType
+    ) {
       setError("יש למלא את כל השדות חובה");
       return;
     }
 
-    if ((residenceType === "apartment" || residenceType === "house") && (!city || !street || !buildingNumber)) {
+    if (
+      (residenceType === "apartment" || residenceType === "house") &&
+      (!city || !street || !buildingNumber)
+    ) {
       setError("יש למלא את פרטי הכתובת");
       return;
     }
@@ -99,7 +118,10 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       });
 
       const response = await authService.login({ email, password });
-      const user = response?.data?.user || response?.data?.data?.user || response?.data?.data;
+      const user =
+        response?.data?.user ||
+        response?.data?.data?.user ||
+        response?.data?.data;
 
       localStorage.setItem("user", JSON.stringify(user));
       setLoggedIn(true);
@@ -123,41 +145,104 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
   return (
     <div className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50">
-      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
+      <Navbar
+        loggedIn={loggedIn}
+        setLoggedIn={setLoggedIn}
+        isRegistering={isRegistering}
+      />
       <main className="flex-1 py-16">
         <div className="container mx-auto px-6">
           <div className="max-w-xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-8">
               {step === 1 && (
                 <>
-                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">הרשמה</h2>
+                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                    הרשמה
+                  </h2>
 
                   {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center">{error}</div>
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center">
+                      {error}
+                    </div>
                   )}
 
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">שם מלא</label>
-                    <input type="text" name="fullName" placeholder="שם מלא" value={formData.fullName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      שם מלא
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      placeholder="שם מלא"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">אימייל</label>
-                    <input type="email" name="email" placeholder="אימייל" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      אימייל
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="אימייל"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">סיסמה</label>
-                    <input type="password" name="password" placeholder="סיסמה" value={formData.password} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      מספר טלפון
+                    </label>
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      placeholder="מספר טלפון"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      dir=""
+                    />
+                  </div>
+
+
+
+                  <div className="mb-4">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      סיסמה
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      placeholder="סיסמה"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">אימות סיסמה</label>
-                    <input type="password" name="passwordConfirm" placeholder="אימות סיסמה" value={formData.passwordConfirm} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      אימות סיסמה
+                    </label>
+                    <input
+                      type="password"
+                      name="passwordConfirm"
+                      placeholder="אימות סיסמה"
+                      value={formData.passwordConfirm}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
 
                   <div className="flex justify-end">
-                    <button onClick={handleNext} className={buttonStyle}>המשך</button>
+                    <button onClick={handleNext} className={buttonStyle}>
+                      המשך
+                    </button>
                   </div>
                 </>
               )}
@@ -165,70 +250,162 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
               {step === 2 && (
                 <>
                   <div className="flex justify-start mb-6">
-                    <button onClick={() => setStep(1)} className={buttonStyle}>הקודם</button>
+                    <button onClick={() => setStep(1)} className={buttonStyle}>
+                      הקודם
+                    </button>
                   </div>
 
-                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">בחירת מסלול</h2>
-                  <p className="text-gray-700 text-center mb-4 font-bold">בחר אפשרות מבין המסלולים השונים</p>
+                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                    בחירת מסלול
+                  </h2>
+                  <p className="text-gray-700 text-center mb-4 font-bold">
+                    בחר אפשרות מבין המסלולים השונים
+                  </p>
 
                   <div className="flex gap-4 justify-center mb-6">
                     {["apartment", "house", "rental"].map((type) => (
                       <button
                         key={type}
-                        onClick={() => setFormData((prev) => ({ ...prev, residenceType: type }))} 
-                        className={`py-2 px-4 rounded-md ${formData.residenceType === type ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            residenceType: type,
+                          }))
+                        }
+                        className={`py-2 px-4 rounded-md ${formData.residenceType === type
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-200"
+                          }`}
                       >
-                        {type === "apartment" ? "בניין מגורים" : type === "house" ? "בית פרטי" : "השכרת חניות פרטיות"}
+                        {type === "apartment"
+                          ? "בניין מגורים"
+                          : type === "house"
+                            ? "בית פרטי"
+                            : "השכרת חניות פרטיות"}
                       </button>
                     ))}
                   </div>
 
-                  {(formData.residenceType === "apartment" || formData.residenceType === "house") && (
-                    <>
-                      {formData.residenceType === "apartment" && (
-                        <div className="mb-4">
-                          <label className="block text-gray-700 text-sm font-bold mb-2">קוד בניין</label>
-                          <input type="text" name="buildingCode" placeholder="קוד בניין" value={formData.buildingCode} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                      )}
-                      {formData.residenceType === "house" && (
-                        <div className="mb-6">
-                          <AddressMapSelector
-                            address={address}
-                            setAddress={setAddress}
-                            feedback={feedback}
-                            setFeedback={setFeedback}
-                            searching={searching}
-                            setSearching={setSearching}
-                          />
-                        </div>
-                      )}
-                      {formData.residenceType === "apartment" && (
-                        <>
+                  {(formData.residenceType === "apartment" ||
+                    formData.residenceType === "house") && (
+                      <>
+                        {formData.residenceType === "apartment" && (
                           <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">מספר דירה</label>
-                            <input type="text" name="apartmentNumber" placeholder="מספר דירה" value={formData.apartmentNumber} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                              קוד בניין
+                            </label>
+                            <input
+                              type="text"
+                              name="buildingCode"
+                              placeholder="קוד בניין"
+                              value={formData.buildingCode}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
                           </div>
-                          <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">מספר חנייה</label>
-                            <input type="text" name="parkingNumber" placeholder="מספר חנייה" value={formData.parkingNumber} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        )}
+                        {formData.residenceType === "house" && (
+                          <div className="mb-6">
+                            <AddressMapSelector
+                              address={address}
+                              setAddress={setAddress}
+                              feedback={feedback}
+                              setFeedback={setFeedback}
+                              searching={searching}
+                              setSearching={setSearching}
+                            />
                           </div>
-                          <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">קומת חנייה</label>
-                            <input type="text" name="parkingFloor" placeholder="קומת חנייה" value={formData.parkingFloor} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                          </div>
-                        </>
-                      )}
-                    </>
+                        )}
+                        {formData.residenceType === "apartment" && (
+                          <>
+                            <div className="mb-4">
+                              <label className="block text-gray-700 text-sm font-bold mb-2">
+                                מספר דירה
+                              </label>
+                              <input
+                                type="text"
+                                name="apartmentNumber"
+                                placeholder="מספר דירה"
+                                value={formData.apartmentNumber}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-gray-700 text-sm font-bold mb-2">
+                                מספר חנייה
+                              </label>
+                              <input
+                                type="text"
+                                name="parkingNumber"
+                                placeholder="מספר חנייה"
+                                value={formData.parkingNumber}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-gray-700 text-sm font-bold mb-2">
+                                קומת חנייה
+                              </label>
+                              <input
+                                type="text"
+                                name="parkingFloor"
+                                placeholder="קומת חנייה"
+                                value={formData.parkingFloor}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+
+                  <p className="text-sm text-gray-500 mt-2">
+                    * ניתן להשכיר חניה פרטית (כולל חניה עם עמדת טעינה לרכב
+                    חשמלי) בכל אחד מהמסלולים.
+                  </p>
+
+                  {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mt-4 text-center">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 mt-4 text-center">
+                      {success}
+                    </div>
                   )}
 
-                  <p className="text-sm text-gray-500 mt-2">* ניתן להשכיר חניה פרטית (כולל חניה עם עמדת טעינה לרכב חשמלי) בכל אחד מהמסלולים.</p>
-
-                  {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mt-4 text-center">{error}</div>}
-                  {success && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 mt-4 text-center">{success}</div>}
-
                   <div className="mt-6">
-                    <button onClick={handleRegister} className={registerButtonStyle}>הרשמה</button>
+                    <div className="flex items-center mb-4">
+                      <input
+                        type="checkbox"
+                        id="terms"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ml-3" // Changed to `ml-3` for left spacing
+                      />
+                      <label htmlFor="terms" className="text-sm text-gray-700">
+                        קראתי ואני מסכים ל
+                        <button
+                          type="button"
+                          onClick={() => setShowTermsPopup(true)}
+                          className="text-blue-600 underline hover:text-blue-800 mx-1"
+                        >
+                          תנאי השימוש
+                        </button>
+                      </label>
+                    </div>
+                    <button
+                      onClick={handleRegister}
+                      className={`${registerButtonStyle} ${!termsAccepted ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                      disabled={!termsAccepted}
+                    >
+                      הרשמה
+                    </button>
                   </div>
                 </>
               )}
@@ -237,6 +414,28 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         </div>
       </main>
       <Footer />
+
+      {/* Terms Popup */}
+      {showTermsPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-3xl relative">
+            <h3 className="text-lg font-bold mb-4 text-center text-blue-800">
+              תנאי השימוש
+            </h3>
+            <div className="overflow-y-auto max-h-[400px]">
+              <TermsContent /> {/* Render the TermsContent component */}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+                onClick={() => setShowTermsPopup(false)} // Close the popup
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
