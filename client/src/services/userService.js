@@ -53,7 +53,4 @@ updatePassword: async (passwordData) => {
   return response.data;
 }
 
-  
-  
-  
 };

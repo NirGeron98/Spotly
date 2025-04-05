@@ -63,10 +63,10 @@ exports.getBuildingByCode = catchAsync(async (req, res, next) => {
 exports.getAllBuildings = catchAsync(async (req, res, next) => {
   // Get filter criteria from query params if needed
   const filters = req.query;
-  
+
   // Delegate to service layer
   const buildings = await buildingService.getAllBuildings(filters);
-  
+
   res.status(200).json({
     status: "success",
     results: buildings.length,
@@ -83,7 +83,7 @@ exports.getAllBuildings = catchAsync(async (req, res, next) => {
  */
 exports.getBuilding = catchAsync(async (req, res, next) => {
   const building = await buildingService.getBuildingById(req.params.id);
-  
+
   res.status(200).json({
     status: "success",
     data: {
@@ -99,9 +99,9 @@ exports.getBuilding = catchAsync(async (req, res, next) => {
  */
 exports.createBuilding = catchAsync(async (req, res, next) => {
   // Check if user is admin (double security - also handled in route)
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== "admin") {
     return next(
-      new AppError('You do not have permission to create buildings', 403)
+      new AppError("You do not have permission to create buildings", 403)
     );
   }
 
@@ -109,7 +109,7 @@ exports.createBuilding = catchAsync(async (req, res, next) => {
   const newBuilding = await buildingService.createBuilding(req.body);
 
   res.status(201).json({
-    status: 'success',
+    status: "success",
     data: {
       building: newBuilding,
     },
@@ -123,18 +123,18 @@ exports.createBuilding = catchAsync(async (req, res, next) => {
  */
 exports.deleteBuilding = catchAsync(async (req, res, next) => {
   // Check if user is admin (double security)
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== "admin") {
     return next(
-      new AppError('You do not have permission to delete buildings', 403)
+      new AppError("You do not have permission to delete buildings", 403)
     );
   }
-  
+
   // Delegate to service layer
   await buildingService.deleteBuilding(req.params.id);
-  
+
   res.status(204).json({
-    status: 'success',
-    data: null
+    status: "success",
+    data: null,
   });
 });
 
@@ -153,12 +153,14 @@ exports.addBuildingResident = catchAsync(async (req, res, next) => {
 
   // Check authorization - only admin or the building manager can add residents
   const building = await buildingService.getBuildingById(id);
-  
-  if (req.user.role !== 'admin' && 
-      building.manager_id && 
-      building.manager_id.toString() !== req.user._id.toString()) {
+
+  if (
+    req.user.role !== "admin" &&
+    building.manager_id &&
+    building.manager_id.toString() !== req.user._id.toString()
+  ) {
     return next(
-      new AppError('You do not have permission to modify this building', 403)
+      new AppError("You do not have permission to modify this building", 403)
     );
   }
 
@@ -183,12 +185,14 @@ exports.removeBuildingResident = catchAsync(async (req, res, next) => {
 
   // Check authorization - only admin or the building manager can remove residents
   const building = await buildingService.getBuildingById(id);
-  
-  if (req.user.role !== 'admin' && 
-      building.manager_id && 
-      building.manager_id.toString() !== req.user._id.toString()) {
+
+  if (
+    req.user.role !== "admin" &&
+    building.manager_id &&
+    building.manager_id.toString() !== req.user._id.toString()
+  ) {
     return next(
-      new AppError('You do not have permission to modify this building', 403)
+      new AppError("You do not have permission to modify this building", 403)
     );
   }
 

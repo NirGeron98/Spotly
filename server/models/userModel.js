@@ -32,20 +32,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "default.jpg",
   },
-  building_manager_code: {
-    type: String,
-    required: function () {
-      return this.role === "building_manager";
-    },
-    unique: true,
-    validate: {
-      validator: function (code) {
-        // Validate the format of the building manager code
-        return /^[A-Z0-9]{6}$/.test(code); // Example: 8 alphanumeric characters
-      },
-      message: "Building manager code must be 6 alphanumeric characters",
-    },
-  },
   address: {
     city: {
       type: String,

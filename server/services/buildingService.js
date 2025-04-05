@@ -15,29 +15,29 @@ class BuildingService {
     const { address } = buildingData;
     if (!address || !address.city || !address.street || !address.number) {
       throw new AppError(
-        'Address is required with city, street and building number',
+        "Address is required with city, street and building number",
         400
       );
     }
-    
+
     // Convert address.number to a number type if it's a string
-    if (typeof address.number === 'string') {
+    if (typeof address.number === "string") {
       buildingData.address.number = parseInt(address.number, 10);
-      
+
       if (isNaN(buildingData.address.number)) {
-        throw new AppError('Building number must be a valid number', 400);
+        throw new AppError("Building number must be a valid number", 400);
       }
     }
 
     // Check if a building with the same address already exists
     const existingBuilding = await Building.findOne({
-      'address.city': address.city,
-      'address.street': address.street,
-      'address.number': address.number,
+      "address.city": address.city,
+      "address.street": address.street,
+      "address.number": address.number,
     });
 
     if (existingBuilding) {
-      throw new AppError('Building with this address already exists!', 400);
+      throw new AppError("Building with this address already exists!", 400);
     }
 
     // Create the building if it doesn't exist
@@ -67,7 +67,7 @@ class BuildingService {
   async getAllBuildings(filters = {}) {
     return await Building.find(filters);
   }
-  
+
   /**
    * Get a building by its building_number code
    * @param {string} code - Building code (building_number)

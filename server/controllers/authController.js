@@ -38,21 +38,26 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
-  const newUser = await User.create({
-    first_name: req.body.first_name,
-    last_name: req.body.last_name,
-    email: req.body.email,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-    phone_number: req.body.phone_number,
-    building_id: req.body.building_id,
-    apartment_number: req.body.apartment_number,
-    parking_spot: req.body.parking_spot,
-    passwordChangedAt: req.body.passwordChangedAt,
-    role: req.body.role,
-  });
-
-  createSendToken(newUser, 201, res);
+  console.log("Signup request body:", req.body); // Debugging line
+  try {
+    const newUser = await User.create({
+      first_name: req.body.first_name,
+      last_name: req.body.last_name,
+      email: req.body.email,
+      password: req.body.password,
+      passwordConfirm: req.body.passwordConfirm,
+      phone_number: req.body.phone_number,
+      managed_buildings: req.body.building_id,
+      apartment_number: req.body.apartment_number,
+      owned_parking_spots: req.body.parking_spot,
+      passwordChangedAt: req.body.passwordChangedAt,
+      role: req.body.role,
+    });
+    createSendToken(newUser, 201, res);
+  } catch (error) {
+    console.error("Error during signup:", error); // Debugging line
+    return next(new AppError("Error creating user", 500));
+  }
 });
 
 exports.login = catchAsync(async (req, res, next) => {

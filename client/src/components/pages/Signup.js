@@ -24,7 +24,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    phoneNumber: "",
+    phone_number: "",
     password: "",
     passwordConfirm: "",
     residenceType: "",
@@ -40,18 +40,19 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       setBuildingInfo(null);
       return;
     }
-    
+
     setLoadingBuilding(true);
     try {
       const response = await buildingService.getBuildingByCode(code);
       if (response && response.data && response.data.building) {
         const building = response.data.building;
         setBuildingInfo(building);
-        
+
         // Update the address state with building information using helper function
-        const addressComponents = buildingService.getBuildingAddressComponents(building);
+        const addressComponents =
+          buildingService.getBuildingAddressComponents(building);
         setAddress(addressComponents);
-        
+
         setFeedback("✅ פרטי הבניין נטענו בהצלחה");
       }
     } catch (err) {
@@ -76,8 +77,9 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
   const handleNext = () => {
     setError("");
-    const { fullName, email, password, passwordConfirm } = formData;
-    if (!fullName || !email || !password || !passwordConfirm) {
+    const { fullName, email, password, passwordConfirm, phone_number } =
+      formData;
+    if (!fullName || !email || !password || !passwordConfirm || !phone_number) {
       setError("יש למלא את כל השדות");
       return;
     }
@@ -86,7 +88,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       return;
     }
 
-    if (!/^\d{10}$/.test(formData.phoneNumber)) {
+    if (!/^\d{10}$/.test(formData.phone_number)) {
       setError("מספר הטלפון חייב להכיל 10 ספרות בדיוק");
       return;
     }
@@ -105,6 +107,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       email,
       password,
       passwordConfirm,
+      phone_number,
       residenceType,
       apartmentNumber,
       parkingNumber,
@@ -163,7 +166,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         email,
         password,
         passwordConfirm,
-        phone_number: formData.phoneNumber,
+        phone_number,
         role,
       };
 
@@ -267,16 +270,14 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     </label>
                     <input
                       type="tel"
-                      name="phoneNumber"
+                      name="phone_number"
                       placeholder="מספר טלפון"
-                      value={formData.phoneNumber}
+                      value={formData.phone_number}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       dir=""
                     />
                   </div>
-
-
 
                   <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2">
@@ -339,115 +340,125 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                             residenceType: type,
                           }))
                         }
-                        className={`py-2 px-4 rounded-md ${formData.residenceType === type
+                        className={`py-2 px-4 rounded-md ${
+                          formData.residenceType === type
                             ? "bg-blue-500 text-white"
                             : "bg-gray-200"
-                          }`}
+                        }`}
                       >
                         {type === "apartment"
                           ? "בניין מגורים"
                           : type === "house"
-                            ? "בית פרטי"
-                            : "השכרת חניות פרטיות"}
+                          ? "בית פרטי"
+                          : "השכרת חניות פרטיות"}
                       </button>
                     ))}
                   </div>
 
                   {(formData.residenceType === "apartment" ||
                     formData.residenceType === "house") && (
-                      <>
-                        {formData.residenceType === "apartment" && (
+                    <>
+                      {formData.residenceType === "apartment" && (
+                        <div className="mb-4">
+                          <label className="block text-gray-700 text-sm font-bold mb-2">
+                            קוד בניין
+                          </label>
+                          <input
+                            type="text"
+                            name="buildingCode"
+                            placeholder="קוד בניין"
+                            value={formData.buildingCode}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          />
+                          {loadingBuilding && (
+                            <div className="flex items-center text-sm text-blue-600 mt-2">
+                              <div className="mr-2 w-4 h-4 border-t-2 border-blue-600 rounded-full animate-spin"></div>
+                              טוען פרטי בניין...
+                            </div>
+                          )}
+                          {buildingInfo && (
+                            <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                              <h4 className="font-bold text-blue-800">
+                                פרטי הבניין:
+                              </h4>
+                              <p className="text-sm">
+                                כתובת:{" "}
+                                {buildingService.formatBuildingAddress(
+                                  buildingInfo
+                                )}
+                              </p>
+                              {buildingInfo.building_number && (
+                                <p className="text-sm">
+                                  קוד בניין: {buildingInfo.building_number}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {feedback && !buildingInfo && (
+                            <p className="text-sm text-red-500 mt-2">
+                              {feedback}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {formData.residenceType === "house" && (
+                        <div className="mb-6">
+                          <AddressMapSelector
+                            address={address}
+                            setAddress={setAddress}
+                            feedback={feedback}
+                            setFeedback={setFeedback}
+                            searching={searching}
+                            setSearching={setSearching}
+                          />
+                        </div>
+                      )}
+                      {formData.residenceType === "apartment" && (
+                        <>
                           <div className="mb-4">
                             <label className="block text-gray-700 text-sm font-bold mb-2">
-                              קוד בניין
+                              מספר דירה
                             </label>
                             <input
                               type="text"
-                              name="buildingCode"
-                              placeholder="קוד בניין"
-                              value={formData.buildingCode}
+                              name="apartmentNumber"
+                              placeholder="מספר דירה"
+                              value={formData.apartmentNumber}
                               onChange={handleChange}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
-                            {loadingBuilding && (
-                              <div className="flex items-center text-sm text-blue-600 mt-2">
-                                <div className="mr-2 w-4 h-4 border-t-2 border-blue-600 rounded-full animate-spin"></div>
-                                טוען פרטי בניין...
-                              </div>
-                            )}
-                            {buildingInfo && (
-                              <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
-                                <h4 className="font-bold text-blue-800">פרטי הבניין:</h4>
-                                <p className="text-sm">כתובת: {buildingService.formatBuildingAddress(buildingInfo)}</p>
-                                {buildingInfo.building_number && (
-                                  <p className="text-sm">קוד בניין: {buildingInfo.building_number}</p>
-                                )}
-                              </div>
-                            )}
-                            {feedback && !buildingInfo && (
-                              <p className="text-sm text-red-500 mt-2">
-                                {feedback}
-                              </p>
-                            )}
                           </div>
-                        )}
-                        {formData.residenceType === "house" && (
-                          <div className="mb-6">
-                            <AddressMapSelector
-                              address={address}
-                              setAddress={setAddress}
-                              feedback={feedback}
-                              setFeedback={setFeedback}
-                              searching={searching}
-                              setSearching={setSearching}
+                          <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                              מספר חנייה
+                            </label>
+                            <input
+                              type="text"
+                              name="parkingNumber"
+                              placeholder="מספר חנייה"
+                              value={formData.parkingNumber}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
                           </div>
-                        )}
-                        {formData.residenceType === "apartment" && (
-                          <>
-                            <div className="mb-4">
-                              <label className="block text-gray-700 text-sm font-bold mb-2">
-                                מספר דירה
-                              </label>
-                              <input
-                                type="text"
-                                name="apartmentNumber"
-                                placeholder="מספר דירה"
-                                value={formData.apartmentNumber}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                              />
-                            </div>
-                            <div className="mb-4">
-                              <label className="block text-gray-700 text-sm font-bold mb-2">
-                                מספר חנייה
-                              </label>
-                              <input
-                                type="text"
-                                name="parkingNumber"
-                                placeholder="מספר חנייה"
-                                value={formData.parkingNumber}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                              />
-                            </div>
-                            <div className="mb-4">
-                              <label className="block text-gray-700 text-sm font-bold mb-2">
-                                קומת חנייה
-                              </label>
-                              <input
-                                type="text"
-                                name="parkingFloor"
-                                placeholder="קומת חנייה"
-                                value={formData.parkingFloor}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                              />
-                            </div>
-                          </>
-                        )}
-                      </>
-                    )}
+                          <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                              קומת חנייה
+                            </label>
+                            <input
+                              type="text"
+                              name="parkingFloor"
+                              placeholder="קומת חנייה"
+                              value={formData.parkingFloor}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
 
                   <p className="text-sm text-gray-500 mt-2">
                     * ניתן להשכיר חניה פרטית (כולל חניה עם עמדת טעינה לרכב
@@ -487,8 +498,9 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     </div>
                     <button
                       onClick={handleRegister}
-                      className={`${registerButtonStyle} ${!termsAccepted ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
+                      className={`${registerButtonStyle} ${
+                        !termsAccepted ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                       disabled={!termsAccepted}
                     >
                       הרשמה
