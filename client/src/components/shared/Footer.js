@@ -1,6 +1,34 @@
-import React from "react";
+import React, { useState } from "react";
+import Popup from "./Popup";
+import TermsContent from "./TermsContent";
+import PrivacyPolicyContent from "./PrivicyPolicyContent";
+import ContactContent from "./ContactContent";
 
-const Footer = ({ onTermsClick ,onPrivicyPolicy ,onContact}) => {
+const Footer = () => {
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupContent, setPopupContent] = useState(null);
+
+  const handleOpenPopup = (type) => {
+    switch (type) {
+      case "terms":
+        setPopupTitle("תנאי שימוש");
+        setPopupContent(<TermsContent />);
+        break;
+      case "privacy":
+        setPopupTitle("מדיניות פרטיות");
+        setPopupContent(<PrivacyPolicyContent />);
+        break;
+      case "contact":
+        setPopupTitle("צור קשר");
+        setPopupContent(<ContactContent />);
+        break;
+      default:
+        return;
+    }
+    setShowPopup(true);
+  };
+
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 bg-blue-900 text-blue-100 py-4">
       <div className="container mx-auto px-6">
@@ -10,23 +38,21 @@ const Footer = ({ onTermsClick ,onPrivicyPolicy ,onContact}) => {
           </div>
           <div className="flex space-x-6 rtl:space-x-reverse">
             <button
-              onClick={onTermsClick}
+              onClick={() => handleOpenPopup("terms")}
               className="hover:text-white transition"
               aria-label="תנאי שימוש"
             >
               תנאי שימוש
             </button>
-
             <button
-            onClick={onPrivicyPolicy}
+              onClick={() => handleOpenPopup("privacy")}
               className="hover:text-white transition"
               aria-label="מדיניות פרטיות"
             >
               מדיניות פרטיות
             </button>
-
             <button
-            onClick={onContact}
+              onClick={() => handleOpenPopup("contact")}
               className="hover:text-white transition"
               aria-label="צור קשר"
             >
@@ -35,6 +61,14 @@ const Footer = ({ onTermsClick ,onPrivicyPolicy ,onContact}) => {
           </div>
         </div>
       </div>
+
+      {showPopup && (
+        <Popup
+          title={popupTitle}
+          description={popupContent}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
     </footer>
   );
 };
