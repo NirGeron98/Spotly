@@ -2,17 +2,18 @@ const mongoose = require("mongoose");
 const Counter = require("./utils/counterModel");
 
 const buildingSchema = new mongoose.Schema({
-  serial_number: {
+  building_number: {
     type: String,
     unique: true,
     index: true,
   },
   manager_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  city: { type: String, required: true },
-  street: { type: String, required: true },
-  building_number: { type: Number, required: true },
+  address: {
+    city: { type: String, required: true },
+    street: { type: String, required: true },
+    number: { type: Number, required: true },
+  },
   created_at: { type: Date, default: Date.now },
-  code: { type: String, required: true },
 
   residents: [
     {
@@ -21,7 +22,6 @@ const buildingSchema = new mongoose.Schema({
         required: true,
         ref: "User",
       },
-      //parking_spot: { type: mongoose.Schema.Types.ObjectId, ref: 'BuildingParkingSpot' }
     },
   ],
 });
@@ -41,7 +41,7 @@ buildingSchema.pre("save", async function (next) {
     );
 
     // Format the serial number with leading zeros (e.g., BLD-00001)
-    this.serial_number = `BLD-${counter.seq.toString().padStart(5, "0")}`;
+    this.building_number = `BLD-${counter.seq.toString().padStart(5, "0")}`;
     next();
   } catch (error) {
     return next(error);

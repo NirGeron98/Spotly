@@ -50,19 +50,19 @@ const userSchema = new mongoose.Schema({
     city: {
       type: String,
       required: function () {
-        return this.role !== "user";
+        return this.role !== "user" && this.role !== "admin"; // Only required for non-regular users
       },
     },
     street: {
       type: String,
       required: function () {
-        return this.role !== "user"; // Only required for non-regular users
+        return this.role !== "user" && this.role !== "admin"; // Only required for non-regular users
       },
     },
     number: {
       type: Number,
       required: function () {
-        return this.role !== "user"; // Only required for non-regular users
+        return this.role !== "user" && this.role !== "admin"; // Only required for non-regular users
       },
     },
   },

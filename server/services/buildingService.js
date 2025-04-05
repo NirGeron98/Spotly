@@ -11,17 +11,33 @@ class BuildingService {
    * @returns {Promise<Object>} The created building
    */
   async createBuilding(buildingData) {
-    const { city, street, building_number } = buildingData;
+    // Check that address is provided and complete
+    const { address } = buildingData;
+    if (!address || !address.city || !address.street || !address.number) {
+      throw new AppError(
+        'Address is required with city, street and building number',
+        400
+      );
+    }
+    
+    // Convert address.number to a number type if it's a string
+    if (typeof address.number === 'string') {
+      buildingData.address.number = parseInt(address.number, 10);
+      
+      if (isNaN(buildingData.address.number)) {
+        throw new AppError('Building number must be a valid number', 400);
+      }
+    }
 
     // Check if a building with the same address already exists
     const existingBuilding = await Building.findOne({
-      city,
-      street,
-      building_number,
+      'address.city': address.city,
+      'address.street': address.street,
+      'address.number': address.number,
     });
 
     if (existingBuilding) {
-      throw new AppError("Building with this address already exists!", 400);
+      throw new AppError('Building with this address already exists!', 400);
     }
 
     // Create the building if it doesn't exist
@@ -50,6 +66,21 @@ class BuildingService {
    */
   async getAllBuildings(filters = {}) {
     return await Building.find(filters);
+  }
+  
+  /**
+   * Get a building by its building_number code
+   * @param {string} code - Building code (building_number)
+   * @returns {Promise<Object>} The building data
+   */
+  async getBuildingByCode(code) {
+    const building = await Building.findOne({ building_number: code });
+
+    if (!building) {
+      throw new AppError("No building found with that code", 404);
+    }
+
+    return building;
   }
 
   /**

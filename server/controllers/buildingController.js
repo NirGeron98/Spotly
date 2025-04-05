@@ -1,35 +1,28 @@
 const Building = require("./../models/buildingModel");
 const catchAsync = require("./../utils/catchAsync");
 const AppError = require("./../utils/appError");
+const buildingService = require("./../services/buildingService");
 const factory = require("./handlerFactory");
 
+/**
+ * Update a building resident
+ * @route PATCH /api/v1/buildings/:buildingId/residents/:userId
+ * @access Private (Admin, Building Manager)
+ */
 exports.updateBuildingResident = catchAsync(async (req, res, next) => {
   const { buildingId, userId } = req.params;
   const { newResidentId } = req.body;
 
-  // Find the building by its ID
-  const building = await Building.findById(buildingId);
-
-  if (!building) {
-    return next(new AppError("No building found with that ID", 404));
+  if (!newResidentId) {
+    return next(new AppError("New resident ID is required", 400));
   }
 
-  // Check if the resident exists in the building
-  const resident = building.residents.find(
-    (resident) => resident.user_id.toString() === userId
+  // Delegate business logic to service layer
+  const building = await buildingService.updateBuildingResident(
+    buildingId,
+    userId,
+    newResidentId
   );
-
-  if (!resident) {
-    return next(
-      new AppError("No resident found with that ID in this building", 404)
-    );
-  }
-
-  // Update the resident user ID
-  resident.user_id = newResidentId;
-
-  // Save the updated building document
-  await building.save();
 
   res.status(200).json({
     status: "success",
@@ -39,14 +32,20 @@ exports.updateBuildingResident = catchAsync(async (req, res, next) => {
   });
 });
 
+/**
+ * Get building by building_number
+ * @route GET /api/v1/buildings/byCode/:code
+ * @access Public
+ */
 exports.getBuildingByCode = catchAsync(async (req, res, next) => {
   const { code } = req.params;
 
-  const building = await Building.findOne({ code });
-
-  if (!building) {
-    return next(new AppError("No building found with that code", 404));
+  if (!code) {
+    return next(new AppError("Building code is required", 400));
   }
+
+  // Delegate to service layer to find building by code
+  const building = await buildingService.getBuildingByCode(code);
 
   res.status(200).json({
     status: "success",
@@ -56,33 +55,150 @@ exports.getBuildingByCode = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getAllBuildings = factory.getAll(Building);
-//exports.createBuilding = factory.createOne(Building);
-exports.createBuilding = catchAsync(async (req, res, next) => {
-  const { city, street, building_number } = req.body;
-
-  // Check if a building with the same address already exists
-  const existingBuilding = await Building.findOne({
-    city,
-    street,
-    building_number,
+/**
+ * Get all buildings with optional filtering
+ * @route GET /api/v1/buildings
+ * @access Public/Private depending on route protection
+ */
+exports.getAllBuildings = catchAsync(async (req, res, next) => {
+  // Get filter criteria from query params if needed
+  const filters = req.query;
+  
+  // Delegate to service layer
+  const buildings = await buildingService.getAllBuildings(filters);
+  
+  res.status(200).json({
+    status: "success",
+    results: buildings.length,
+    data: {
+      buildings,
+    },
   });
+});
 
-  if (existingBuilding) {
+/**
+ * Get building by ID
+ * @route GET /api/v1/buildings/:id
+ * @access Public/Private depending on route protection
+ */
+exports.getBuilding = catchAsync(async (req, res, next) => {
+  const building = await buildingService.getBuildingById(req.params.id);
+  
+  res.status(200).json({
+    status: "success",
+    data: {
+      building,
+    },
+  });
+});
+
+/**
+ * Create a new building - strictly restricted to admin users only
+ * @route POST /api/v1/buildings
+ * @access Private (Admin only)
+ */
+exports.createBuilding = catchAsync(async (req, res, next) => {
+  // Check if user is admin (double security - also handled in route)
+  if (req.user.role !== 'admin') {
     return next(
-      new AppError("Building with this address already exists!", 400)
+      new AppError('You do not have permission to create buildings', 403)
     );
   }
 
-  // Create the building if it doesn't exist
-  const newBuilding = await Building.create(req.body);
+  // Delegate building creation to service layer
+  const newBuilding = await buildingService.createBuilding(req.body);
 
   res.status(201).json({
-    status: "success",
+    status: 'success',
     data: {
       building: newBuilding,
     },
   });
 });
-exports.getBuilding = factory.getOne(Building);
-exports.deleteBuilding = factory.deleteOne(Building);
+
+/**
+ * Delete a building
+ * @route DELETE /api/v1/buildings/:id
+ * @access Private (Admin)
+ */
+exports.deleteBuilding = catchAsync(async (req, res, next) => {
+  // Check if user is admin (double security)
+  if (req.user.role !== 'admin') {
+    return next(
+      new AppError('You do not have permission to delete buildings', 403)
+    );
+  }
+  
+  // Delegate to service layer
+  await buildingService.deleteBuilding(req.params.id);
+  
+  res.status(204).json({
+    status: 'success',
+    data: null
+  });
+});
+
+/**
+ * Add a resident to a building
+ * @route POST /api/v1/buildings/:id/residents
+ * @access Private (Admin, Building Manager)
+ */
+exports.addBuildingResident = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { user_id } = req.body;
+
+  if (!user_id) {
+    return next(new AppError("User ID is required", 400));
+  }
+
+  // Check authorization - only admin or the building manager can add residents
+  const building = await buildingService.getBuildingById(id);
+  
+  if (req.user.role !== 'admin' && 
+      building.manager_id && 
+      building.manager_id.toString() !== req.user._id.toString()) {
+    return next(
+      new AppError('You do not have permission to modify this building', 403)
+    );
+  }
+
+  // Delegate to service layer
+  const updatedBuilding = await buildingService.addResident(id, user_id);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      building: updatedBuilding,
+    },
+  });
+});
+
+/**
+ * Remove a resident from a building
+ * @route DELETE /api/v1/buildings/:id/residents/:userId
+ * @access Private (Admin, Building Manager)
+ */
+exports.removeBuildingResident = catchAsync(async (req, res, next) => {
+  const { id, userId } = req.params;
+
+  // Check authorization - only admin or the building manager can remove residents
+  const building = await buildingService.getBuildingById(id);
+  
+  if (req.user.role !== 'admin' && 
+      building.manager_id && 
+      building.manager_id.toString() !== req.user._id.toString()) {
+    return next(
+      new AppError('You do not have permission to modify this building', 403)
+    );
+  }
+
+  // Delegate to service layer
+  const updatedBuilding = await buildingService.removeResident(id, userId);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      building: updatedBuilding,
+    },
+  });
+});

@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../shared/Footer";
 import Navbar from "../shared/Navbar";
 import { authService } from "../../services/authService";
+import { buildingService } from "../../services/buildingService";
 import AddressMapSelector from "../shared/AddressMapSelector";
 import TermsContent from "../shared/TermsContent"; // Import the TermsContent component
 
@@ -17,6 +18,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [searching, setSearching] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsPopup, setShowTermsPopup] = useState(false); // State for showing the Terms popup
+  const [buildingInfo, setBuildingInfo] = useState(null);
+  const [loadingBuilding, setLoadingBuilding] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -29,8 +32,47 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     parkingNumber: "",
     parkingFloor: "",
     buildingCode: "",
-
   });
+
+  // Fetch building information when code is entered
+  const fetchBuildingInfo = async (code) => {
+    if (!code || code.trim() === "") {
+      setBuildingInfo(null);
+      return;
+    }
+    
+    setLoadingBuilding(true);
+    try {
+      const response = await buildingService.getBuildingByCode(code);
+      if (response && response.data && response.data.building) {
+        const building = response.data.building;
+        setBuildingInfo(building);
+        
+        // Update the address state with building information using helper function
+        const addressComponents = buildingService.getBuildingAddressComponents(building);
+        setAddress(addressComponents);
+        
+        setFeedback("✅ פרטי הבניין נטענו בהצלחה");
+      }
+    } catch (err) {
+      console.error("Error fetching building:", err);
+      setBuildingInfo(null);
+      setFeedback("❌ לא נמצא בניין עם הקוד שהוזן");
+    } finally {
+      setLoadingBuilding(false);
+    }
+  };
+
+  // Handle building code input with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.buildingCode) {
+        fetchBuildingInfo(formData.buildingCode);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [formData.buildingCode]);
 
   const handleNext = () => {
     setError("");
@@ -101,6 +143,12 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       return;
     }
 
+    // Verify building information is loaded for building residents
+    if (residenceType === "apartment" && !buildingInfo) {
+      setError("יש להזין קוד בניין תקין");
+      return;
+    }
+
     const [first_name, last_name] = fullName.trim().split(" ");
 
     let role = "user";
@@ -108,14 +156,33 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     else if (residenceType === "house") role = "private_prop_owner";
 
     try {
-      await authService.register({
+      // Prepare registration data with additional fields based on role
+      const registrationData = {
         first_name,
         last_name,
         email,
         password,
         passwordConfirm,
+        phone_number: formData.phoneNumber,
         role,
-      });
+      };
+
+      // Add address data
+      if (residenceType === "apartment" || residenceType === "house") {
+        registrationData.address = {
+          city,
+          street,
+          number: parseInt(buildingNumber, 10),
+        };
+      }
+
+      // Add building-specific data for building residents
+      if (residenceType === "apartment" && buildingInfo) {
+        registrationData.resident_building = buildingInfo._id;
+      }
+
+      // Register the user with the complete data
+      await authService.register(registrationData);
 
       const response = await authService.login({ email, password });
       const user =
@@ -302,6 +369,26 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                               onChange={handleChange}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
+                            {loadingBuilding && (
+                              <div className="flex items-center text-sm text-blue-600 mt-2">
+                                <div className="mr-2 w-4 h-4 border-t-2 border-blue-600 rounded-full animate-spin"></div>
+                                טוען פרטי בניין...
+                              </div>
+                            )}
+                            {buildingInfo && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                                <h4 className="font-bold text-blue-800">פרטי הבניין:</h4>
+                                <p className="text-sm">כתובת: {buildingService.formatBuildingAddress(buildingInfo)}</p>
+                                {buildingInfo.building_number && (
+                                  <p className="text-sm">קוד בניין: {buildingInfo.building_number}</p>
+                                )}
+                              </div>
+                            )}
+                            {feedback && !buildingInfo && (
+                              <p className="text-sm text-red-500 mt-2">
+                                {feedback}
+                              </p>
+                            )}
                           </div>
                         )}
                         {formData.residenceType === "house" && (
