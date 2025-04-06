@@ -25,8 +25,8 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
         location.pathname === "/signup-details"
       );
     }
-    if (loggedIn && path === "/" && location.pathname === "/dashboard") {
-      return true;
+    if (loggedIn && path === "/") {
+      return location.pathname === "/dashboard" || location.pathname === "/search-parking";
     }
     return location.pathname === path;
   };
