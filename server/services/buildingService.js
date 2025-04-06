@@ -1,243 +1,120 @@
 const Building = require("../models/buildingModel");
+const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 
-/**
- * Service layer for building-related operations
- */
-class BuildingService {
-  /**
-   * Create a new building
-   * @param {Object} buildingData - Data for the new building
-   * @returns {Promise<Object>} The created building
-   */
-  async createBuilding(buildingData) {
-    // Check that address is provided and complete
-    const { address } = buildingData;
-    if (!address || !address.city || !address.street || !address.number) {
-      throw new AppError(
-        "Address is required with city, street and building number",
-        400
-      );
-    }
+// Standard CRUD operations refined to handle errors properly
+exports.getAllBuildings = async (filters = {}) => {
+  return await Building.find(filters);
+};
 
-    // Convert address.number to a number type if it's a string
-    if (typeof address.number === "string") {
-      buildingData.address.number = parseInt(address.number, 10);
+exports.createBuilding = async (buildingData) => {
+  return await Building.create(buildingData);
+};
 
-      if (isNaN(buildingData.address.number)) {
-        throw new AppError("Building number must be a valid number", 400);
-      }
-    }
+exports.getBuilding = async (id) => {
+  const building = await Building.findById(id);
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
+  }
+  return building;
+};
 
-    // Check if a building with the same address already exists
-    const existingBuilding = await Building.findOne({
-      "address.city": address.city,
-      "address.street": address.street,
-      "address.number": address.number,
-    });
+exports.updateBuilding = async (id, updateData) => {
+  const building = await Building.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  });
 
-    if (existingBuilding) {
-      throw new AppError("Building with this address already exists!", 400);
-    }
-
-    // Create the building if it doesn't exist
-    return await Building.create(buildingData);
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Get a building by ID
-   * @param {string} id - Building ID
-   * @returns {Promise<Object>} The building data
-   */
-  async getBuildingById(id) {
-    const building = await Building.findById(id);
+  return building;
+};
 
-    if (!building) {
-      throw new AppError("Building not found", 404);
-    }
+exports.deleteBuilding = async (id) => {
+  const building = await Building.findByIdAndDelete(id);
 
-    return building;
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Get all buildings, with optional filtering
-   * @param {Object} filters - Filter criteria
-   * @returns {Promise<Array>} List of buildings
-   */
-  async getAllBuildings(filters = {}) {
-    return await Building.find(filters);
+  return building;
+};
+
+// Custom business logic - already using AppError correctly
+exports.getBuildingById = async (id) => {
+  const building = await Building.findById(id);
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
+  }
+  return building;
+};
+
+exports.getBuildingByCode = async (code) => {
+  const building = await Building.findOne({ building_number: code });
+  if (!building) {
+    throw new AppError("No building found with that code", 404);
+  }
+  return building;
+};
+
+exports.addResident = async (buildingId, userId) => {
+  // Check if user exists
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError("No user found with that ID", 404);
   }
 
-  /**
-   * Get a building by its building_number code
-   * @param {string} code - Building code (building_number)
-   * @returns {Promise<Object>} The building data
-   */
-  async getBuildingByCode(code) {
-    const building = await Building.findOne({ building_number: code });
+  const building = await Building.findByIdAndUpdate(
+    buildingId,
+    { $addToSet: { residents: userId } },
+    { new: true, runValidators: true }
+  );
 
-    if (!building) {
-      throw new AppError("No building found with that code", 404);
-    }
-
-    return building;
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Update a building resident
-   * @param {string} buildingId - Building ID
-   * @param {string} userId - Current user ID
-   * @param {string} newResidentId - New resident user ID
-   * @returns {Promise<Object>} The updated building
-   */
-  async updateBuildingResident(buildingId, userId, newResidentId) {
-    // Find the building by its ID
-    const building = await Building.findById(buildingId);
+  return building;
+};
 
-    if (!building) {
-      throw new AppError("No building found with that ID", 404);
-    }
+exports.removeResident = async (buildingId, userId) => {
+  const building = await Building.findByIdAndUpdate(
+    buildingId,
+    { $pull: { residents: userId } },
+    { new: true }
+  );
 
-    // Check if the resident exists in the building
-    const resident = building.residents.find(
-      (resident) => resident.user_id.toString() === userId
-    );
-
-    if (!resident) {
-      throw new AppError(
-        "No resident found with that ID in this building",
-        404
-      );
-    }
-
-    // Update the resident user ID
-    resident.user_id = newResidentId;
-
-    // Save the updated building document
-    await building.save();
-
-    return building;
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Update a building
-   * @param {string} id - Building ID
-   * @param {Object} updateData - New building data
-   * @returns {Promise<Object>} The updated building
-   */
-  async updateBuilding(id, updateData) {
-    const building = await Building.findById(id);
+  return building;
+};
 
-    if (!building) {
-      throw new AppError("Building not found", 404);
-    }
-
-    // If address fields are being updated, check for duplicates
-    if (updateData.city || updateData.street || updateData.building_number) {
-      const addressFields = {
-        city: updateData.city || building.city,
-        street: updateData.street || building.street,
-        building_number: updateData.building_number || building.building_number,
-      };
-
-      const existingBuilding = await Building.findOne({
-        _id: { $ne: id }, // Exclude current building
-        ...addressFields,
-      });
-
-      if (existingBuilding) {
-        throw new AppError("Building with this address already exists!", 400);
-      }
-    }
-
-    return await Building.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+exports.updateBuildingResident = async (buildingId, userId, newResidentId) => {
+  // Check if the new user exists
+  const user = await User.findById(newResidentId);
+  if (!user) {
+    throw new AppError("No user found with the new resident ID", 404);
   }
 
-  /**
-   * Delete a building
-   * @param {string} id - Building ID
-   * @returns {Promise<void>}
-   */
-  async deleteBuilding(id) {
-    const building = await Building.findById(id);
+  // First remove the old resident
+  await Building.findByIdAndUpdate(buildingId, {
+    $pull: { residents: userId },
+  });
 
-    if (!building) {
-      throw new AppError("Building not found", 404);
-    }
+  // Then add the new resident
+  const building = await Building.findByIdAndUpdate(
+    buildingId,
+    { $addToSet: { residents: newResidentId } },
+    { new: true, runValidators: true }
+  );
 
-    // Check if building has residents
-    if (building.residents && building.residents.length > 0) {
-      throw new AppError("Cannot delete a building with residents", 400);
-    }
-
-    await Building.findByIdAndDelete(id);
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Add a resident to a building
-   * @param {string} buildingId - Building ID
-   * @param {string} userId - User ID to add as resident
-   * @param {Object} residentData - Additional resident data
-   * @returns {Promise<Object>} The updated building
-   */
-  async addResident(buildingId, userId, residentData = {}) {
-    const building = await Building.findById(buildingId);
-
-    if (!building) {
-      throw new AppError("Building not found", 404);
-    }
-
-    // Check if user is already a resident
-    const isAlreadyResident = building.residents.some(
-      (resident) => resident.user_id.toString() === userId
-    );
-
-    if (isAlreadyResident) {
-      throw new AppError("User is already a resident of this building", 400);
-    }
-
-    // Add new resident
-    building.residents.push({
-      user_id: userId,
-      ...residentData,
-    });
-
-    await building.save();
-
-    return building;
-  }
-
-  /**
-   * Remove a resident from a building
-   * @param {string} buildingId - Building ID
-   * @param {string} userId - User ID to remove
-   * @returns {Promise<Object>} The updated building
-   */
-  async removeResident(buildingId, userId) {
-    const building = await Building.findById(buildingId);
-
-    if (!building) {
-      throw new AppError("Building not found", 404);
-    }
-
-    // Find resident index
-    const residentIndex = building.residents.findIndex(
-      (resident) => resident.user_id.toString() === userId
-    );
-
-    if (residentIndex === -1) {
-      throw new AppError("User is not a resident of this building", 404);
-    }
-
-    // Remove resident
-    building.residents.splice(residentIndex, 1);
-    await building.save();
-
-    return building;
-  }
-}
-
-module.exports = new BuildingService();
+  return building;
+};

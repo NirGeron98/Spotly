@@ -3,6 +3,10 @@ const bookingController = require("../controllers/bookingController");
 const authController = require("../controllers/authController");
 const router = express.Router();
 
+// Protect all routes
+router.use(authController.protect);
+
+// Standard CRUD routes
 router
   .route("/")
   .get(bookingController.getAllBookings)
@@ -11,7 +15,11 @@ router
 router
   .route("/:id")
   .get(bookingController.getBooking)
-  .patch(authController.protect, bookingController.updateBooking)
-  .delete(authController.protect, bookingController.deleteBooking);
+  .patch(bookingController.updateBooking)
+  .delete(bookingController.deleteBooking);
+
+// Specialized routes
+router.get("/user/my-bookings", bookingController.getUserBookings);
+router.get("/availability", bookingController.checkAvailability);
 
 module.exports = router;

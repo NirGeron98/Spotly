@@ -1,225 +1,161 @@
-const Request = require("../models/requestModel");
-const User = require("../models/userModel");
-const ParkingSpot = require("../models/parkingSpotModel");
-const Building = require("../models/buildingModel");
-const AppError = require("../utils/appError");
+const Request = require("./../models/userModel");
+const factory = require("../controllers/handlerFactory");
+const AppError = require("./../utils/appError");
+const User = require("./../models/userModel");
+const Building = require("./../models/buildingModel");
+
+// Service functions using factory methods (for compatibility with existing code)
+const getAllRequests = factory.getAll(Request);
+const createRequest = factory.createOne(Request);
+const getRequest = factory.getOne(Request, {
+  path: "assigned_spot building user",
+});
+const updateRequest = factory.updateOne(Request);
+const deleteRequest = factory.deleteOne(Request);
 
 /**
- * Service layer for request-related operations
+ * Get requests by status
+ * @param {string} status - Request status (pending, approved, rejected, etc.)
+ * @returns {Promise<Array>} - List of requests with the specified status
  */
-class RequestService {
-  /**
-   * Create a new request
-   * @param {Object} requestData - Data for the new request
-   * @returns {Promise<Object>} The created request
-   */
-  async createRequest(requestData) {
-    // Validate if the user exists
-    if (requestData.user) {
-      const user = await User.findById(requestData.user);
-      if (!user) {
-        throw new AppError("User not found", 404);
-      }
-    }
+const getRequestsByStatus = async (status) => {
+  const requests = await Request.find({ status })
+    .populate("assigned_spot")
+    .populate("building")
+    .populate({
+      path: "user",
+      select: "first_name last_name email",
+    });
 
-    // Validate if the building exists
-    if (requestData.building) {
-      const building = await Building.findById(requestData.building);
-      if (!building) {
-        throw new AppError("Building not found", 404);
-      }
-    }
+  return requests;
+};
 
-    // Validate if the parking spot exists
-    if (requestData.assigned_spot) {
-      const parkingSpot = await ParkingSpot.findById(requestData.assigned_spot);
-      if (!parkingSpot) {
-        throw new AppError("Parking spot not found", 404);
-      }
-    }
+/**
+ * Update request status with optional rejection reason
+ * @param {string} id - Request ID
+ * @param {string} status - New status (approved, rejected, etc.)
+ * @param {string} updatedBy - User ID making the update
+ * @param {string} [reason] - Optional reason for rejection
+ * @returns {Promise<Object>} - Updated request
+ */
+const updateRequestStatus = async (id, status, updatedBy, reason = null) => {
+  // Find the request
+  const request = await Request.findById(id);
 
-    // Create the request
-    return await Request.create(requestData);
+  if (!request) {
+    throw new AppError("No request found with that ID", 404);
   }
 
-  /**
-   * Get a request by ID
-   * @param {string} id - Request ID
-   * @returns {Promise<Object>} The request data
-   */
-  async getRequestById(id) {
-    const request = await Request.findById(id)
-      .populate("user")
-      .populate("building")
-      .populate("assigned_spot");
-
-    if (!request) {
-      throw new AppError("Request not found", 404);
-    }
-
-    return request;
+  // Check if request is already in the target status
+  if (request.status === status) {
+    throw new AppError(`Request is already ${status}`, 400);
   }
 
-  /**
-   * Get all requests, with optional filtering
-   * @param {Object} filters - Filter criteria
-   * @returns {Promise<Array>} List of requests
-   */
-  async getAllRequests(filters = {}) {
-    return await Request.find(filters)
-      .populate("user")
-      .populate("building")
-      .populate("assigned_spot");
+  // Validate the status transition
+  const validTransitions = {
+    pending: ["approved", "rejected"],
+    approved: ["completed", "canceled"],
+    rejected: ["pending"], // Allow resubmission
+  };
+
+  const currentStatus = request.status || "pending";
+
+  if (
+    !validTransitions[currentStatus] ||
+    !validTransitions[currentStatus].includes(status)
+  ) {
+    throw new AppError(
+      `Cannot change request status from ${currentStatus} to ${status}`,
+      400
+    );
   }
 
-  /**
-   * Update a request
-   * @param {string} id - Request ID
-   * @param {Object} updateData - New request data
-   * @returns {Promise<Object>} The updated request
-   */
-  async updateRequest(id, updateData) {
-    const request = await Request.findById(id);
+  // Update the request
+  const updateData = {
+    status,
+    updated_by: updatedBy,
+    updated_at: Date.now(),
+  };
 
-    if (!request) {
-      throw new AppError("Request not found", 404);
-    }
-
-    // Validate if the updated user exists
-    if (updateData.user) {
-      const user = await User.findById(updateData.user);
-      if (!user) {
-        throw new AppError("User not found", 404);
-      }
-    }
-
-    // Validate if the updated building exists
-    if (updateData.building) {
-      const building = await Building.findById(updateData.building);
-      if (!building) {
-        throw new AppError("Building not found", 404);
-      }
-    }
-
-    // Validate if the updated parking spot exists
-    if (updateData.assigned_spot) {
-      const parkingSpot = await ParkingSpot.findById(updateData.assigned_spot);
-      if (!parkingSpot) {
-        throw new AppError("Parking spot not found", 404);
-      }
-    }
-
-    // Update the request
-    return await Request.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate("user building assigned_spot");
+  // Add reason if provided (for rejections)
+  if (status === "rejected" && reason) {
+    updateData.rejection_reason = reason;
   }
 
-  /**
-   * Delete a request
-   * @param {string} id - Request ID
-   * @returns {Promise<void>}
-   */
-  async deleteRequest(id) {
-    const request = await Request.findById(id);
-
-    if (!request) {
-      throw new AppError("Request not found", 404);
-    }
-
-    await Request.findByIdAndDelete(id);
+  // Perform special processing for approved requests
+  if (status === "approved") {
+    // For example, update related entities, send notifications, etc.
+    // This would depend on your specific requirements
   }
 
-  /**
-   * Approve a request
-   * @param {string} id - Request ID
-   * @returns {Promise<Object>} The approved request
-   */
-  async approveRequest(id) {
-    const request = await Request.findById(id);
+  const updatedRequest = await Request.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  })
+    .populate("assigned_spot")
+    .populate("building")
+    .populate({
+      path: "user",
+      select: "first_name last_name email",
+    });
 
-    if (!request) {
-      throw new AppError("Request not found", 404);
-    }
+  return updatedRequest;
+};
 
-    // If this is a parking spot request and a spot is assigned
-    if (request.type === "parking_spot" && request.assigned_spot) {
-      // Assign the user to the parking spot
-      const parkingSpot = await ParkingSpot.findById(request.assigned_spot);
-
-      if (!parkingSpot) {
-        throw new AppError("Assigned parking spot not found", 404);
-      }
-
-      // Check if the spot is already occupied
-      if (parkingSpot.user) {
-        throw new AppError("This parking spot is already occupied", 400);
-      }
-
-      // Update the spot with the user
-      parkingSpot.user = request.user;
-      await parkingSpot.save();
-
-      // Update the user's parking spot
-      const user = await User.findById(request.user);
-      if (user) {
-        user.parking_spot = request.assigned_spot;
-        await user.save({ validateBeforeSave: false });
-      }
-    }
-
-    // Update request status
-    request.status = "approved";
-    request.processed_at = Date.now();
-    await request.save();
-
-    return request;
+/**
+ * Get requests for a specific building
+ * @param {string} buildingId - Building ID
+ * @returns {Promise<Array>} - List of requests for the building
+ */
+const getRequestsByBuilding = async (buildingId) => {
+  // Check if building exists
+  const building = await Building.findById(buildingId);
+  if (!building) {
+    throw new AppError("No building found with that ID", 404);
   }
 
-  /**
-   * Reject a request
-   * @param {string} id - Request ID
-   * @param {string} rejectionReason - Reason for rejection
-   * @returns {Promise<Object>} The rejected request
-   */
-  async rejectRequest(id, rejectionReason) {
-    const request = await Request.findById(id);
+  const requests = await Request.find({ building: buildingId })
+    .populate("assigned_spot")
+    .populate("building")
+    .populate({
+      path: "user",
+      select: "first_name last_name email",
+    });
 
-    if (!request) {
-      throw new AppError("Request not found", 404);
-    }
+  return requests;
+};
 
-    // Update request status
-    request.status = "rejected";
-    request.rejection_reason = rejectionReason;
-    request.processed_at = Date.now();
-    await request.save();
-
-    return request;
+/**
+ * Get requests created by a specific user
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} - List of user's requests
+ */
+const getUserRequests = async (userId) => {
+  // Check if user exists
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError("No user found with that ID", 404);
   }
 
-  /**
-   * Get all pending requests
-   * @returns {Promise<Array>} List of pending requests
-   */
-  async getPendingRequests() {
-    return await Request.find({ status: "pending" })
-      .populate("user")
-      .populate("building")
-      .populate("assigned_spot");
-  }
+  const requests = await Request.find({ user: userId })
+    .populate("assigned_spot")
+    .populate("building")
+    .populate({
+      path: "user",
+      select: "first_name last_name email",
+    });
 
-  /**
-   * Get all requests by a specific user
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} List of requests by the user
-   */
-  async getUserRequests(userId) {
-    return await Request.find({ user: userId })
-      .populate("building")
-      .populate("assigned_spot");
-  }
-}
+  return requests;
+};
 
-module.exports = new RequestService();
+module.exports = {
+  getAllRequests,
+  createRequest,
+  getRequest,
+  updateRequest,
+  deleteRequest,
+  getRequestsByStatus,
+  updateRequestStatus,
+  getRequestsByBuilding,
+  getUserRequests,
+};

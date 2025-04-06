@@ -3,15 +3,25 @@ const catchAsync = require("../utils/catchAsync");
 const factory = require("./handlerFactory");
 const parkingSpotService = require("../services/parkingSpotService");
 
-// Get all parking spots with filtering
-exports.getAllParkingSpots = factory.getAll(ParkingSpot);
+// STANDARD CRUD OPERATIONS - Use factory pattern with sensible options
+exports.getAllParkingSpots = factory.getAll(ParkingSpot, {
+  popOptions: [
+    { path: "building" },
+    { path: "owner", select: "first_name last_name email" },
+  ],
+});
 
-// Get a specific parking spot with detailed information
-exports.getParkingSpot = factory.getOne(ParkingSpot, { path: "user owner" });
+exports.getParkingSpot = factory.getOne(ParkingSpot, {
+  popOptions: [
+    { path: "user", select: "first_name last_name email" },
+    { path: "owner", select: "first_name last_name email" },
+    { path: "building" },
+  ],
+});
 
-// Create a new parking spot
+// For create, update, delete operations - use service layer due to complex business rules
 exports.createParkingSpot = catchAsync(async (req, res, next) => {
-  // Set owner to current user if not explicitly provided
+  // Set owner to current user if not provided
   if (!req.body.owner) {
     req.body.owner = req.user.id;
   }
@@ -26,7 +36,6 @@ exports.createParkingSpot = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update a parking spot
 exports.updateParkingSpot = catchAsync(async (req, res, next) => {
   const updatedParkingSpot = await parkingSpotService.updateParkingSpot(
     req.params.id,
@@ -43,7 +52,6 @@ exports.updateParkingSpot = catchAsync(async (req, res, next) => {
   });
 });
 
-// Delete a parking spot
 exports.deleteParkingSpot = catchAsync(async (req, res, next) => {
   await parkingSpotService.deleteParkingSpot(
     req.params.id,
@@ -57,7 +65,7 @@ exports.deleteParkingSpot = catchAsync(async (req, res, next) => {
   });
 });
 
-// Assign a user to a parking spot
+// SPECIALIZED OPERATIONS - Use service layer for domain-specific logic
 exports.assignUser = catchAsync(async (req, res, next) => {
   const { userId } = req.body;
   const { id } = req.params;
@@ -72,7 +80,6 @@ exports.assignUser = catchAsync(async (req, res, next) => {
   });
 });
 
-// Unassign a user from a parking spot
 exports.unassignUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -86,7 +93,6 @@ exports.unassignUser = catchAsync(async (req, res, next) => {
   });
 });
 
-// Change parking spot availability
 exports.toggleAvailability = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -105,7 +111,6 @@ exports.toggleAvailability = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get all parking spots in a building
 exports.getParkingSpotsInBuilding = catchAsync(async (req, res, next) => {
   const { buildingId } = req.params;
 
@@ -121,7 +126,6 @@ exports.getParkingSpotsInBuilding = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get all available private parking spots
 exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getAvailablePrivateSpots();
 
@@ -134,7 +138,6 @@ exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get all parking spots owned by current user
 exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(
     req.user.id
@@ -149,7 +152,6 @@ exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get all charging stations
 exports.getChargingStations = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getChargingStations();
 

@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
  * @param {string} [options.html] - Email message (HTML format)
  * @returns {Promise<void>}
  */
-const sendEmail = async (options) => {
+exports.sendEmail = async (options) => {
   // 1) Create a transporter
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -35,39 +35,28 @@ const sendEmail = async (options) => {
 };
 
 /**
- * Create a password reset email with both text and HTML versions
- * @param {string} name - User's name
+ * Create a password reset email with text and HTML versions
+ * @param {Object} user - User object
  * @param {string} resetURL - Password reset URL
- * @returns {Object} - Object containing text and HTML versions of the email
+ * @returns {Object} Email content with text and HTML versions
  */
-const createPasswordResetEmail = (name, resetURL) => {
-  const text = `שלום ${name},\n\n
-לחץ על הקישור הבא כדי לאפס את הסיסמה שלך: ${resetURL}\n\n
-הקישור יהיה בתוקף למשך 10 דקות בלבד.\n\n
-אם לא ביקשת לאפס את הסיסמה, אנא התעלם מהודעה זו.\n\n
-בברכה,\n
-צוות Spotly`;
+exports.createPasswordResetEmail = (user, resetURL) => {
+  const text = `Hi ${user.first_name},\n\nForgot your password? Click the link below to reset it:\n${resetURL}\n\nIf you didn't request a password reset, please ignore this email.\n\nRegards,\nThe Spotly Team`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
-      <h2 style="color: #3b82f6;">איפוס סיסמה</h2>
-      <p>שלום ${name},</p>
-      <p>קיבלנו בקשה לאיפוס הסיסמה בחשבונך.</p>
-      <p>לחץ על הכפתור למטה כדי לאפס את הסיסמה:</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${resetURL}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">איפוס סיסמה</a>
-      </div>
-      <p>או העתק את הקישור הבא לדפדפן שלך:</p>
-      <p style="background-color: #f3f4f6; padding: 10px; border-radius: 5px; word-break: break-all;">
-        ${resetURL}
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4a90e2;">Password Reset Request</h2>
+      <p>Hi ${user.first_name},</p>
+      <p>Forgot your password? Click the button below to reset it:</p>
+      <p style="text-align: center; margin: 25px 0;">
+        <a href="${resetURL}" style="background-color: #4a90e2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Your Password</a>
       </p>
-      <p><strong>הקישור יהיה בתוקף למשך 10 דקות בלבד.</strong></p>
-      <p>אם לא ביקשת לאפס את הסיסמה, אנא התעלם מהודעה זו.</p>
-      <p>בברכה,<br>צוות Spotly</p>
+      <p>If the button doesn't work, copy and paste this link into your browser:</p>
+      <p>${resetURL}</p>
+      <p>If you didn't request a password reset, please ignore this email.</p>
+      <p>Regards,<br>The Spotly Team</p>
     </div>
   `;
 
   return { text, html };
 };
-
-module.exports = { sendEmail, createPasswordResetEmail };

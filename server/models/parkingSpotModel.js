@@ -40,7 +40,7 @@ const parkingSpotSchema = new mongoose.Schema(
     },
     charger_type: {
       type: String,
-      enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other", null],
+      enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Other", null],
       validate: {
         validator: function (val) {
           // Charger type is required only if it's a charging station
@@ -64,7 +64,7 @@ const parkingSpotSchema = new mongoose.Schema(
     // Common fields for both types
     is_available: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     user: {
       type: mongoose.Schema.ObjectId,
@@ -121,11 +121,41 @@ parkingSpotSchema.pre("save", function (next) {
   next();
 });
 
+// Middleware to validate the owner field
+parkingSpotSchema.pre("validate", async function (next) {
+  if (!this.owner) {
+    return next(new Error("Owner is required for all parking spots"));
+  }
+
+  // Reset fields based on spot_type
+  if (this.spot_type !== "private") {
+    this.hourly_price = undefined;
+
+    if (this.spot_type === "building") {
+      this.is_charging_station = false;
+      this.charger_type = null;
+    }
+  }
+
+  next();
+});
+
+// Improve validation for charger_type
+parkingSpotSchema.path("charger_type").validate(function (val) {
+  if (this.is_charging_station && !val) {
+    throw new Error("Charger type is required for charging stations");
+  }
+  return true;
+});
+
 // Create a virtual property to check if a spot is occupied
 parkingSpotSchema.virtual("is_occupied").get(function () {
   return !!this.user;
 });
 
-const ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
+// Add a virtual property to expose hourly_price only for private spots
+parkingSpotSchema.virtual("effective_hourly_price").get(function () {
+  return this.spot_type === "private" ? this.hourly_price : null;
+});
 
-module.exports = ParkingSpot;
+exports.ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
