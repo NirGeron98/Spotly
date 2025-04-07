@@ -35,7 +35,7 @@ router
   .post(
     authController.protect,
     authController.restrictTo("admin", "building_manager"),
-    buildingController.addBuildingResident
+    buildingController.addResident
   );
 
 router
@@ -43,7 +43,7 @@ router
   .delete(
     authController.protect,
     authController.restrictTo("admin", "building_manager"),
-    buildingController.removeBuildingResident
+    buildingController.removeResident
   );
 
 // Route for updating a building resident

@@ -1,33 +1,17 @@
 const Booking = require("../models/bookingModel");
-const catchAsync = require("../utils/catchAsync");
 const factory = require("./handlerFactory");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 const bookingService = require("../services/bookingService");
 
-// Standard CRUD operations using factory pattern
-exports.getAllBookings = factory.getAll(Booking, {
-  popOptions: [
-    { path: "user", select: "first_name last_name email" },
-    { path: "parkingSpot" },
-  ],
-  transform: (doc) => {
-    // Customize response data if needed
-    return doc;
-  },
-});
+// Simple CRUD operations using factory
+exports.getAllBookings = factory.getAll(Booking);
+exports.getBooking = factory.getOne(Booking);
 
-exports.getBooking = factory.getOne(Booking, {
-  popOptions: [
-    { path: "user", select: "first_name last_name email" },
-    { path: "parkingSpot" },
-  ],
-});
-
-// Using service for createBooking because it requires complex validation
+// Complex operations using service
 exports.createBooking = catchAsync(async (req, res, next) => {
-  // Set user ID from authenticated user if not provided
-  if (!req.body.user) {
-    req.body.user = req.user.id;
-  }
+  // Set user to current user if not provided
+  if (!req.body.user) req.body.user = req.user.id;
 
   const booking = await bookingService.createBooking(req.body);
 
@@ -39,35 +23,9 @@ exports.createBooking = catchAsync(async (req, res, next) => {
   });
 });
 
-// Using service for updateBooking with ownership validation
-exports.updateBooking = catchAsync(async (req, res, next) => {
-  const updatedBooking = await bookingService.updateBooking(
-    req.params.id,
-    req.body,
-    req.user.id
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: {
-      booking: updatedBooking,
-    },
-  });
-});
-
-// Use service for deleteBooking which is actually cancellation with validation
-exports.deleteBooking = catchAsync(async (req, res, next) => {
-  await bookingService.cancelBooking(req.params.id, req.user.id);
-
-  res.status(204).json({
-    status: "success",
-    data: null,
-  });
-});
-
-// Additional domain-specific operations
 exports.getUserBookings = catchAsync(async (req, res, next) => {
-  const bookings = await bookingService.getUserBookings(req.user.id);
+  const userId = req.params.userId || req.user.id;
+  const bookings = await bookingService.getUserBookings(userId);
 
   res.status(200).json({
     status: "success",
@@ -78,13 +36,56 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.cancelBooking = catchAsync(async (req, res, next) => {
+  const booking = await bookingService.cancelBooking(
+    req.params.id,
+    req.user.id
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      booking,
+    },
+  });
+});
+
+exports.updateBooking = catchAsync(async (req, res, next) => {
+  const booking = await bookingService.updateBooking(
+    req.params.id,
+    req.body,
+    req.user.id
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      booking,
+    },
+  });
+});
+
 exports.checkAvailability = catchAsync(async (req, res, next) => {
-  const { parkingSpotId, startTime, endTime } = req.query;
+  const { parkingSpotId } = req.params;
+  const { startTime, endTime } = req.query;
+
+  if (!startTime || !endTime) {
+    return next(
+      new AppError("Start time and end time are required parameters", 400)
+    );
+  }
+
+  const parsedStartTime = new Date(startTime);
+  const parsedEndTime = new Date(endTime);
+
+  if (isNaN(parsedStartTime.getTime()) || isNaN(parsedEndTime.getTime())) {
+    return next(new AppError("Invalid start time or end time format", 400));
+  }
 
   const isAvailable = await bookingService.checkParkingSpotAvailability(
     parkingSpotId,
-    new Date(startTime),
-    new Date(endTime)
+    parsedStartTime,
+    parsedEndTime
   );
 
   res.status(200).json({

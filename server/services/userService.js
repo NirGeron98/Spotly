@@ -1,45 +1,6 @@
 const User = require("../models/userModel");
-const factory = require("../controllers/handlerFactory");
 const AppError = require("../utils/appError");
 const { filterObj } = require("../utils/filterObj");
-
-// Service functions with proper error handling
-exports.getAllUsers = async (filters = {}) => {
-  return await User.find(filters);
-};
-
-exports.getUser = async (id) => {
-  const user = await User.findById(id);
-
-  if (!user) {
-    throw new AppError("No user found with that ID", 404);
-  }
-
-  return user;
-};
-
-exports.updateUser = async (id, updateData) => {
-  const user = await User.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!user) {
-    throw new AppError("No user found with that ID", 404);
-  }
-
-  return user;
-};
-
-exports.deleteUser = async (id) => {
-  const user = await User.findByIdAndDelete(id);
-
-  if (!user) {
-    throw new AppError("No user found with that ID", 404);
-  }
-
-  return user;
-};
 
 // User-specific business logic
 exports.updateMe = async (userId, userData) => {
@@ -65,8 +26,8 @@ exports.updateMe = async (userId, userData) => {
 };
 
 exports.deactivateUser = async (userId) => {
-  const user = await User.findByIdAndUpdate(userId, { active: false });
-
+  const user = await User.findByIdAndUpdate(userId, { is_active: false });
+  console.log(user.is_active);
   if (!user) {
     throw new AppError("No user found with that ID", 404);
   }

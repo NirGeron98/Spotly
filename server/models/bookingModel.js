@@ -71,5 +71,4 @@ bookingSchema.index({ payment_status: 1 });
 bookingSchema.index({ start_datetime: 1, status: 1 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
-
 module.exports = Booking;

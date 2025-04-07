@@ -11,10 +11,7 @@ router.get("/logout", authController.logout);
 router.post("/forgotPassword", authController.forgotPassword);
 router.patch("/resetPassword/:token", authController.resetPassword);
 
-router
-  .route("/")
-  .get(userController.getAllUsers)
-  .post(userController.createUser);
+router.route("/").post(userController.createUser);
 
 router.use(authController.protect); // FROM now on all the routes below are protected
 
@@ -23,6 +20,14 @@ router.get("/me", userController.getMe, userController.getUser);
 
 router.patch("/updateMe", userController.updateMe);
 router.delete("/deleteMe", userController.deleteMe);
+
+// Admin routes
+router.use(authController.restrictTo("admin"));
+
+router
+  .route("/")
+  .get(userController.getAllUsers)
+  .post(userController.createUser);
 
 router
   .route("/:id")

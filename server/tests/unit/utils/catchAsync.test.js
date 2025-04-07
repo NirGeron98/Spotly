@@ -1,4 +1,4 @@
-const catchAsync = require("../../../utils/catchAsync");
+const {catchAsync} = require("../../../utils/catchAsync");
 
 describe("catchAsync Utility", () => {
   it("should pass the error to next if the function throws", async () => {

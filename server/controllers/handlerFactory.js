@@ -1,6 +1,8 @@
 const catchAsync = require("./../utils/catchAsync");
 const AppError = require("./../utils/appError");
 const APIFeatures = require("./../utils/apiFeatures");
+const mongoose = require("mongoose");
+const { filterObj } = require("./../utils/filterObj");
 
 exports.deleteOne = (Model, options = {}) =>
   catchAsync(async (req, res, next) => {
@@ -150,57 +152,48 @@ exports.getOne = (Model, options = {}) =>
     });
   });
 
-exports.getAll = (Model, options = {}) =>
-  catchAsync(async (req, res, next) => {
-    // Build filter
-    let filter = {};
-
-    // Handle nested routes
-    if (options.filterBuilder) {
-      filter = options.filterBuilder(req);
-    }
-
-    // Pre-query hook
-    if (options.beforeQuery) {
-      await options.beforeQuery(req, filter);
-    }
-
-    // Create query with features
-    const features = new APIFeatures(Model.find(filter), req.query)
-      .filter()
-      .sort()
-      .limitFields()
-      .paginate();
-
-    // Execute query
-    const docs = await features.query;
-
-    // Post-query hook
-    if (options.afterQuery) {
-      await options.afterQuery(docs, req);
-    }
-
-    // Apply custom transform if provided
-    const responseData = options.transform ? docs.map(options.transform) : docs;
-
-    // SEND RESPONSE
-    res.status(200).json({
-      status: "success",
-      results: docs.length,
-      data: {
-        data: responseData,
-      },
+  exports.getAll = (Model, options = {}) =>
+    catchAsync(async (req, res, next) => {
+      // Build base query
+      let baseQuery = Model.find();
+      
+      // Apply active/inactive filter before APIFeatures
+      if (options.filterBuilder) {
+        const customFilter = options.filterBuilder(req);
+        if (Object.keys(customFilter).length > 0) {
+          baseQuery = Model.find(customFilter);
+        }
+      }
+  
+      // Pre-query hook
+      if (options.beforeQuery) {
+        await options.beforeQuery(req, baseQuery.getFilter());
+      }
+  
+      // Create query with features - but APIFeatures will only apply additional filters
+      const features = new APIFeatures(baseQuery, req.query)
+        .filter()
+        .sort()
+        .limitFields()
+        .paginate();
+  
+      // Execute query
+      const docs = await features.query;
+  
+      // Post-query hook
+      if (options.afterQuery) {
+        await options.afterQuery(docs, req);
+      }
+  
+      // Apply custom transform if provided
+      const responseData = options.transform ? docs.map(options.transform) : docs;
+  
+      // SEND RESPONSE
+      res.status(200).json({
+        status: "success",
+        results: docs.length,
+        data: {
+          data: responseData,
+        },
+      });
     });
-  });
-
-// Helper function to filter object by allowed fields
-const filterObj = (obj, ...allowedFields) => {
-  const newObj = {};
-  Object.keys(obj).forEach((el) => {
-    if (allowedFields.includes(el)) newObj[el] = obj[el];
-  });
-  return newObj;
-};
-
-// Export the filterObj helper
-exports.filterObj = filterObj;

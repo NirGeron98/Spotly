@@ -1,24 +1,14 @@
 const Request = require("./../models/userModel");
-const factory = require("../controllers/handlerFactory");
 const AppError = require("./../utils/appError");
 const User = require("./../models/userModel");
 const Building = require("./../models/buildingModel");
-
-// Service functions using factory methods (for compatibility with existing code)
-const getAllRequests = factory.getAll(Request);
-const createRequest = factory.createOne(Request);
-const getRequest = factory.getOne(Request, {
-  path: "assigned_spot building user",
-});
-const updateRequest = factory.updateOne(Request);
-const deleteRequest = factory.deleteOne(Request);
 
 /**
  * Get requests by status
  * @param {string} status - Request status (pending, approved, rejected, etc.)
  * @returns {Promise<Array>} - List of requests with the specified status
  */
-const getRequestsByStatus = async (status) => {
+exports.getRequestsByStatus = async (status) => {
   const requests = await Request.find({ status })
     .populate("assigned_spot")
     .populate("building")
@@ -38,7 +28,7 @@ const getRequestsByStatus = async (status) => {
  * @param {string} [reason] - Optional reason for rejection
  * @returns {Promise<Object>} - Updated request
  */
-const updateRequestStatus = async (id, status, updatedBy, reason = null) => {
+exports.updateRequestStatus = async (id, status, updatedBy, reason = null) => {
   // Find the request
   const request = await Request.findById(id);
 
@@ -107,7 +97,7 @@ const updateRequestStatus = async (id, status, updatedBy, reason = null) => {
  * @param {string} buildingId - Building ID
  * @returns {Promise<Array>} - List of requests for the building
  */
-const getRequestsByBuilding = async (buildingId) => {
+exports.getRequestsByBuilding = async (buildingId) => {
   // Check if building exists
   const building = await Building.findById(buildingId);
   if (!building) {
@@ -130,7 +120,7 @@ const getRequestsByBuilding = async (buildingId) => {
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - List of user's requests
  */
-const getUserRequests = async (userId) => {
+exports.getUserRequests = async (userId) => {
   // Check if user exists
   const user = await User.findById(userId);
   if (!user) {
@@ -146,16 +136,4 @@ const getUserRequests = async (userId) => {
     });
 
   return requests;
-};
-
-module.exports = {
-  getAllRequests,
-  createRequest,
-  getRequest,
-  updateRequest,
-  deleteRequest,
-  getRequestsByStatus,
-  updateRequestStatus,
-  getRequestsByBuilding,
-  getUserRequests,
 };

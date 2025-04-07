@@ -12,7 +12,7 @@ const userRouter = require("./routes/userRoutes");
 const buildingRouter = require("./routes/buildingRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
 const requestRouter = require("./routes/requestRoutes");
-//const spotRouter = require("./routes/spotRoutes");
+const parkingSpotRouter = require("./routes/parkingSpotRoutes");
 const app = express();
 
 app.get("/api/v1/ping", (req, res) => {
@@ -22,10 +22,11 @@ app.get("/api/v1/ping", (req, res) => {
 // GLOBAL MIDDLEWARES
 
 // Enabling CORS (Cross-Origin Resource Sharing)
-app.use(cors({
-  origin: '*'
-}));
-
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 // Set security HTTP headers
 app.use(helmet());
@@ -67,6 +68,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/buildings", buildingRouter);
 app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/requests", requestRouter);
+app.use("/api/v1/parkingSpots", parkingSpotRouter);
 
 app.all("*", (req, res, next) => {
   // Runs for all HTTP Methods
@@ -76,4 +78,3 @@ app.all("*", (req, res, next) => {
 app.use(globalErrorHandler);
 
 module.exports = app;
-

@@ -156,7 +156,6 @@ const userSchema = new mongoose.Schema({
   is_active: {
     type: Boolean,
     default: true,
-    select: false,
   },
   passwordChangedAt: Date,
   passwordResetToken: String,
@@ -221,4 +220,5 @@ userSchema.methods.createPasswordResetToken = function () {
   return resetToken;
 };
 
-exports.User = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+module.exports = User;

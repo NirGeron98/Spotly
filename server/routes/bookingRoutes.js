@@ -16,7 +16,6 @@ router
   .route("/:id")
   .get(bookingController.getBooking)
   .patch(bookingController.updateBooking)
-  .delete(bookingController.deleteBooking);
 
 // Specialized routes
 router.get("/user/my-bookings", bookingController.getUserBookings);

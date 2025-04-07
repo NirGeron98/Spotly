@@ -15,10 +15,7 @@ router.get(
   "/private-available",
   parkingSpotController.getAvailablePrivateSpots
 );
-router.get(
-  "/building/:buildingId",
-  parkingSpotController.getParkingSpotsInBuilding
-);
+
 router.get("/:id", parkingSpotController.getParkingSpot);
 
 // Routes for creating new spots and managing personal spots

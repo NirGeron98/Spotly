@@ -158,4 +158,5 @@ parkingSpotSchema.virtual("effective_hourly_price").get(function () {
   return this.spot_type === "private" ? this.hourly_price : null;
 });
 
-exports.ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
+const ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
+module.exports = ParkingSpot;

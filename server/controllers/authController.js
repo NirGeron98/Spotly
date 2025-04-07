@@ -1,14 +1,13 @@
-const jwt = require("jsonwebtoken");
 const catchAsync = require("./../utils/catchAsync");
 const AppError = require("./../utils/appError");
 const authService = require("../services/authService");
-const Email = require("./../utils/email");
+const { sendEmail, createPasswordResetEmail } = require("../utils/email");
 
+// Signing up a new user
 exports.signup = catchAsync(async (req, res, next) => {
-  // Use auth service to handle signup business logic
   const newUser = await authService.signup(req.body);
 
-  // Create token and send response
+  // Generate token and respond
   const { token, cookieOptions, user } = authService.createAndSendToken(
     newUser,
     201,
@@ -26,13 +25,13 @@ exports.signup = catchAsync(async (req, res, next) => {
   });
 });
 
+// Logging in a user
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  // Use auth service for login business logic
   const user = await authService.login(email, password);
 
-  // Create and send token
+  // Generate token and respond
   const { token, cookieOptions } = authService.createAndSendToken(
     user,
     200,
@@ -41,20 +40,19 @@ exports.login = catchAsync(async (req, res, next) => {
 
   res.cookie("jwt", token, cookieOptions);
 
+  // Remove password from output
+  user.password = undefined;
+
   res.status(200).json({
     status: "success",
     token,
+    data: {
+      user,
+    },
   });
 });
 
-exports.logout = catchAsync(async (req, res, next) => {
-  res.cookie("jwt", "loggedout", {
-    expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true,
-  });
-  res.status(200).json({ status: "success" });
-});
-
+// Protecting routes
 exports.protect = catchAsync(async (req, res, next) => {
   // 1) Get token and check if it exists
   let token;
@@ -73,33 +71,75 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Use auth service for token verification
-  const currentUser = await authService.protect(token);
+  // 2) Verify token and get user
+  const freshUser = await authService.protect(token);
 
-  // Grant access to protected route
-  req.user = currentUser;
-  res.locals.user = currentUser;
+  // 3) Grant access to protected route
+  req.user = freshUser;
   next();
 });
 
+// Restricting access based on roles
 exports.restrictTo = (...roles) => {
-  return catchAsync(async (req, res, next) => {
-    authService.restrictTo(...roles)(req.user);
-    next();
-  });
+  return (req, res, next) => {
+    try {
+      authService.restrictTo(...roles)(req.user);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
 
+// Updating password
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { passwordCurrent, password, passwordConfirm } = req.body;
+
+  // Use service to update password
+  const user = await authService.updatePassword(
+    req.user,
+    passwordCurrent,
+    password,
+    passwordConfirm
+  );
+
+  // Log user in and send token
+  const { token, cookieOptions } = authService.createAndSendToken(
+    user,
+    200,
+    res
+  );
+
+  res.cookie("jwt", token, cookieOptions);
+
+  res.status(200).json({
+    status: "success",
+    token,
+    data: {
+      user,
+    },
+  });
+});
+
+// Forgot password
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  // Use auth service for password reset logic
+  // 1) Get user and generate token
   const { user, resetToken } = await authService.forgotPassword(req.body.email);
 
-  // Send reset email
+  // 2) Send email with token
   try {
     const resetURL = `${req.protocol}://${req.get(
       "host"
     )}/api/v1/users/resetPassword/${resetToken}`;
 
-    await new Email(user, resetURL).sendPasswordReset();
+    const emailContent = createPasswordResetEmail(user, resetURL);
+
+    await sendEmail({
+      email: user.email,
+      subject: "Your password reset token (valid for 10 minutes)",
+      message: emailContent.text,
+      html: emailContent.html,
+    });
 
     res.status(200).json({
       status: "success",
@@ -119,49 +159,37 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   }
 });
 
+// Reset password
 exports.resetPassword = catchAsync(async (req, res, next) => {
-  // Use auth service to reset password
+  const { token } = req.params;
+  const { password, passwordConfirm } = req.body;
+
+  // Use service to reset password
   const user = await authService.resetPassword(
-    req.params.token,
-    req.body.password,
-    req.body.passwordConfirm
+    token,
+    password,
+    passwordConfirm
   );
 
-  // Log the user in, send JWT
-  const { token, cookieOptions } = authService.createAndSendToken(
-    user,
-    200,
-    res
-  );
+  // Log user in, send JWT
+  const tokenResponse = authService.createAndSendToken(user, 200, res);
 
-  res.cookie("jwt", token, cookieOptions);
+  res.cookie("jwt", tokenResponse.token, tokenResponse.cookieOptions);
 
   res.status(200).json({
     status: "success",
-    token,
+    token: tokenResponse.token,
   });
 });
 
-exports.updatePassword = catchAsync(async (req, res, next) => {
-  // Use auth service to update password
-  const updatedUser = await authService.updatePassword(
-    req.user,
-    req.body.passwordCurrent,
-    req.body.password,
-    req.body.passwordConfirm
-  );
-
-  // Log user in with new token
-  const { token, cookieOptions } = authService.createAndSendToken(
-    updatedUser,
-    200,
-    res
-  );
-
-  res.cookie("jwt", token, cookieOptions);
+// Logout
+exports.logout = (req, res) => {
+  res.cookie("jwt", "loggedout", {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
 
   res.status(200).json({
     status: "success",
-    token,
   });
-});
+};
