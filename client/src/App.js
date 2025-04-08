@@ -14,6 +14,7 @@ import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
 import SearchParking from "./components/pages/SearchParking"; 
 import UsageHistory from "./components/pages/UsageHistory";
+import ReleaseParking from "./components/pages/ReleaseParking";
 
 
 function App() {
@@ -98,6 +99,16 @@ function App() {
           element={
             loggedIn ? (
               <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/release"
+          element={
+            loggedIn ? (
+              <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
               <Navigate to="/login" />
             )

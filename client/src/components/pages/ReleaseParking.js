@@ -4,24 +4,29 @@ import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import { useNavigate } from "react-router-dom";
 
-// סוגי טעינה (כמו במסך חיפוש חנייה)
 const chargerTypes = ["AC רגיל", "AC מהיר", "DC מהיר", "שקע כוח תעשייתי"];
 
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
-  const role = user?.role || "user";
-
   const [current, setCurrent] = useState("release");
   const [parkingSlots, setParkingSlots] = useState([]);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0], // תאריך היום
+    date: new Date().toISOString().split("T")[0],
     startTime: "",
     endTime: "",
     price: "",
     type: "השכרה רגילה",
     charger: "",
   });
+
+  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const role = user.role || "user";
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login"); 
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (role !== "private_prop_owner") {
@@ -58,6 +63,14 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const handleDelete = (index) => {
     setParkingSlots((prev) => prev.filter((_, i) => i !== index));
   };
+
+  if (!user) {
+    return (
+      <div className="text-center mt-10 text-red-600 font-bold">
+        שגיאה: לא נמצאו נתוני משתמש. נא להתחבר מחדש.
+      </div>
+    );
+  }
 
   return (
     <div
