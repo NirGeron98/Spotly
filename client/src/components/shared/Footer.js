@@ -30,35 +30,21 @@ const Footer = () => {
   };
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-50 bg-blue-900 text-blue-100 py-4">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="mb-6 md:mb-0">
-            <p className="text-lg font-bold">© 2025 כל הזכויות שמורות</p>
-          </div>
-          <div className="flex space-x-6 rtl:space-x-reverse">
-            <button
-              onClick={() => handleOpenPopup("terms")}
-              className="hover:text-white transition"
-              aria-label="תנאי שימוש"
-            >
-              תנאי שימוש
-            </button>
-            <button
-              onClick={() => handleOpenPopup("privacy")}
-              className="hover:text-white transition"
-              aria-label="מדיניות פרטיות"
-            >
-              מדיניות פרטיות
-            </button>
-            <button
-              onClick={() => handleOpenPopup("contact")}
-              className="hover:text-white transition"
-              aria-label="צור קשר"
-            >
-              צור קשר
-            </button>
-          </div>
+    <footer className="w-full bg-blue-900 text-blue-100 px-4 py-4 mt-auto z-30 relative">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
+        <p className="text-sm sm:text-base font-semibold text-center sm:text-right">
+          © 2025 כל הזכויות שמורות
+        </p>
+        <div className="flex flex-wrap justify-center sm:justify-start gap-4 text-sm sm:text-base">
+          <button onClick={() => handleOpenPopup("terms")} className="hover:text-white transition">
+            תנאי שימוש
+          </button>
+          <button onClick={() => handleOpenPopup("privacy")} className="hover:text-white transition">
+            מדיניות פרטיות
+          </button>
+          <button onClick={() => handleOpenPopup("contact")} className="hover:text-white transition">
+            צור קשר
+          </button>
         </div>
       </div>
 

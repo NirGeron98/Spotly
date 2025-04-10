@@ -35,23 +35,24 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   };
 
   return (
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white h-16 flex items-center">
-      <div className="container mx-auto px-6 flex justify-between items-center">
-    
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow h-14 sm:h-16">
+      <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
+        {/* לוגו */}
         <Link to="/" className="flex items-center gap-2">
           <img
             src="/assets/spotlyLogo.jpeg"
             alt="Spotly Logo"
-            className="h-16 w-auto"
+            className="h-10 sm:h-12 w-auto"
           />
         </Link>
 
-        <div className="flex items-center gap-2">
+        {/* כפתורים */}
+        <div className="flex items-center gap-1 sm:gap-3">
           {loggedIn ? (
             <>
               <Link
                 to="/dashboard"
-                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
+                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
                   ${
                     isActive("/")
                       ? "bg-blue-50 text-blue-600"
@@ -64,7 +65,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
               <Link
                 to="/profile"
-                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
+                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
                   ${
                     isActive("/profile")
                       ? "bg-blue-50 text-blue-600"
@@ -77,7 +78,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600"
+                className="flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-300"
               >
                 <FaSignOutAlt className="ml-1.5 text-lg" />
                 התנתקות
@@ -87,7 +88,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
             <>
               <Link
                 to="/"
-                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
+                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
                   ${
                     isActive("/")
                       ? "bg-blue-50 text-blue-600"
@@ -100,7 +101,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
               <Link
                 to="/login"
-                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
+                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
                   ${
                     isActive("/login")
                       ? "bg-blue-50 text-blue-600"
@@ -113,7 +114,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
               <Link
                 to="/signup"
-                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium
+                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
                   ${
                     isActive("/signup")
                       ? "bg-blue-50 text-blue-600"

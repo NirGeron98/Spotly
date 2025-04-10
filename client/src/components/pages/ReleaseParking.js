@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 const chargerTypes = ["AC רגיל", "AC מהיר", "DC מהיר", "שקע כוח תעשייתי"];
 
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
+  document.title = "פינוי החנייה שלי | Spotly";
+
   const navigate = useNavigate();
   const [current, setCurrent] = useState("release");
   const [parkingSlots, setParkingSlots] = useState([]);

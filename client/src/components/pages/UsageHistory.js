@@ -32,6 +32,8 @@ const usageHistory = [
 ];
 
 const UsageHistory = () => {
+  document.title = "היסטוריית שימוש | Spotly";
+
   const [current, setCurrent] = useState("history");
   const user = JSON.parse(localStorage.getItem("user"));
   const role = user?.role || "user";
@@ -106,7 +108,7 @@ const UsageHistory = () => {
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
-        <main className="flex-grow p-4 md:p-6 md:mr-60 mt-16">
+        <main className="flex-grow p-4 md:p-6 md:mr-5 mt-12">
           <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">היסטוריית שימוש</h1>
           <p className="text-gray-600 text-lg mb-8 text-center">כאן תוכל לצפות בהיסטוריית השימוש שלך</p>
 
