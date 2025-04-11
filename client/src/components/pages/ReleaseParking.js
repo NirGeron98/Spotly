@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
@@ -21,20 +21,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     charger: "",
   });
 
-  const user = JSON.parse(localStorage.getItem("user")) || {};
-  const role = user.role || "user";
+  const user = useMemo(() => {
+    return JSON.parse(localStorage.getItem("user")) || {};
+  }, []);
+  const role = user?.role || "user";
 
   useEffect(() => {
-    if (!user) {
-      navigate("/login"); 
+    if (!user || !user._id) {
+      navigate("/login");
     }
-  }, [user, navigate]);
+  }, [navigate, user]);
 
   useEffect(() => {
     if (role !== "private_prop_owner") {
       navigate("/search-parking");
     }
-  }, [role, navigate]);
+  }, [navigate, role]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +68,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     setParkingSlots((prev) => prev.filter((_, i) => i !== index));
   };
 
-  if (!user) {
+  if (!user || !user._id) {
     return (
       <div className="text-center mt-10 text-red-600 font-bold">
         שגיאה: לא נמצאו נתוני משתמש. נא להתחבר מחדש.
@@ -95,7 +97,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               <p className="text-center text-gray-600 mb-4">
                 כתובת החנייה:{" "}
                 <span className="font-semibold text-blue-700">
-                  {user?.address || "לא ידועה"}
+                  {user?.address?.street
+                    ? `${user.address.street} ${user.address.number}, ${user.address.city}`
+                    : "לא ידועה"}
                 </span>
               </p>
               <div className="space-y-4">
@@ -215,21 +219,19 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     <tbody>
                       {parkingSlots.map((slot, index) => (
                         <tr key={index} className="hover:bg-blue-50">
-                          <td className="px-6 py-2 border-b w-32">
-                            {slot.date}
-                          </td>
-                          <td className="px-6 py-2 border-b w-40">
+                          <td className="px-6 py-2 border-b">{slot.date}</td>
+                          <td className="px-6 py-2 border-b">
                             {slot.startTime} - {slot.endTime}
                           </td>
-                          <td className="px-6 py-2 border-b w-24">
+                          <td className="px-6 py-2 border-b">
                             {slot.price} ₪
                           </td>
-                          <td className="px-6 py-2 border-b w-52">
+                          <td className="px-6 py-2 border-b">
                             {slot.type === "טעינה לרכב חשמלי"
                               ? `${slot.type} (${slot.charger})`
                               : slot.type}
                           </td>
-                          <td className="px-6 py-2 border-b w-24 space-x-2 rtl:space-x-reverse">
+                          <td className="px-6 py-2 border-b space-x-2 rtl:space-x-reverse">
                             <button
                               onClick={() => handleDelete(index)}
                               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
