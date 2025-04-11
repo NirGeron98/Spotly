@@ -1,6 +1,6 @@
 import React from "react";
 import FeatureCard from "./FeatureCard";
-import { FaMobileAlt , FaClock, FaCompass , FaSearch, FaRoute, FaCheckCircle  } from "react-icons/fa";
+import { FaMobileAlt, FaSearch, FaRoute, FaCheckCircle  } from "react-icons/fa";
 
 const features = [
   {

@@ -50,8 +50,7 @@ const AddressMapSelector = ({
           const fallbackNumber =
             data.display_name?.split(",")[0].match(/\d+/)?.[0] || "";
           const numberFromAPI = data.address.house_number || fallbackNumber;
-          
-          // שמירה על המספר שהוזן קודם, אם קיים
+
           const existingNumber = address.number;
 
           setAddress((prev) => ({
@@ -61,28 +60,22 @@ const AddressMapSelector = ({
               data.address.village ||
               prev.city,
             street: data.address.road || prev.street,
-            // אם יש מספר מה-API - נשתמש בו, אחרת נשמור על המספר הקיים אם יש
-            number: numberFromAPI || (existingNumber && !force ? existingNumber : "")
+            number: numberFromAPI || (existingNumber && !force ? existingNumber : ""),
           }));
 
           if (numberFromAPI) {
             setFeedback("✅ הכתובת עודכנה לפי המפה");
           } else if (existingNumber && !force) {
-            // אם אין מספר מה-API אבל יש מספר שהוזן ידנית - נשמור אותו ונציג פידבק מתאים
             setFeedback("✅ הכתובת עודכנה לפי המפה והמספר שהזנת");
           } else {
             setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
           }
         } else {
-          // שמירה על המספר שהוזן קודם אם לא התקבל מידע מה-API
           if (!force && address.number) {
             setFeedback("✅ הכתובת עודכנה חלקית. המיקום מהמפה שולב עם המספר שהזנת");
           } else {
             if (force) {
-              setAddress((prev) => ({
-                ...prev,
-                number: "",
-              }));
+              setAddress((prev) => ({ ...prev, number: "" }));
             }
             setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
           }
@@ -97,10 +90,7 @@ const AddressMapSelector = ({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setAddress((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setAddress((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleMapSearch = async () => {
@@ -116,30 +106,23 @@ const AddressMapSelector = ({
 
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          query
-        )}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
       );
       const data = await res.json();
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
         setSelectedPosition([lat, lon]);
-        
-        // שמירה על מספר בית שהוזן על ידי המשתמש
+
         const userEnteredNumber = address.number;
-        
+
         await handleReverseGeocode({ lat, lng: lon }, false);
-        
-        // אם לאחר ה-reverse geocode אין מספר בית, אבל המשתמש הזין מספר קודם, נשמור אותו
+
         if (!address.number && userEnteredNumber) {
-          setAddress(prev => ({
-            ...prev,
-            number: userEnteredNumber
-          }));
+          setAddress((prev) => ({ ...prev, number: userEnteredNumber }));
           setFeedback("✅ הכתובת עודכנה לפי המפה והמספר שהזנת");
         }
-        
+
         if (mapRef.current) {
           mapRef.current.setView([lat, lon], 16);
         }
@@ -172,8 +155,8 @@ const AddressMapSelector = ({
         <h2 className="text-lg font-semibold text-gray-800">כתובת</h2>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-end">
-        <div className="relative w-full md:w-1/3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+        <div className="relative">
           <input
             type="text"
             name="city"
@@ -183,7 +166,7 @@ const AddressMapSelector = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
           />
         </div>
-        <div className="relative w-full md:w-1/3">
+        <div className="relative">
           <input
             type="text"
             name="street"
@@ -193,7 +176,7 @@ const AddressMapSelector = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
           />
         </div>
-        <div className="relative w-24">
+        <div className="relative">
           <input
             type="text"
             name="number"
@@ -201,9 +184,7 @@ const AddressMapSelector = ({
             value={address.number}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 rounded-md ${
-              address.number
-                ? "border border-gray-300"
-                : "border border-red-400"
+              address.number ? "border border-gray-300" : "border border-red-400"
             }`}
             required
           />
@@ -211,7 +192,7 @@ const AddressMapSelector = ({
         <div>
           <button
             onClick={handleMapSearch}
-            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition"
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition w-full"
           >
             חפש
           </button>
@@ -258,49 +239,39 @@ const AddressMapSelector = ({
               בחר מיקום על המפה או הזן כתובת מדויקת
             </h3>
 
-            <div className="flex flex-col md:flex-row gap-4 items-end mb-2">
-              <div className="relative w-full md:w-1/3">
-                <input
-                  type="text"
-                  name="city"
-                  placeholder="עיר"
-                  value={address.city}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div className="relative w-full md:w-1/3">
-                <input
-                  type="text"
-                  name="street"
-                  placeholder="רחוב"
-                  value={address.street}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div className="relative w-24">
-                <input
-                  type="text"
-                  name="number"
-                  placeholder="מספר"
-                  value={address.number}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 rounded-md ${
-                    address.number
-                      ? "border border-gray-300"
-                      : "border border-red-400"
-                  }`}
-                />
-              </div>
-              <div>
-                <button
-                  onClick={handleMapSearch}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-                >
-                  חפש
-                </button>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
+              <input
+                type="text"
+                name="city"
+                placeholder="עיר"
+                value={address.city}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+              <input
+                type="text"
+                name="street"
+                placeholder="רחוב"
+                value={address.street}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+              <input
+                type="text"
+                name="number"
+                placeholder="מספר"
+                value={address.number}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 rounded-md ${
+                  address.number ? "border border-gray-300" : "border border-red-400"
+                }`}
+              />
+              <button
+                onClick={handleMapSearch}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+              >
+                חפש
+              </button>
             </div>
 
             {(feedback || searching) && (

@@ -20,22 +20,22 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const isActive = (path) => {
     if (path === "/signup" || path === "/signup-details") {
-      return (
-        location.pathname === "/signup" ||
-        location.pathname === "/signup-details"
-      );
+      return location.pathname === "/signup" || location.pathname === "/signup-details";
     }
     if (loggedIn && path === "/") {
-      return (
-        location.pathname === "/dashboard" ||
-        location.pathname === "/search-parking"
-      );
+      return location.pathname === "/dashboard" || location.pathname === "/search-parking";
     }
     return location.pathname === path;
   };
 
+  const linkStyle = (path) =>
+    `flex items-center px-3 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-300 border 
+     ${isActive(path)
+       ? "bg-blue-100 text-blue-700 border-blue-400 shadow-sm"
+       : "text-gray-700 border-gray-300 hover:bg-gray-100 hover:text-blue-600"}`;
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow h-14 sm:h-16">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-14 sm:h-16">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* לוגו */}
         <Link to="/" className="flex items-center gap-2">
@@ -47,38 +47,22 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
         </Link>
 
         {/* כפתורים */}
-        <div className="flex items-center gap-1 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-4">
           {loggedIn ? (
             <>
-              <Link
-                to="/dashboard"
-                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
-                  ${
-                    isActive("/")
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                  }`}
-              >
+              <Link to="/dashboard" className={linkStyle("/")}>
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
               </Link>
 
-              <Link
-                to="/profile"
-                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
-                  ${
-                    isActive("/profile")
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                  }`}
-              >
+              <Link to="/profile" className={linkStyle("/profile")}>
                 <FaUser className="ml-1.5 text-lg" />
                 ניהול פרופיל
               </Link>
 
               <button
                 onClick={handleLogout}
-                className="flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-all duration-300"
+                className="flex items-center px-3 py-2 rounded-full text-sm sm:text-base font-medium text-red-600 border border-gray-300 hover:bg-red-50 hover:border-red-400 transition-all duration-300"
               >
                 <FaSignOutAlt className="ml-1.5 text-lg" />
                 התנתקות
@@ -86,41 +70,17 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
             </>
           ) : (
             <>
-              <Link
-                to="/"
-                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
-                  ${
-                    isActive("/")
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                  }`}
-              >
+              <Link to="/" className={linkStyle("/")}>
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
               </Link>
 
-              <Link
-                to="/login"
-                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
-                  ${
-                    isActive("/login")
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                  }`}
-              >
+              <Link to="/login" className={linkStyle("/login")}>
                 <FaSignInAlt className="ml-1.5 text-lg" />
                 התחברות
               </Link>
 
-              <Link
-                to="/signup"
-                className={`flex items-center px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-all duration-300
-                  ${
-                    isActive("/signup")
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                  }`}
-              >
+              <Link to="/signup" className={linkStyle("/signup")}>
                 <FaUserPlus className="ml-1.5 text-lg" />
                 הרשמה
               </Link>
