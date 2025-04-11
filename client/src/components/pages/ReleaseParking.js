@@ -60,8 +60,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   useEffect(() => {
-    fetchMySpots();
-  }, []);
+    if (user && user._id) {
+      fetchMySpots();
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -141,52 +143,108 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
+    <div
+      className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
+      dir="rtl"
+    >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
         <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
-          <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">פינוי החנייה שלי</h1>
+          <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">
+            פינוי החנייה שלי
+          </h1>
           <div className="grid grid-cols-1 md:grid-cols-[3fr_4fr] gap-8">
             <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
-              <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">הוסף זמינות חדשה</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">
+                הוסף זמינות חדשה
+              </h2>
               <p className="text-center text-gray-600 mb-4">
-                כתובת החנייה: <span className="font-semibold text-blue-700">
-                  {user?.address?.street ? `${user.address.street} ${user.address.number}, ${user.address.city}` : "לא ידועה"}
+                כתובת החנייה:{" "}
+                <span className="font-semibold text-blue-700">
+                  {user?.address?.street
+                    ? `${user.address.street} ${user.address.number}, ${user.address.city}`
+                    : "לא ידועה"}
                 </span>
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block mb-1 font-semibold text-gray-700">תאריך</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <label className="block mb-1 font-semibold text-gray-700">
+                    תאריך
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
                 </div>
                 <div className="flex gap-4">
                   <div className="w-1/2">
-                    <label className="block mb-1 font-semibold text-gray-700">שעת התחלה</label>
-                    <input type="time" name="startTime" value={formData.startTime} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      שעת התחלה
+                    </label>
+                    <input
+                      type="time"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
                   <div className="w-1/2">
-                    <label className="block mb-1 font-semibold text-gray-700">שעת סיום</label>
-                    <input type="time" name="endTime" value={formData.endTime} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      שעת סיום
+                    </label>
+                    <input
+                      type="time"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
                 </div>
                 {!isBuildingMode && (
                   <div>
-                    <label className="block mb-1 font-semibold text-gray-700">מחיר (₪)</label>
-                    <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      מחיר (₪)
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
                 )}
                 <div>
-                  <label className="block mb-1 font-semibold text-gray-700">סוג פינוי</label>
-                  <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <label className="block mb-1 font-semibold text-gray-700">
+                    סוג פינוי
+                  </label>
+                  <select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
                     <option>השכרה רגילה</option>
                     <option>טעינה לרכב חשמלי</option>
                   </select>
                 </div>
                 {formData.type === "טעינה לרכב חשמלי" && (
                   <div>
-                    <label className="block mb-1 font-semibold text-gray-700">סוג טעינה</label>
-                    <select name="charger" value={formData.charger} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      סוג טעינה
+                    </label>
+                    <select
+                      name="charger"
+                      value={formData.charger}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
                       <option value="">בחר סוג טעינה</option>
                       {chargerTypes.map((type) => (
                         <option key={type}>{type}</option>
@@ -194,13 +252,18 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     </select>
                   </div>
                 )}
-                <button onClick={handleAddSlot} className="w-full bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700 transition">
+                <button
+                  onClick={handleAddSlot}
+                  className="w-full bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700 transition"
+                >
                   הוסף פינוי
                 </button>
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">החניות שפירסמת</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
+                החניות שפירסמת
+              </h2>
               {parkingSlots.length === 0 ? (
                 <p className="text-gray-600 text-center">אין חניות כרגע.</p>
               ) : (
@@ -210,7 +273,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       <tr>
                         <th className="px-6 py-2 border-b">תאריך</th>
                         <th className="px-6 py-2 border-b">שעות</th>
-                        {!isBuildingMode && <th className="px-6 py-2 border-b">מחיר</th>}
+                        {!isBuildingMode && (
+                          <th className="px-6 py-2 border-b">מחיר</th>
+                        )}
                         <th className="px-6 py-2 border-b">סוג</th>
                         <th className="px-6 py-2 border-b">פעולות</th>
                       </tr>
@@ -218,12 +283,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     <tbody>
                       {parkingSlots.map((slot) => (
                         <tr key={slot._id} className="hover:bg-blue-50">
-                          <td className="px-6 py-2 border-b">{slot.available_date?.split("T")[0]}</td>
-                          <td className="px-6 py-2 border-b">{slot.start_time} - {slot.end_time}</td>
-                          {!isBuildingMode && <td className="px-6 py-2 border-b">{slot.hourly_price} ₪</td>}
-                          <td className="px-6 py-2 border-b">{slot.is_charging_station ? `טעינה לרכב חשמלי (${slot.charger_type})` : "השכרה רגילה"}</td>
+                          <td className="px-6 py-2 border-b">
+                            {slot.available_date?.split("T")[0]}
+                          </td>
+                          <td className="px-6 py-2 border-b">
+                            {slot.start_time} - {slot.end_time}
+                          </td>
+                          {!isBuildingMode && (
+                            <td className="px-6 py-2 border-b">
+                              {slot.hourly_price} ₪
+                            </td>
+                          )}
+                          <td className="px-6 py-2 border-b">
+                            {slot.is_charging_station
+                              ? `טעינה לרכב חשמלי (${slot.charger_type})`
+                              : "השכרה רגילה"}
+                          </td>
                           <td className="px-6 py-2 border-b rtl:space-x-reverse">
-                            <button onClick={() => handleDelete(slot._id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">מחק</button>
+                            <button
+                              onClick={() => handleDelete(slot._id)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                            >
+                              מחק
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -239,11 +321,25 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       {showConfirmPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-            <h3 className="text-lg font-bold text-center text-blue-800 mb-4">אישור מחיקה</h3>
-            <p className="text-center text-gray-700 mb-6">האם אתה בטוח שברצונך למחוק את החנייה הזו?</p>
+            <h3 className="text-lg font-bold text-center text-blue-800 mb-4">
+              אישור מחיקה
+            </h3>
+            <p className="text-center text-gray-700 mb-6">
+              האם אתה בטוח שברצונך למחוק את החנייה הזו?
+            </p>
             <div className="flex justify-center gap-4">
-              <button onClick={confirmDelete} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">מחק</button>
-              <button onClick={() => setShowConfirmPopup(false)} className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition">ביטול</button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+              >
+                מחק
+              </button>
+              <button
+                onClick={() => setShowConfirmPopup(false)}
+                className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition"
+              >
+                ביטול
+              </button>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
+import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Footer from "../shared/Footer";
 import Sidebar from "../shared/Sidebar";
@@ -29,6 +30,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [chargerType, setChargerType] = useState("");
   const [feedback, setFeedback] = useState("");
   const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
 
   const handleSearch = async () => {
     if (!isBuildingMode && (!address.city || !address.street || !address.number)) {
@@ -36,23 +39,56 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
-    if (isBuildingMode) {
-      setFeedback("✅ מחפש חנייה בבניין שלך...");
-      return;
-    }
-
     setSearching(true);
-    setFeedback("מחפש כתובת...");
+    setFeedback("מחפש...");
 
-    const result = await geocodeAddress(address);
-
-    if (result.success) {
-      setFeedback("✅ כתובת נמצאה");
-    } else {
-      setFeedback(result.message);
+    try {
+      if (!isBuildingMode) {
+        const geocodeResult = await geocodeAddress(address);
+        if (!geocodeResult.success) {
+          setFeedback(geocodeResult.message);
+          setSearching(false);
+          return;
+        }
+      }
+      
+      const token = localStorage.getItem("token");
+      const payload = {
+        start_time: startTime,
+        end_time: endTime,
+      };
+      
+      if (!isBuildingMode) {
+        payload.city = address.city;
+        payload.street = address.street;
+        payload.number = address.number;
+        if (minPrice) payload.min_price = parseFloat(minPrice);
+        if (maxPrice) payload.max_price = parseFloat(maxPrice);
+      } else {
+        payload.building_id = user?.resident_building;
+        payload.date = date;
+      }
+      
+      if (needsCharging) {
+        payload.needs_charging = true;
+        if (chargerType) payload.charger_type = chargerType;
+      }
+      
+      const res = await axios.post("/api/v1/parking-spots/search", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      setResults(res.data?.data?.parkingSpots || []);
+      setShowPopup(true);
+      setFeedback("");
+    } catch (err) {
+      console.error("Search failed:", err);
+      setFeedback("❌ חלה שגיאה בחיפוש");
+    } finally {
+      setSearching(false);
     }
-
-    setSearching(false);
   };
 
   const renderContent = () => {
@@ -160,11 +196,19 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           <div className="text-center pt-4">
             <button
               onClick={handleSearch}
+              disabled={searching}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md text-lg transition"
             >
-              חפש חנייה
+              {searching ? "מחפש..." : "חפש חנייה"}
             </button>
           </div>
+
+          {feedback && (
+            <div className="text-center mt-2 text-sm font-medium" 
+                 style={{ color: feedback.includes("❌") ? "#e53e3e" : feedback.includes("✅") ? "#38a169" : "#2b6cb0" }}>
+              {feedback}
+            </div>
+          )}
         </div>
       </>
     );
@@ -175,9 +219,76 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-1">
         <Sidebar current={currentTab} setCurrent={setCurrentTab} role={role} />
-        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto">{renderContent()}</main>
+        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto">
+          {renderContent()}
+        </main>
       </div>
       <Footer />
+
+      {/* Results Popup */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setShowPopup(false)}>
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-blue-700">תוצאות חיפוש</h2>
+              <button 
+                onClick={() => setShowPopup(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {results.length === 0 ? (
+              <p className="text-center text-gray-600 py-8">לא נמצאו חניות תואמות.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right border">
+                  <thead className="bg-blue-50 text-blue-800">
+                    <tr>
+                      <th className="px-4 py-2">תאריך</th>
+                      <th className="px-4 py-2">שעות</th>
+                      {!isBuildingMode && <th className="px-4 py-2">מחיר</th>}
+                      <th className="px-4 py-2">סוג</th>
+                      <th className="px-4 py-2">פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((spot) => (
+                      <tr key={spot._id} className="border-b hover:bg-blue-50">
+                        <td className="px-4 py-2">{spot.available_date?.split("T")[0]}</td>
+                        <td className="px-4 py-2">{spot.start_time} - {spot.end_time}</td>
+                        {!isBuildingMode && (
+                          <td className="px-4 py-2">{spot.hourly_price} ₪</td>
+                        )}
+                        <td className="px-4 py-2">
+                          {spot.is_charging_station
+                            ? `טעינה לרכב חשמלי (${spot.charger_type})`
+                            : "השכרה רגילה"}
+                        </td>
+                        <td className="px-4 py-2">
+                          <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                            הזמן
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-5 py-2 rounded"
+              >
+                יציאה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
