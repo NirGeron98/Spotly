@@ -8,30 +8,31 @@ const AppError = require("../utils/appError");
  * @returns {Promise<Object>} The created booking
  */
 exports.createBooking = async (bookingData) => {
-  // Check if the parking spot exists and is available for the requested time
-  const parkingSpot = await ParkingSpot.findById(bookingData.parkingSpot);
-
+  // Check if the parking spot exists
+  const parkingSpot = await ParkingSpot.findById(bookingData.spot);
   if (!parkingSpot) {
     throw new AppError("Parking spot not found", 404);
   }
 
-  // Add additional validation logic here
-  // For example, check if spot is already booked for the requested time period
+  // Check if there's already an active booking for this spot at this time
   const isAvailable = await exports.checkParkingSpotAvailability(
-    bookingData.parkingSpot,
-    bookingData.startTime,
-    bookingData.endTime
+    bookingData.spot,
+    bookingData.start_datetime
   );
 
   if (!isAvailable) {
     throw new AppError(
-      "Parking spot is not available for the requested time period",
+      "This parking spot is already booked for the requested time",
       400
     );
   }
 
   // Create booking
-  const booking = await Booking.create(bookingData);
+  const booking = await Booking.create({
+    ...bookingData,
+    status: 'active'
+  });
+  
   return booking;
 };
 
@@ -59,30 +60,25 @@ exports.getUserBookings = async (userId) => {
 
 /**
  * Check if a parking spot is available during a specific time period
- * @param {string} parkingSpotId - Parking spot ID
+ * @param {string} spotId - Parking spot ID
  * @param {Date} startTime - Start time of the period to check
  * @param {Date} endTime - End time of the period to check
  * @returns {Promise<boolean>} Whether the spot is available
  */
-exports.checkParkingSpotAvailability = async (
-  parkingSpotId,
-  startTime,
-  endTime
-) => {
-  // Find any overlapping bookings
-  const overlappingBookings = await Booking.find({
-    parkingSpot: parkingSpotId,
+exports.checkParkingSpotAvailability = async (spotId, startTime, endTime) => {
+  // Find any overlapping active bookings for this spot
+  const existingBooking = await Booking.findOne({
+    spot: spotId,
+    status: 'active',
+    start_datetime: { $lte: startTime },
     $or: [
-      // Booking starts during the requested period
-      { startTime: { $lt: endTime, $gte: startTime } },
-      // Booking ends during the requested period
-      { endTime: { $gt: startTime, $lte: endTime } },
-      // Booking includes the entire requested period
-      { startTime: { $lte: startTime }, endTime: { $gte: endTime } },
-    ],
+      { end_datetime: null },
+      { end_datetime: { $gt: startTime } }
+    ]
   });
 
-  return overlappingBookings.length === 0;
+  // If there's an existing active booking, the spot is not available
+  return !existingBooking;
 };
 
 /**
@@ -108,7 +104,7 @@ exports.cancelBooking = async (bookingId, userId) => {
 
   // Check if the booking can be canceled (e.g., not already started)
   const now = new Date();
-  if (booking.startTime <= now) {
+  if (booking.start_datetime <= now) {
     throw new AppError("Cannot cancel a booking that has already started", 400);
   }
 
@@ -141,11 +137,11 @@ exports.updateBooking = async (bookingId, updateData, userId) => {
   }
 
   // If changing dates, check availability
-  if (updateData.startTime || updateData.endTime) {
+  if (updateData.start_datetime || updateData.end_datetime) {
     const isAvailable = await exports.checkParkingSpotAvailability(
-      booking.parkingSpot,
-      updateData.startTime || booking.startTime,
-      updateData.endTime || booking.endTime
+      booking.spot,
+      updateData.start_datetime || booking.start_datetime,
+      updateData.end_datetime || booking.end_datetime
     );
 
     if (!isAvailable) {

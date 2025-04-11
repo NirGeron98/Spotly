@@ -33,7 +33,7 @@ const requestSchema = new mongoose.Schema({
   },
   assigned_spot: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "ParkingSpot",
+    ref: "BuildingParkingSpot",
   },
   created_at: {
     type: Date,

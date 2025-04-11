@@ -1,4 +1,4 @@
-const Request = require("./../models/requestModel");
+const Request = require("./../models/userModel");
 const catchAsync = require("./../utils/catchAsync");
 const factory = require("./handlerFactory");
 const requestService = require("../services/requestService");

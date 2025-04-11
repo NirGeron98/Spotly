@@ -13,7 +13,7 @@ const bookingSchema = new mongoose.Schema({
   },
   spot: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "PrivateSpot",
+    ref: "ParkingSpot",
     required: [true, "Spot is required"],
   },
   start_datetime: {

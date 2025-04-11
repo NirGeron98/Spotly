@@ -16,9 +16,9 @@ router
   .route("/:id")
   .get(bookingController.getBooking)
   .patch(bookingController.updateBooking)
+  .delete(bookingController.deleteBooking);
 
-// Specialized routes
+// Get user's bookings
 router.get("/user/my-bookings", bookingController.getUserBookings);
-router.get("/availability", bookingController.checkAvailability);
 
 module.exports = router;
