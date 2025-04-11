@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import { useNavigate } from "react-router-dom";
 
 const chargerTypes = ["AC רגיל", "AC מהיר", "DC מהיר", "שקע כוח תעשייתי"];
 
@@ -10,6 +10,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "פינוי החנייה שלי | Spotly";
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBuildingMode = location?.state?.mode === "building";
+
   const [current, setCurrent] = useState("release");
   const [parkingSlots, setParkingSlots] = useState([]);
   const [formData, setFormData] = useState({
@@ -33,10 +36,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   }, [navigate, user]);
 
   useEffect(() => {
-    if (role !== "private_prop_owner") {
+    if (role !== "private_prop_owner" && !isBuildingMode) {
       navigate("/search-parking");
     }
-  }, [navigate, role]);
+  }, [navigate, role, isBuildingMode]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,10 +52,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       !date ||
       !startTime ||
       !endTime ||
-      !price ||
+      (!isBuildingMode && !price) ||
       (type === "טעינה לרכב חשמלי" && !charger)
     )
       return;
+
     setParkingSlots((prev) => [...prev, { ...formData }]);
     setFormData({
       date: new Date().toISOString().split("T")[0],
@@ -68,14 +72,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     setParkingSlots((prev) => prev.filter((_, i) => i !== index));
   };
 
-  if (!user || !user._id) {
-    return (
-      <div className="text-center mt-10 text-red-600 font-bold">
-        שגיאה: לא נמצאו נתוני משתמש. נא להתחבר מחדש.
-      </div>
-    );
-  }
-
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
@@ -83,7 +79,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-grow">
-        <Sidebar current={current} setCurrent={setCurrent} role={role} />
+        <Sidebar
+          current={current}
+          setCurrent={setCurrent}
+          role={role}
+        />
         <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
           <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">
             פינוי החנייה שלי
@@ -141,18 +141,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-700">
-                    מחיר (₪)
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
+
+                {/* 🧾 מחיר – לא רלוונטי במסלול בניין */}
+                {!isBuildingMode && (
+                  <div>
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      מחיר (₪)
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block mb-1 font-semibold text-gray-700">
@@ -211,7 +215,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       <tr>
                         <th className="px-6 py-2 border-b w-32">תאריך</th>
                         <th className="px-6 py-2 border-b w-40">שעות</th>
-                        <th className="px-6 py-2 border-b w-24">מחיר</th>
+                        {!isBuildingMode && (
+                          <th className="px-6 py-2 border-b w-24">מחיר</th>
+                        )}
                         <th className="px-6 py-2 border-b w-52">סוג</th>
                         <th className="px-6 py-2 border-b w-24">פעולות</th>
                       </tr>
@@ -223,9 +229,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                           <td className="px-6 py-2 border-b">
                             {slot.startTime} - {slot.endTime}
                           </td>
-                          <td className="px-6 py-2 border-b">
-                            {slot.price} ₪
-                          </td>
+                          {!isBuildingMode && (
+                            <td className="px-6 py-2 border-b">
+                              {slot.price} ₪
+                            </td>
+                          )}
                           <td className="px-6 py-2 border-b">
                             {slot.type === "טעינה לרכב חשמלי"
                               ? `${slot.type} (${slot.charger})`

@@ -1,11 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaSearch, FaRegWindowClose, FaHistory, FaBars } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Sidebar = ({ current, setCurrent, role }) => {
   const [isHovered, setIsHovered] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const storedMode = localStorage.getItem("mode");
+  const currentMode = location.state?.mode || storedMode || "regular";
+
+  useEffect(() => {
+    if (location.state?.mode) {
+      localStorage.setItem("mode", location.state.mode);
+    }
+  }, [location.state?.mode]);
+
+  const isBuildingMode = currentMode === "building";
 
   const options = [
     {
@@ -20,7 +32,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
       label: "פינוי החנייה שלי",
       icon: <FaRegWindowClose className="text-lg" />,
       path: "/release",
-      visible: role === "private_prop_owner",
+      visible: role === "private_prop_owner" || isBuildingMode,
     },
     {
       key: "history",
@@ -33,7 +45,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
 
   return (
     <>
-      {/* כפתור המבורגר במסכים קטנים */}
+      {/* כפתור המבורגר למסכים קטנים */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 bg-indigo-800 text-white p-2 rounded"
         onClick={() => setIsOpen(!isOpen)}
@@ -55,6 +67,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
           <h2 className="font-bold text-white text-lg">ניווט מהיר</h2>
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-blue-400 rounded-full"></div>
         </div>
+
         {/* תפריט */}
         <nav className="flex flex-col px-3 py-4 overflow-y-auto flex-grow">
           {options.map(
@@ -64,7 +77,16 @@ const Sidebar = ({ current, setCurrent, role }) => {
                   key={opt.key}
                   onClick={() => {
                     setCurrent(opt.key);
-                    navigate(opt.path);
+
+                    if (opt.key === "release" && isBuildingMode) {
+                      navigate("/release", {
+                        state: { mode: "building" },
+                        replace: true,
+                      });
+                    } else {
+                      navigate(opt.path);
+                    }
+
                     setIsOpen(false);
                   }}
                   onMouseEnter={() => setIsHovered(opt.key)}
@@ -97,6 +119,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
               )
           )}
         </nav>
+
         {/* תחתית */}
         <div className="px-3 py-4 text-center text-blue-200 text-xs bg-indigo-900/30">
           <div className="w-10 h-0.5 mx-auto mb-2 bg-blue-400/30 rounded-full"></div>
