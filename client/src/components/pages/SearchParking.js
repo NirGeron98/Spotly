@@ -147,8 +147,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-1">
-        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto">{renderContent()}</main>
         <Sidebar current={currentTab} setCurrent={setCurrentTab} role={role} />
+        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto">{renderContent()}</main>
       </div>
       <Footer />
     </div>

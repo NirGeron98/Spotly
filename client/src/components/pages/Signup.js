@@ -275,7 +275,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                       value={formData.phone_number}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      dir=""
+                      dir="rtl"
                     />
                   </div>
 

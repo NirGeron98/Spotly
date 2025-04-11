@@ -6,13 +6,13 @@ const AppError = require("../utils/appError");
 const filterObj = require("../utils/filterObj"); // Ensure this utility is imported
 
 // Helper functions
-const signToken = (id) => {
+exports.signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
 
-const createAndSendToken = (user, statusCode, res) => {
+exports.createAndSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
   const cookieOptions = {
     expires: new Date(
@@ -34,7 +34,7 @@ const createAndSendToken = (user, statusCode, res) => {
 };
 
 // Auth business logic
-const signup = async (userData) => {
+exports.signup = async (userData) => {
   // Define allowed fields for all roles
   const allowedFields = [
     "first_name",
@@ -89,7 +89,7 @@ const signup = async (userData) => {
   return newUser;
 };
 
-const login = async (email, password) => {
+exports.login = async (email, password) => {
   // Check if email and password exist
   if (!email || !password) {
     throw new AppError("Please provide email and password!", 400);
@@ -105,7 +105,7 @@ const login = async (email, password) => {
   return user;
 };
 
-const protect = async (token) => {
+exports.protect = async (token) => {
   // 1) Verify token
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
@@ -129,7 +129,7 @@ const protect = async (token) => {
   return freshUser;
 };
 
-const restrictTo = (...roles) => {
+exports.restrictTo = (...roles) => {
   return (user) => {
     // roles is an array ['admin', 'lead-guide']
     if (!roles.includes(user.role)) {
@@ -142,7 +142,7 @@ const restrictTo = (...roles) => {
   };
 };
 
-const updatePassword = async (
+exports.updatePassword = async (
   user,
   currentPassword,
   password,
@@ -166,7 +166,7 @@ const updatePassword = async (
   return updatedUser;
 };
 
-const forgotPassword = async (email) => {
+exports.forgotPassword = async (email) => {
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email });
   if (!user) {
@@ -180,7 +180,7 @@ const forgotPassword = async (email) => {
   return { user, resetToken };
 };
 
-const resetPassword = async (token, password, passwordConfirm) => {
+exports.resetPassword = async (token, password, passwordConfirm) => {
   // 1) Get user based on the token
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -201,16 +201,4 @@ const resetPassword = async (token, password, passwordConfirm) => {
   await user.save();
 
   return user;
-};
-
-module.exports = {
-  signup,
-  login,
-  protect,
-  restrictTo,
-  updatePassword,
-  forgotPassword,
-  resetPassword,
-  createAndSendToken,
-  signToken,
 };

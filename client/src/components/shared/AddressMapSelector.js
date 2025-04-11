@@ -50,6 +50,9 @@ const AddressMapSelector = ({
           const fallbackNumber =
             data.display_name?.split(",")[0].match(/\d+/)?.[0] || "";
           const numberFromAPI = data.address.house_number || fallbackNumber;
+          
+          // שמירה על המספר שהוזן קודם, אם קיים
+          const existingNumber = address.number;
 
           setAddress((prev) => ({
             city:
@@ -58,30 +61,38 @@ const AddressMapSelector = ({
               data.address.village ||
               prev.city,
             street: data.address.road || prev.street,
-            number:
-              numberFromAPI !== "" ? numberFromAPI : force ? "" : prev.number,
+            // אם יש מספר מה-API - נשתמש בו, אחרת נשמור על המספר הקיים אם יש
+            number: numberFromAPI || (existingNumber && !force ? existingNumber : "")
           }));
 
           if (numberFromAPI) {
             setFeedback("✅ הכתובת עודכנה לפי המפה");
+          } else if (existingNumber && !force) {
+            // אם אין מספר מה-API אבל יש מספר שהוזן ידנית - נשמור אותו ונציג פידבק מתאים
+            setFeedback("✅ הכתובת עודכנה לפי המפה והמספר שהזנת");
           } else {
             setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
           }
         } else {
-          if (force) {
-            setAddress((prev) => ({
-              ...prev,
-              number: "",
-            }));
+          // שמירה על המספר שהוזן קודם אם לא התקבל מידע מה-API
+          if (!force && address.number) {
+            setFeedback("✅ הכתובת עודכנה חלקית. המיקום מהמפה שולב עם המספר שהזנת");
+          } else {
+            if (force) {
+              setAddress((prev) => ({
+                ...prev,
+                number: "",
+              }));
+            }
+            setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
           }
-          setFeedback("⚠️ מספר בית לא זוהה, נא להזין ידנית");
         }
       } catch (error) {
         console.error("Reverse geocode failed:", error);
         setFeedback("❌ לא הצלחנו לעדכן כתובת מהמפה");
       }
     },
-    [setAddress, setFeedback]
+    [setAddress, setFeedback, address.number]
   );
 
   const handleInputChange = (e) => {
@@ -114,7 +125,21 @@ const AddressMapSelector = ({
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
         setSelectedPosition([lat, lon]);
+        
+        // שמירה על מספר בית שהוזן על ידי המשתמש
+        const userEnteredNumber = address.number;
+        
         await handleReverseGeocode({ lat, lng: lon }, false);
+        
+        // אם לאחר ה-reverse geocode אין מספר בית, אבל המשתמש הזין מספר קודם, נשמור אותו
+        if (!address.number && userEnteredNumber) {
+          setAddress(prev => ({
+            ...prev,
+            number: userEnteredNumber
+          }));
+          setFeedback("✅ הכתובת עודכנה לפי המפה והמספר שהזנת");
+        }
+        
         if (mapRef.current) {
           mapRef.current.setView([lat, lon], 16);
         }
