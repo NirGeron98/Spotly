@@ -12,6 +12,7 @@ const userRouter = require("./routes/userRoutes");
 const buildingRouter = require("./routes/buildingRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
 const requestRouter = require("./routes/requestRoutes");
+const parkingSpotRouter = require("./routes/parkingSpotRoutes");
 //const spotRouter = require("./routes/spotRoutes");
 const app = express();
 
@@ -67,6 +68,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/buildings", buildingRouter);
 app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/requests", requestRouter);
+app.use("/api/v1/parking-spots", parkingSpotRouter); 
 
 app.all("*", (req, res, next) => {
   // Runs for all HTTP Methods
