@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "../shared/Navbar";
 import Footer from "../shared/Footer";
 import Sidebar from "../shared/Sidebar";
@@ -11,12 +12,17 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
   const role = user?.role;
+  const location = useLocation();
+
+  const mode = location?.state?.mode || "regular";
+  const isBuildingMode = mode === "building";
 
   const [currentTab, setCurrentTab] = useState("search");
 
   const [address, setAddress] = useState({ city: "", street: "", number: "" });
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [needsCharging, setNeedsCharging] = useState(false);
@@ -25,8 +31,13 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [searching, setSearching] = useState(false);
 
   const handleSearch = async () => {
-    if (!address.city || !address.street || !address.number) {
+    if (!isBuildingMode && (!address.city || !address.street || !address.number)) {
       setFeedback("❌ יש להזין/לבחור כתובת");
+      return;
+    }
+
+    if (isBuildingMode) {
+      setFeedback("✅ מחפש חנייה בבניין שלך...");
       return;
     }
 
@@ -36,7 +47,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     const result = await geocodeAddress(address);
 
     if (result.success) {
-      console.log("🔍 מבצע חיפוש עם מיקום:", result.lat, result.lon);
       setFeedback("✅ כתובת נמצאה");
     } else {
       setFeedback(result.message);
@@ -51,39 +61,58 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     return (
       <>
         <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">חיפוש חנייה</h1>
-        <p className="text-gray-600 text-lg mb-8 text-center">בחר מיקום, טווח מחירים וזמן זמינות</p>
-        <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
-          <AddressMapSelector
-            address={address}
-            setAddress={setAddress}
-            feedback={feedback}
-            setFeedback={setFeedback}
-            searching={searching}
-            setSearching={setSearching}
-          />
+        <p className="text-gray-600 text-lg mb-8 text-center">
+          {isBuildingMode
+            ? "בחר תאריך, שעות זמינות וסוג טעינה (אם נדרש)"
+            : "בחר מיקום, טווח מחירים וזמן זמינות"}
+        </p>
 
-          {/* טווח מחירים */}
-          <div>
-            <label className="block mb-2 text-sm font-bold text-gray-700">טווח מחירים (₪)</label>
-            <div className="flex gap-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+          {!isBuildingMode && (
+            <AddressMapSelector
+              address={address}
+              setAddress={setAddress}
+              feedback={feedback}
+              setFeedback={setFeedback}
+              searching={searching}
+              setSearching={setSearching}
+            />
+          )}
+
+          {!isBuildingMode && (
+            <div>
+              <label className="block mb-2 text-sm font-bold text-gray-700">טווח מחירים (₪)</label>
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="מחיר מינימלי"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="מחיר מקסימלי"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+          )}
+
+          {isBuildingMode && (
+            <div>
+              <label className="block mb-2 text-sm font-bold text-gray-700">תאריך</label>
               <input
-                type="text"
-                placeholder="מחיר מינימלי"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
-              <input
-                type="text"
-                placeholder="מחיר מקסימלי"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md"
               />
             </div>
-          </div>
+          )}
 
-          {/* טווח זמן */}
           <div>
             <label className="block mb-2 text-sm font-bold text-gray-700">טווח זמן</label>
             <div className="flex gap-4">
@@ -102,7 +131,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             </div>
           </div>
 
-          {/* טעינה חשמלית */}
           <div>
             <label className="flex items-center gap-3">
               <input
@@ -129,7 +157,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             )}
           </div>
 
-          {/* כפתור חיפוש */}
           <div className="text-center pt-4">
             <button
               onClick={handleSearch}

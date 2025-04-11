@@ -20,19 +20,24 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const isActive = (path) => {
     if (path === "/signup" || path === "/signup-details") {
-      return location.pathname === "/signup" || location.pathname === "/signup-details";
+      return (
+        location.pathname === "/signup" ||
+        location.pathname === "/signup-details"
+      );
     }
     if (loggedIn && path === "/") {
-      return location.pathname === "/dashboard" || location.pathname === "/search-parking";
+      return location.pathname === "/dashboard";
     }
     return location.pathname === path;
   };
 
   const linkStyle = (path) =>
     `flex items-center px-3 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-300 border 
-     ${isActive(path)
-       ? "bg-blue-100 text-blue-700 border-blue-400 shadow-sm"
-       : "text-gray-700 border-gray-300 hover:bg-gray-100 hover:text-blue-600"}`;
+     ${
+       isActive(path)
+         ? "bg-blue-100 text-blue-700 border-blue-400 shadow-sm"
+         : "text-gray-700 border-gray-300 hover:bg-gray-100 hover:text-blue-600"
+     }`;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-14 sm:h-16">
