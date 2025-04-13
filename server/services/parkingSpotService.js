@@ -49,7 +49,6 @@ exports.createParkingSpot = async (parkingSpotData) => {
   return await ParkingSpot.create(parkingSpotData);
 };
 
-
 exports.getAllParkingSpots = async (filters = {}) => {
   return await ParkingSpot.find(filters);
 };
@@ -87,7 +86,10 @@ exports.updateParkingSpot = async (id, updateData, userId, userRole) => {
     throw new AppError("Cannot change the type of a parking spot", 400);
   }
 
-  if (parkingSpot.spot_type === "building" && updateData.hourly_price) {
+  if (
+    parkingSpot.spot_type === "building" &&
+    updateData.hourly_price !== undefined
+  ) {
     throw new AppError(
       "Cannot set hourly price for building parking spots",
       400
@@ -645,6 +647,8 @@ exports.releaseParkingSpot = async (spotData) => {
     start_time: startTime,
     end_time: endTime,
     is_available: true,
+    type,
+    charger,
   };
 
   // Add the schedule

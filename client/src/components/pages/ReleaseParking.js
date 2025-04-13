@@ -1,36 +1,31 @@
-// ReleaseParking.js - גרסה מלאה עם טעינה מיידית מה-localStorage ו-Skeleton לטבלה
-
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
+import Popup from "../shared/Popup";
 
-const chargerTypes = ["AC רגיל", "AC מהיר", "DC מהיר", "שקע כוח תעשייתי"];
+const chargerTypes = ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other"];
 
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "פינוי החנייה שלי | Spotly";
-
   const navigate = useNavigate();
   const location = useLocation();
   const isBuildingMode = location?.state?.mode === "building";
 
   const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [, setLoadingUser] = useState(true);
   const [loadingSpots, setLoadingSpots] = useState(true);
   const [current, setCurrent] = useState("release");
-  const [parkingSlots, setParkingSlots] = useState(() => {
-    const saved = localStorage.getItem("mySpots");
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
-  const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [parkingSlots, setParkingSlots] = useState([]);
+  const [popupData, setPopupData] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     startTime: "",
     endTime: "",
-    price: "",
     type: "השכרה רגילה",
     charger: "",
   });
@@ -47,9 +42,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   }, [navigate]);
 
   useEffect(() => {
-    if (user && user._id) {
-      fetchMySpots();
-    }
+    if (user && user._id) fetchMySpots();
   }, [user]);
 
   useEffect(() => {
@@ -65,14 +58,28 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       const res = await axios.get("/api/v1/parking-spots/my-spots", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const mySpots = res.data?.data?.parkingSpots || [];
-      localStorage.setItem("mySpots", JSON.stringify(mySpots));
-      setParkingSlots(mySpots);
+      setParkingSlots(res.data?.data?.parkingSpots || []);
     } catch (error) {
-      console.error("Error loading my parking spots:", error);
+      console.error("Error loading spots:", error);
     } finally {
       setLoadingSpots(false);
     }
+  };
+
+  const isOverlap = (existing, date, newStart, newEnd) => {
+    const [newStartH, newStartM] = newStart.split(":").map(Number);
+    const [newEndH, newEndM] = newEnd.split(":").map(Number);
+    const newStartMin = newStartH * 60 + newStartM;
+    const newEndMin = newEndH * 60 + newEndM;
+
+    return existing.some(({ date: d, start_time, end_time }) => {
+      if (new Date(d).toISOString().split("T")[0] !== date) return false;
+      const [startH, startM] = start_time.split(":").map(Number);
+      const [endH, endM] = end_time.split(":").map(Number);
+      const startMin = startH * 60 + startM;
+      const endMin = endH * 60 + endM;
+      return newStartMin < endMin && newEndMin > startMin;
+    });
   };
 
   const handleChange = (e) => {
@@ -81,166 +88,273 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   const handleAddSlot = async () => {
-    const { date, startTime, endTime, price, type, charger } = formData;
-    if (!date || !startTime || !endTime || (!isBuildingMode && !price) || (type === "טעינה לרכב חשמלי" && !charger)) return;
+    const { date, startTime, endTime, type, charger } = formData;
+    if (!date || !startTime || !endTime) return;
+    if (type === "טעינה לרכב חשמלי" && !charger) {
+      setPopupData({ title: "שגיאה", description: "יש לבחור סוג טעינה" });
+      return;
+    }
 
-    const parkingSpotData = {
-      spot_type: isBuildingMode ? "building" : "private",
-      is_available: true,
-      available_date: date,
-      start_time: startTime,
-      end_time: endTime,
-      owner: user._id,
-      is_charging_station: type === "טעינה לרכב חשמלי",
-      charger_type: type === "טעינה לרכב חשמלי" ? charger : null,
-    };
+    const [startH, startM] = startTime.split(":").map(Number);
+    const [endH, endM] = endTime.split(":").map(Number);
+    const startMin = startH * 60 + startM;
+    const endMin = endH * 60 + endM;
+
+    if (startMin >= endMin) {
+      setPopupData({
+        title: "שגיאה",
+        description: "שעת התחלה חייבת להיות לפני שעת סיום",
+      });
+      return;
+    }
+
+    const token = localStorage.getItem("token");
 
     if (isBuildingMode) {
-      parkingSpotData.building = user.resident_building;
+      try {
+        await axios.post(
+          "/api/v1/parking-spots",
+          {
+            spot_type: "building",
+            is_available: true,
+            available_date: date,
+            start_time: startTime,
+            end_time: endTime,
+            owner: user._id,
+            is_charging_station: type === "טעינה לרכב חשמלי",
+            charger_type: type === "טעינה לרכב חשמלי" ? charger : null,
+            building: user.resident_building,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch (err) {
+        setPopupData({ title: "שגיאה", description: "לא ניתן להוסיף חנייה" });
+        return;
+      }
     } else {
-      parkingSpotData.hourly_price = price;
+      const privateSpot = parkingSlots.find((s) => s.spot_type === "private");
+      if (!privateSpot) {
+        setPopupData({
+          title: "שגיאה",
+          description: "לא נמצאה חנייה פרטית עבור המשתמש",
+        });
+        return;
+      }
+
+      if (!privateSpot.hourly_price && privateSpot.hourly_price !== 0) {
+        setPopupData({
+          title: "שגיאה",
+          description: "לא הוגדר מחיר קבוע לשעת חנייה בפרופיל שלך",
+        });
+        return;
+      }
+
+      const hasOverlap = isOverlap(
+        privateSpot.availability_schedule || [],
+        date,
+        startTime,
+        endTime
+      );
+      if (hasOverlap) {
+        setPopupData({ title: "שגיאה", description: "יש חפיפה עם פינוי קיים" });
+        return;
+      }
+
+      try {
+        await axios.post(
+          "/api/v1/parking-spots/release",
+          {
+            date,
+            startTime,
+            endTime,
+            price: privateSpot.hourly_price,
+            type,
+            charger,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch (err) {
+        setPopupData({
+          title: "שגיאה",
+          description: "פעולת ההוספה נכשלה בשרת",
+        });
+        return;
+      }
     }
 
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post("/api/v1/parking-spots", parkingSpotData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await fetchMySpots();
-      setFormData({
-        date: new Date().toISOString().split("T")[0],
-        startTime: "",
-        endTime: "",
-        price: "",
-        type: "השכרה רגילה",
-        charger: "",
-      });
-    } catch (error) {
-      console.error("Error saving parking spot:", error);
-    }
+    await fetchMySpots();
+    setPopupData({ title: "בוצע בהצלחה", description: "החנייה נוספה ✅" });
+    setFormData({
+      date: new Date().toISOString().split("T")[0],
+      startTime: "",
+      endTime: "",
+      type: "השכרה רגילה",
+      charger: "",
+    });
   };
 
-  const confirmDelete = async () => {
-    if (!selectedSlotId) return;
+  const handleDelete = async (spotId, scheduleId) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`/api/v1/parking-spots/${selectedSlotId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `/api/v1/parking-spots/${spotId}/availability-schedule/${scheduleId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       await fetchMySpots();
-    } catch (error) {
-      console.error("Error deleting parking spot:", error);
+    } catch (err) {
+      setPopupData({ title: "שגיאה", description: "שגיאה במחיקת הפינוי" });
     } finally {
-      setShowConfirmPopup(false);
-      setSelectedSlotId(null);
+      setConfirmDeleteId(null);
     }
   };
-
-  const handleDelete = (id) => {
-    setSelectedSlotId(id);
-    setShowConfirmPopup(true);
-  };
-
-  if (loadingUser) return <div className="text-center py-10">טוען משתמש...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
+    <div
+      className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
+      dir="rtl"
+    >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-grow">
-        <Sidebar current={current} setCurrent={setCurrent} role={user?.role || "user"} />
+        <Sidebar
+          current={current}
+          setCurrent={setCurrent}
+          role={user?.role || "user"}
+        />
         <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
-          <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">פינוי החנייה שלי</h1>
+          <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">
+            פינוי החנייה שלי
+          </h1>
+
           <div className="grid grid-cols-1 md:grid-cols-[3fr_4fr] gap-8">
-            <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
-              <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">הוסף זמינות חדשה</h2>
-              <p className="text-center text-gray-600 mb-4">
-                כתובת החנייה: <span className="font-semibold text-blue-700">{user?.address?.street ? `${user.address.street} ${user.address.number}, ${user.address.city}` : "לא ידועה"}</span>
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-700">תאריך</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+            {/* טופס הוספת פינוי */}
+            <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
+              <h2 className="text-xl font-bold text-center">הוסף זמינות חדשה</h2>
+              <div>
+                <label className="font-semibold">תאריך</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="w-1/2">
+                  <label className="font-semibold">שעת התחלה</label>
+                  <input
+                    type="time"
+                    name="startTime"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
+                  />
                 </div>
-                <div className="flex gap-4">
-                  <div className="w-1/2">
-                    <label className="block mb-1 font-semibold text-gray-700">שעת התחלה</label>
-                    <input type="time" name="startTime" value={formData.startTime} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
-                  <div className="w-1/2">
-                    <label className="block mb-1 font-semibold text-gray-700">שעת סיום</label>
-                    <input type="time" name="endTime" value={formData.endTime} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
+                <div className="w-1/2">
+                  <label className="font-semibold">שעת סיום</label>
+                  <input
+                    type="time"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
+                  />
                 </div>
-                {!isBuildingMode && (
-                  <div>
-                    <label className="block mb-1 font-semibold text-gray-700">מחיר (₪)</label>
-                    <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
-                )}
+              </div>
+              <div>
+                <label className="font-semibold">סוג פינוי</label>
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option>השכרה רגילה</option>
+                  <option>טעינה לרכב חשמלי</option>
+                </select>
+              </div>
+              {formData.type === "טעינה לרכב חשמלי" && (
                 <div>
-                  <label className="block mb-1 font-semibold text-gray-700">סוג פינוי</label>
-                  <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>השכרה רגילה</option>
-                    <option>טעינה לרכב חשמלי</option>
+                  <label className="font-semibold">סוג טעינה</label>
+                  <select
+                    name="charger"
+                    value={formData.charger}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="">בחר סוג</option>
+                    {chargerTypes.map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
                   </select>
                 </div>
-                {formData.type === "טעינה לרכב חשמלי" && (
-                  <div>
-                    <label className="block mb-1 font-semibold text-gray-700">סוג טעינה</label>
-                    <select name="charger" value={formData.charger} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option value="">בחר סוג טעינה</option>
-                      {chargerTypes.map((type) => (
-                        <option key={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <button onClick={handleAddSlot} className="w-full bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700 transition">
-                  הוסף פינוי
-                </button>
-              </div>
+              )}
+              <button
+                onClick={handleAddSlot}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              >
+                הוסף פינוי
+              </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">החניות שפירסמת</h2>
+            {/* טבלת פינויים */}
+            <div className="bg-white p-6 rounded-xl shadow-md">
+              <h2 className="text-xl font-bold text-center mb-4">החניות שפירסמת</h2>
               {loadingSpots ? (
-                <div className="space-y-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-6 bg-gray-200 animate-pulse rounded w-full"></div>
-                  ))}
-                </div>
-              ) : parkingSlots.length === 0 ? (
-                <p className="text-gray-600 text-center">אין חניות כרגע.</p>
+                <p className="text-center text-gray-500">טוען...</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-right table-auto">
-                    <thead className="bg-blue-50 text-blue-800">
+                  <table className="w-full text-right border text-sm">
+                    <thead className="bg-blue-50 text-blue-800 text-center">
                       <tr>
-                        <th className="px-6 py-2 border-b">תאריך</th>
-                        <th className="px-6 py-2 border-b">שעות</th>
-                        {!isBuildingMode && <th className="px-6 py-2 border-b">מחיר</th>}
-                        <th className="px-6 py-2 border-b">סוג</th>
-                        <th className="px-6 py-2 border-b">פעולות</th>
+                        <th className="border px-4 py-2">תאריך</th>
+                        <th className="border px-4 py-2">שעות</th>
+                        <th className="border px-4 py-2">מחיר</th>
+                        <th className="border px-4 py-2">סוג</th>
+                        <th className="border px-4 py-2">פעולה</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {parkingSlots.map((slot) => (
-                        <tr key={slot._id} className="hover:bg-blue-50">
-                          <td className="px-6 py-2 border-b">{slot.available_date?.split("T")[0]}</td>
-                          <td className="px-6 py-2 border-b">{slot.start_time} - {slot.end_time}</td>
-                          {!isBuildingMode && (
-                            <td className="px-6 py-2 border-b">{slot.hourly_price} ₪</td>
-                          )}
-                          <td className="px-6 py-2 border-b">
-                            {slot.is_charging_station ? `טעינה לרכב חשמלי (${slot.charger_type})` : "השכרה רגילה"}
-                          </td>
-                          <td className="px-6 py-2 border-b rtl:space-x-reverse">
-                            <button onClick={() => handleDelete(slot._id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">
-                              מחק
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {parkingSlots.flatMap((slot) =>
+                        (slot.availability_schedule || [])
+                          .sort((a, b) => new Date(a.date) - new Date(b.date))
+                          .map((s, i) => (
+                            <tr
+                              key={`${slot._id}-${i}`}
+                              className="hover:bg-gray-100"
+                            >
+                              <td className="border px-4 py-2">
+                                {new Date(s.date).toLocaleDateString()}
+                              </td>
+                              <td className="border px-4 py-2">
+                                {s.start_time} - {s.end_time}
+                              </td>
+                              <td className="border px-4 py-2">
+                                {slot.hourly_price
+                                  ? `${slot.hourly_price} ₪`
+                                  : "-"}
+                              </td>
+                              <td className="border px-4 py-2">
+                                {s.type === "טעינה לרכב חשמלי"
+                                  ? `טעינה לרכב חשמלי (${s.charger || "לא צויין"})`
+                                  : "השכרה רגילה"}
+                              </td>
+                              <td className="border px-4 py-2 text-center">
+                                <button
+                                  onClick={() =>
+                                    setConfirmDeleteId({
+                                      spotId: slot._id,
+                                      scheduleId: s._id,
+                                    })
+                                  }
+                                  className="border border-red-500 text-red-500 px-3 py-1 rounded hover:bg-red-50 transition"
+                                >
+                                  מחק
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -251,17 +365,25 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       </div>
       <Footer />
 
-      {showConfirmPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-            <h3 className="text-lg font-bold text-center text-blue-800 mb-4">אישור מחיקה</h3>
-            <p className="text-center text-gray-700 mb-6">האם אתה בטוח שברצונך למחוק את החנייה הזו?</p>
-            <div className="flex justify-center gap-4">
-              <button onClick={confirmDelete} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">מחק</button>
-              <button onClick={() => setShowConfirmPopup(false)} className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition">ביטול</button>
-            </div>
-          </div>
-        </div>
+      {/* פופאפים כלליים */}
+      {popupData && (
+        <Popup
+          title={popupData.title}
+          description={popupData.description}
+          onClose={() => setPopupData(null)}
+        />
+      )}
+
+      {/* אישור מחיקה */}
+      {confirmDeleteId && (
+        <Popup
+          title="אישור מחיקה"
+          description="האם אתה בטוח שברצונך למחוק את הפינוי הזה?"
+          onClose={() => setConfirmDeleteId(null)}
+          onConfirm={() =>
+            handleDelete(confirmDeleteId.spotId, confirmDeleteId.scheduleId)
+          }
+        />
       )}
     </div>
   );
