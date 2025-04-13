@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import { useNavigate } from "react-router-dom";
 
 const chargerTypes = ["AC רגיל", "AC מהיר", "DC מהיר", "שקע כוח תעשייתי"];
 
@@ -10,8 +11,13 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "פינוי החנייה שלי | Spotly";
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBuildingMode = location?.state?.mode === "building";
+
   const [current, setCurrent] = useState("release");
   const [parkingSlots, setParkingSlots] = useState([]);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     startTime: "",
@@ -33,48 +39,108 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   }, [navigate, user]);
 
   useEffect(() => {
-    if (role !== "private_prop_owner") {
+    if (role !== "private_prop_owner" && !isBuildingMode) {
       navigate("/search-parking");
     }
-  }, [navigate, role]);
+  }, [navigate, role, isBuildingMode]);
+
+  const fetchMySpots = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("/api/v1/parking-spots/my-spots", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const mySpots = res.data?.data?.parkingSpots || [];
+      setParkingSlots(mySpots);
+    } catch (error) {
+      console.error("Error loading my parking spots:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user._id) {
+      fetchMySpots();
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddSlot = () => {
+  const handleAddSlot = async () => {
     const { date, startTime, endTime, price, type, charger } = formData;
     if (
       !date ||
       !startTime ||
       !endTime ||
-      !price ||
+      (!isBuildingMode && !price) ||
       (type === "טעינה לרכב חשמלי" && !charger)
     )
       return;
-    setParkingSlots((prev) => [...prev, { ...formData }]);
-    setFormData({
-      date: new Date().toISOString().split("T")[0],
-      startTime: "",
-      endTime: "",
-      price: "",
-      type: "השכרה רגילה",
-      charger: "",
-    });
+
+    const parkingSpotData = {
+      spot_type: isBuildingMode ? "building" : "private",
+      is_available: true,
+      available_date: date,
+      start_time: startTime,
+      end_time: endTime,
+      owner: user._id,
+      is_charging_station: type === "טעינה לרכב חשמלי",
+      charger_type: type === "טעינה לרכב חשמלי" ? charger : null,
+    };
+
+    if (isBuildingMode) {
+      parkingSpotData.building = user.resident_building;
+    } else {
+      parkingSpotData.hourly_price = price;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post("/api/v1/parking-spots", parkingSpotData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await fetchMySpots();
+      setFormData({
+        date: new Date().toISOString().split("T")[0],
+        startTime: "",
+        endTime: "",
+        price: "",
+        type: "השכרה רגילה",
+        charger: "",
+      });
+    } catch (error) {
+      console.error("Error saving parking spot:", error);
+    }
   };
 
-  const handleDelete = (index) => {
-    setParkingSlots((prev) => prev.filter((_, i) => i !== index));
+  const confirmDelete = async () => {
+    if (!selectedSlotId) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`/api/v1/parking-spots/${selectedSlotId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await fetchMySpots();
+    } catch (error) {
+      console.error("Error deleting parking spot:", error);
+    } finally {
+      setShowConfirmPopup(false);
+      setSelectedSlotId(null);
+    }
   };
 
-  if (!user || !user._id) {
-    return (
-      <div className="text-center mt-10 text-red-600 font-bold">
-        שגיאה: לא נמצאו נתוני משתמש. נא להתחבר מחדש.
-      </div>
-    );
-  }
+  const handleDelete = (id) => {
+    setSelectedSlotId(id);
+    setShowConfirmPopup(true);
+  };
 
   return (
     <div
@@ -89,7 +155,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
             פינוי החנייה שלי
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-[3fr_4fr] gap-8">
-            {/* Form */}
             <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
               <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">
                 הוסף זמינות חדשה
@@ -141,19 +206,20 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-700">
-                    מחיר (₪)
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
+                {!isBuildingMode && (
+                  <div>
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      מחיר (₪)
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block mb-1 font-semibold text-gray-700">
                     סוג פינוי
@@ -168,7 +234,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     <option>טעינה לרכב חשמלי</option>
                   </select>
                 </div>
-
                 {formData.type === "טעינה לרכב חשמלי" && (
                   <div>
                     <label className="block mb-1 font-semibold text-gray-700">
@@ -187,7 +252,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     </select>
                   </div>
                 )}
-
                 <button
                   onClick={handleAddSlot}
                   className="w-full bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700 transition"
@@ -196,8 +260,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                 </button>
               </div>
             </div>
-
-            {/* Table */}
             <div className="bg-white rounded-xl shadow-md p-6 flex-grow h-full overflow-auto">
               <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
                 החניות שפירסמת
@@ -209,31 +271,37 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <table className="w-full text-sm text-right table-auto">
                     <thead className="bg-blue-50 text-blue-800">
                       <tr>
-                        <th className="px-6 py-2 border-b w-32">תאריך</th>
-                        <th className="px-6 py-2 border-b w-40">שעות</th>
-                        <th className="px-6 py-2 border-b w-24">מחיר</th>
-                        <th className="px-6 py-2 border-b w-52">סוג</th>
-                        <th className="px-6 py-2 border-b w-24">פעולות</th>
+                        <th className="px-6 py-2 border-b">תאריך</th>
+                        <th className="px-6 py-2 border-b">שעות</th>
+                        {!isBuildingMode && (
+                          <th className="px-6 py-2 border-b">מחיר</th>
+                        )}
+                        <th className="px-6 py-2 border-b">סוג</th>
+                        <th className="px-6 py-2 border-b">פעולות</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {parkingSlots.map((slot, index) => (
-                        <tr key={index} className="hover:bg-blue-50">
-                          <td className="px-6 py-2 border-b">{slot.date}</td>
+                      {parkingSlots.map((slot) => (
+                        <tr key={slot._id} className="hover:bg-blue-50">
                           <td className="px-6 py-2 border-b">
-                            {slot.startTime} - {slot.endTime}
+                            {slot.available_date?.split("T")[0]}
                           </td>
                           <td className="px-6 py-2 border-b">
-                            {slot.price} ₪
+                            {slot.start_time} - {slot.end_time}
                           </td>
+                          {!isBuildingMode && (
+                            <td className="px-6 py-2 border-b">
+                              {slot.hourly_price} ₪
+                            </td>
+                          )}
                           <td className="px-6 py-2 border-b">
-                            {slot.type === "טעינה לרכב חשמלי"
-                              ? `${slot.type} (${slot.charger})`
-                              : slot.type}
+                            {slot.is_charging_station
+                              ? `טעינה לרכב חשמלי (${slot.charger_type})`
+                              : "השכרה רגילה"}
                           </td>
-                          <td className="px-6 py-2 border-b space-x-2 rtl:space-x-reverse">
+                          <td className="px-6 py-2 border-b rtl:space-x-reverse">
                             <button
-                              onClick={() => handleDelete(index)}
+                              onClick={() => handleDelete(slot._id)}
                               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
                             >
                               מחק
@@ -250,6 +318,32 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         </main>
       </div>
       <Footer />
+      {showConfirmPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+            <h3 className="text-lg font-bold text-center text-blue-800 mb-4">
+              אישור מחיקה
+            </h3>
+            <p className="text-center text-gray-700 mb-6">
+              האם אתה בטוח שברצונך למחוק את החנייה הזו?
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+              >
+                מחק
+              </button>
+              <button
+                onClick={() => setShowConfirmPopup(false)}
+                className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
