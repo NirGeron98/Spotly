@@ -17,10 +17,14 @@ const buildingSchema = new mongoose.Schema({
 
   residents: [
     {
-      user_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: "User",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      validate: {
+        validator: function (value) {
+          // Ensure that the resident is not already in the list
+          return !this.residents || !this.residents.includes(value);
+        },
+        message: "Resident already exists in this building",
       },
     },
   ],

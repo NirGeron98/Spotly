@@ -21,4 +21,4 @@ router
 // Get user's bookings
 router.get("/user/my-bookings", bookingController.getUserBookings);
 
-module.exports = router;
+module.exports = router;            

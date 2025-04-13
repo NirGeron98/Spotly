@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const availabilityScheduleSchema = require("./availabilityScheduleModel");
 
 const parkingSpotSchema = new mongoose.Schema(
   {
@@ -61,6 +62,12 @@ const parkingSpotSchema = new mongoose.Schema(
       min: [0, "Hourly price cannot be negative"],
     },
 
+    // Availability schedule - available for both spot types
+    availability_schedule: {
+      type: [availabilityScheduleSchema],
+      default: [], // Default to empty array, making it optional
+    },
+
     // Common fields for both types
     is_available: {
       type: Boolean,
@@ -77,6 +84,26 @@ const parkingSpotSchema = new mongoose.Schema(
     },
     // Fields for storing images of the parking spot
     photos: [String],
+    address: {
+      city: {
+        type: String,
+        required: function () {
+          return this.spot_type === "private";
+        },
+      },
+      street: {
+        type: String,
+        required: function () {
+          return this.spot_type === "private";
+        },
+      },
+      number: {
+        type: Number,
+        required: function () {
+          return this.spot_type === "private";
+        },
+      },
+    },
     created_at: {
       type: Date,
       default: Date.now,

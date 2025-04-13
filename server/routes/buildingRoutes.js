@@ -55,4 +55,13 @@ router
     buildingController.updateBuildingResident
   );
 
+// Add this new route for adding residents to buildings
+router
+  .route("/:buildingId/add-resident")
+  .post(
+    authController.protect,
+    authController.restrictTo("admin", "building_manager"),
+    buildingController.addResidentToBuilding
+  );
+
 module.exports = router;

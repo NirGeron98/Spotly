@@ -49,13 +49,6 @@ exports.createParkingSpot = async (parkingSpotData) => {
   return await ParkingSpot.create(parkingSpotData);
 };
 
-exports.getParkingSpotById = async (id) => {
-  const parkingSpot = await ParkingSpot.findById(id);
-  if (!parkingSpot) {
-    throw new AppError("Parking spot not found", 404);
-  }
-  return parkingSpot;
-};
 
 exports.getAllParkingSpots = async (filters = {}) => {
   return await ParkingSpot.find(filters);
@@ -282,4 +275,397 @@ exports.getAvailableParkingSpots = async (startTime, endTime, filters = {}) => {
   return allSpots.filter(
     (spot) => !bookedSpotIds.some((id) => id.toString() === spot._id.toString())
   );
+};
+
+// Managing availability schedules
+exports.addAvailabilitySchedule = async (spotId, scheduleData, userId) => {
+  const parkingSpot = await ParkingSpot.findById(spotId);
+  if (!parkingSpot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Check if user is owner of the parking spot
+  if (parkingSpot.owner.toString() !== userId) {
+    throw new AppError(
+      "You do not have permission to update this parking spot's availability",
+      403
+    );
+  }
+
+  // Validate time format
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (
+    !timeRegex.test(scheduleData.start_time) ||
+    !timeRegex.test(scheduleData.end_time)
+  ) {
+    throw new AppError(
+      "Invalid time format. Use HH:MM in 24-hour format.",
+      400
+    );
+  }
+
+  // Validate date format
+  if (!scheduleData.date) {
+    throw new AppError("Date is required", 400);
+  }
+
+  // Ensure date is a valid Date object
+  const scheduleDate = new Date(scheduleData.date);
+  if (isNaN(scheduleDate.getTime())) {
+    throw new AppError("Invalid date format", 400);
+  }
+
+  // Validate that end time is after start time
+  const [startHour, startMinute] = scheduleData.start_time
+    .split(":")
+    .map(Number);
+  const [endHour, endMinute] = scheduleData.end_time.split(":").map(Number);
+
+  if (
+    endHour < startHour ||
+    (endHour === startHour && endMinute <= startMinute)
+  ) {
+    throw new AppError("End time must be after start time", 400);
+  }
+
+  // Initialize availability_schedule if it doesn't exist
+  if (!parkingSpot.availability_schedule) {
+    parkingSpot.availability_schedule = [];
+  }
+
+  // Check for overlapping schedules on the same date
+  const sameDate = parkingSpot.availability_schedule.filter((schedule) => {
+    // Compare dates by converting to ISO string date parts
+    const existingDate = new Date(schedule.date);
+    const newDate = new Date(scheduleData.date);
+    return (
+      existingDate.getFullYear() === newDate.getFullYear() &&
+      existingDate.getMonth() === newDate.getMonth() &&
+      existingDate.getDate() === newDate.getDate()
+    );
+  });
+
+  for (const existing of sameDate) {
+    const existingStart = existing.start_time.split(":").map(Number);
+    const existingEnd = existing.end_time.split(":").map(Number);
+
+    const existingStartMinutes = existingStart[0] * 60 + existingStart[1];
+    const existingEndMinutes = existingEnd[0] * 60 + existingEnd[1];
+    const newStartMinutes = startHour * 60 + startMinute;
+    const newEndMinutes = endHour * 60 + endMinute;
+
+    // Check for overlap
+    if (
+      (newStartMinutes < existingEndMinutes &&
+        newEndMinutes > existingStartMinutes) ||
+      (existingStartMinutes < newEndMinutes &&
+        existingEndMinutes > newStartMinutes)
+    ) {
+      const formattedDate = new Date(scheduleData.date).toLocaleDateString();
+      throw new AppError(
+        `This schedule overlaps with existing availability on ${formattedDate}`,
+        400
+      );
+    }
+  }
+
+  // Add the new schedule
+  parkingSpot.availability_schedule.push(scheduleData);
+  await parkingSpot.save();
+
+  return parkingSpot;
+};
+
+exports.updateAvailabilitySchedule = async (
+  spotId,
+  scheduleId,
+  scheduleData,
+  userId
+) => {
+  const parkingSpot = await ParkingSpot.findById(spotId);
+  if (!parkingSpot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Check if user is owner of the parking spot
+  if (parkingSpot.owner.toString() !== userId) {
+    throw new AppError(
+      "You do not have permission to update this parking spot's availability",
+      403
+    );
+  }
+
+  // Find the schedule to update
+  const scheduleIndex = parkingSpot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === scheduleId
+  );
+
+  if (scheduleIndex === -1) {
+    throw new AppError("Schedule not found", 404);
+  }
+
+  // Validate time format if provided
+  if (scheduleData.start_time || scheduleData.end_time) {
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+    if (scheduleData.start_time && !timeRegex.test(scheduleData.start_time)) {
+      throw new AppError(
+        "Invalid start time format. Use HH:MM in 24-hour format.",
+        400
+      );
+    }
+
+    if (scheduleData.end_time && !timeRegex.test(scheduleData.end_time)) {
+      throw new AppError(
+        "Invalid end time format. Use HH:MM in 24-hour format.",
+        400
+      );
+    }
+
+    // Validate date if provided
+    if (scheduleData.date) {
+      const scheduleDate = new Date(scheduleData.date);
+      if (isNaN(scheduleDate.getTime())) {
+        throw new AppError("Invalid date format", 400);
+      }
+    }
+
+    // Use either new values or existing values for validation
+    const startTime =
+      scheduleData.start_time ||
+      parkingSpot.availability_schedule[scheduleIndex].start_time;
+    const endTime =
+      scheduleData.end_time ||
+      parkingSpot.availability_schedule[scheduleIndex].end_time;
+
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
+    if (
+      endHour < startHour ||
+      (endHour === startHour && endMinute <= startMinute)
+    ) {
+      throw new AppError("End time must be after start time", 400);
+    }
+  }
+
+  // Update the schedule
+  Object.keys(scheduleData).forEach((key) => {
+    parkingSpot.availability_schedule[scheduleIndex][key] = scheduleData[key];
+  });
+
+  await parkingSpot.save();
+  return parkingSpot;
+};
+
+exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
+  const parkingSpot = await ParkingSpot.findById(spotId);
+  if (!parkingSpot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Check if user is owner of the parking spot
+  if (parkingSpot.owner.toString() !== userId) {
+    throw new AppError(
+      "You do not have permission to update this parking spot's availability",
+      403
+    );
+  }
+
+  // Find and remove the schedule
+  const scheduleIndex = parkingSpot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === scheduleId
+  );
+
+  if (scheduleIndex === -1) {
+    throw new AppError("Schedule not found", 404);
+  }
+
+  parkingSpot.availability_schedule.splice(scheduleIndex, 1);
+  await parkingSpot.save();
+
+  return parkingSpot;
+};
+
+exports.isSpotAvailableForBooking = async (spotId, startTime, endTime) => {
+  const parkingSpot = await ParkingSpot.findById(spotId);
+  if (!parkingSpot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Check if spot is generally available
+  if (!parkingSpot.is_available) {
+    return false;
+  }
+
+  // If it's not a private spot, just check if it's available and not occupied
+  if (parkingSpot.spot_type !== "private") {
+    return !parkingSpot.user; // Not occupied
+  }
+
+  // For private spots, if no availability schedules are defined,
+  // consider the spot as generally available in all time periods
+  if (
+    !parkingSpot.availability_schedule ||
+    parkingSpot.availability_schedule.length === 0
+  ) {
+    // Check only for conflicting bookings when no schedules are defined
+    const existingBookings = await Booking.find({
+      spot: spotId,
+      status: { $ne: "cancelled" },
+      $or: [
+        { start_datetime: { $lt: bookingEnd, $gte: bookingStart } },
+        { end_datetime: { $gt: bookingStart, $lte: bookingEnd } },
+        {
+          start_datetime: { $lte: bookingStart },
+          end_datetime: { $gte: bookingEnd },
+        },
+      ],
+    });
+
+    return existingBookings.length === 0;
+  }
+
+  // Convert booking times to Date objects if they're strings
+  const bookingStart =
+    startTime instanceof Date ? startTime : new Date(startTime);
+  const bookingEnd = endTime instanceof Date ? endTime : new Date(endTime);
+
+  // Check each day in the booking period
+  const oneDayMillis = 24 * 60 * 60 * 1000;
+
+  // Loop through each day in the booking period
+  for (
+    let currentDate = new Date(bookingStart);
+    currentDate <= bookingEnd;
+    currentDate = new Date(currentDate.getTime() + oneDayMillis)
+  ) {
+    // Format the current date to year-month-day for comparison
+    const currentDateString = currentDate.toISOString().split("T")[0];
+
+    // Find schedules for this date
+    const dateSchedules = parkingSpot.availability_schedule.filter((s) => {
+      const scheduleDate = new Date(s.date);
+      return (
+        scheduleDate.toISOString().split("T")[0] === currentDateString &&
+        s.is_available
+      );
+    });
+
+    if (dateSchedules.length === 0) {
+      return false; // No availability for this date
+    }
+
+    // Check each schedule for this date
+    let dateAvailable = false;
+    for (const schedule of dateSchedules) {
+      const [startHour, startMinute] = schedule.start_time
+        .split(":")
+        .map(Number);
+      const [endHour, endMinute] = schedule.end_time.split(":").map(Number);
+
+      // Create Date objects for the schedule times on this day
+      const scheduleStart = new Date(currentDate);
+      scheduleStart.setHours(startHour, startMinute, 0);
+
+      const scheduleEnd = new Date(currentDate);
+      scheduleEnd.setHours(endHour, endMinute, 0);
+
+      // Check if booking time is within this schedule
+      // For first day, check only bookingStart
+      // For last day, check only bookingEnd
+      // For days in between, the whole day should be available
+      if (currentDate.toDateString() === bookingStart.toDateString()) {
+        if (bookingStart >= scheduleStart && bookingStart < scheduleEnd) {
+          dateAvailable = true;
+          break;
+        }
+      } else if (currentDate.toDateString() === bookingEnd.toDateString()) {
+        if (bookingEnd > scheduleStart && bookingEnd <= scheduleEnd) {
+          dateAvailable = true;
+          break;
+        }
+      } else {
+        // Days in between should be fully covered by the schedule
+        if (
+          scheduleStart.getHours() <= 0 &&
+          scheduleStart.getMinutes() <= 0 &&
+          scheduleEnd.getHours() >= 23 &&
+          scheduleEnd.getMinutes() >= 59
+        ) {
+          dateAvailable = true;
+          break;
+        }
+      }
+    }
+
+    if (!dateAvailable) {
+      return false;
+    }
+  }
+
+  // Check if there are any overlapping bookings
+  const existingBookings = await Booking.find({
+    spot: spotId,
+    status: { $ne: "cancelled" },
+    $or: [
+      { start_datetime: { $lt: bookingEnd, $gte: bookingStart } },
+      { end_datetime: { $gt: bookingStart, $lte: bookingEnd } },
+      {
+        start_datetime: { $lte: bookingStart },
+        end_datetime: { $gte: bookingEnd },
+      },
+    ],
+  });
+
+  return existingBookings.length === 0;
+};
+
+exports.releaseParkingSpot = async (spotData) => {
+  const { date, startTime, endTime, price, type, charger, userId } = spotData;
+
+  // Validate required fields
+  if (!date || !startTime || !endTime || !price || !userId) {
+    throw new AppError("Missing required fields", 400);
+  }
+
+  // Find user's parking spot
+  const parkingSpot = await ParkingSpot.findOne({
+    owner: userId,
+    spot_type: "private",
+  });
+
+  if (!parkingSpot) {
+    throw new AppError("No private parking spot found for this user", 404);
+  }
+
+  // Create new availability schedule
+  const scheduleData = {
+    date,
+    start_time: startTime,
+    end_time: endTime,
+    is_available: true,
+  };
+
+  // Add the schedule
+  if (!parkingSpot.availability_schedule) {
+    parkingSpot.availability_schedule = [];
+  }
+  parkingSpot.availability_schedule.push(scheduleData);
+
+  // Update price if provided
+  if (price) {
+    parkingSpot.hourly_price = price;
+  }
+
+  // Update charging station info if applicable
+  if (type === "טעינה לרכב חשמלי") {
+    parkingSpot.is_charging_station = true;
+    parkingSpot.charger_type = charger;
+  }
+
+  // Save the updated spot
+  await parkingSpot.save();
+
+  return parkingSpot;
 };
