@@ -107,10 +107,15 @@ exports.updateParkingSpot = async (id, updateData, userId, userRole) => {
     );
   }
 
-  return await ParkingSpot.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
+  // Update fields
+  Object.keys(updateData).forEach((key) => {
+    parkingSpot[key] = updateData[key];
   });
+
+  // Save with validation
+  await parkingSpot.save();
+
+  return parkingSpot;
 };
 
 exports.deleteParkingSpot = async (id, userId, userRole) => {

@@ -27,15 +27,6 @@ const availabilityScheduleSchema = new mongoose.Schema(
         message: (props) =>
           `${props.value} is not a valid time format. Use HH:MM in 24-hour format.`,
       },
-    },
-    type: {
-      type: String,
-      enum: ["השכרה רגילה", "טעינה לרכב חשמלי"],
-      default: "השכרה רגילה"
-    },
-    charger: {
-      type: String,
-      enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other", ""],
     },    
     is_available: {
       type: Boolean,

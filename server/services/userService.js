@@ -10,7 +10,7 @@ exports.updateMe = async (userId, userData) => {
     "first_name",
     "last_name",
     "email",
-    "phone_number"
+    "phone_number",
   );
 
   const updatedUser = await User.findByIdAndUpdate(userId, filteredBody, {
