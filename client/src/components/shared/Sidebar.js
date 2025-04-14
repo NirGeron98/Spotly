@@ -29,11 +29,12 @@ const Sidebar = ({ current, setCurrent, role }) => {
     },
     {
       key: "release",
-      label: "פינוי החנייה שלי",
+      label: " ניהול החנייה שלי",
       icon: <FaRegWindowClose className="text-lg" />,
       path: "/release",
       visible: role === "private_prop_owner" || isBuildingMode,
     },
+
     {
       key: "history",
       label: "היסטוריית שימוש",
@@ -41,6 +42,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
       path: "/usage-history",
       visible: true,
     },
+
   ];
 
   return (
