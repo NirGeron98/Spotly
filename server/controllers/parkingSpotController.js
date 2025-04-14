@@ -3,6 +3,7 @@ const factory = require("./handlerFactory");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const parkingSpotService = require("../services/parkingSpotService");
+const parkingFinder = require("../services/spotFinderService");
 
 // Get & Create use factory
 exports.getAllParkingSpots = factory.getAll(ParkingSpot);
@@ -53,7 +54,7 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
   } else {
     return next();
   }
-
+  
   try {
     const parkingSpot =
       await parkingSpotService.createParkingSpot(parkingSpotData);
@@ -244,4 +245,91 @@ exports.releaseParkingSpot = catchAsync(async (req, res, next) => {
     status: "success",
     data: { parkingSpot },
   });
+});
+
+/**
+ * Find optimal parking spots based on user criteria
+ * Uses the ParkingSpotFinder algorithm to rank spots by proximity, price, and other factors
+ */
+exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
+  const {
+    latitude,
+    longitude,
+    date,
+    startTime,
+    endTime,
+    maxPrice = 1000,
+    is_charging_station,
+    charger_type,
+  } = req.body;
+
+  // Validate required parameters
+  if (!latitude || !longitude || !date || !startTime || !endTime) {
+    return next(
+      new AppError("Missing required parameters for finding parking spots", 400)
+    );
+  }
+
+  // Validate date and time formats
+  const dateTimeRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+  if (!dateTimeRegex.test(date)) {
+    return next(new AppError("Invalid date format. Use YYYY-MM-DD", 400));
+  }
+
+  if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+    return next(
+      new AppError("Invalid time format. Use HH:MM in 24-hour format", 400)
+    );
+  }
+
+  // Create formatted datetime strings
+  const startTimeStr = `${date} ${startTime}`;
+  const endTimeStr = `${date} ${endTime}`;
+
+  // Additional filters
+  const additionalFilters = {};
+  if (is_charging_station) additionalFilters.is_charging_station = true;
+  if (charger_type) additionalFilters.charger_type = charger_type;
+
+  try {
+    // Find optimal parking spots
+    const rankedSpots = await parkingFinder.findParkingSpots(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      parseFloat(maxPrice),
+      startTimeStr,
+      endTimeStr,
+      additionalFilters,
+      20 // Return top 20 results
+    );
+
+    if (rankedSpots.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        results: 0,
+        data: {
+          parkingSpots: [],
+        },
+        message: "No available parking spots found matching your criteria",
+      });
+    }
+
+    // Format results for API response
+    const formattedResults = parkingFinder.formatResults(rankedSpots);
+
+    // Return results
+    res.status(200).json({
+      status: "success",
+      results: formattedResults.length,
+      data: {
+        parkingSpots: formattedResults,
+      },
+    });
+  } catch (error) {
+    return next(
+      new AppError(`Error finding optimal parking spots: ${error.message}`, 500)
+    );
+  }
 });

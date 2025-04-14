@@ -241,7 +241,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   type="date"
                   name="date"
                   value={formData.date}
-                  onChange={handleChange}
+                  onChange={handleChange}                                                                                                                               
                   className="w-full border rounded px-3 py-2"
                 />
               </div>

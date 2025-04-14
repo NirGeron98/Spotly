@@ -11,7 +11,11 @@ router.use(authController.protect);
 router.get("/", parkingSpotController.getAllParkingSpots);
 router.get("/my-spots", parkingSpotController.getMyParkingSpots);
 router.get("/charging-stations", parkingSpotController.getChargingStations);
-router.get("/private-available", parkingSpotController.getAvailablePrivateSpots);
+router.get(
+  "/private-available",
+  parkingSpotController.getAvailablePrivateSpots
+);
+router.post("/find-optimal", parkingSpotController.findOptimalParkingSpots);
 router.get("/:id", parkingSpotController.getParkingSpot);
 
 // Update is allowed for authenticated users (authorization is handled in the service)

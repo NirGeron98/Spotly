@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const availabilityScheduleSchema = require("./availabilityScheduleModel");
+const geocoder = require("../utils/geocoder");
 
 const parkingSpotSchema = new mongoose.Schema(
   {
@@ -103,6 +104,12 @@ const parkingSpotSchema = new mongoose.Schema(
           return this.spot_type === "private";
         },
       },
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
     },
     created_at: {
       type: Date,
@@ -132,6 +139,61 @@ parkingSpotSchema.index(
 parkingSpotSchema.pre("save", function (next) {
   if (!this.isNew) {
     this.updated_at = Date.now();
+  }
+
+  // If spot type is not private, reset private-specific fields
+  if (this.spot_type !== "private") {
+    this.hourly_price = undefined;
+
+    // Only reset charging station info if it's a building spot
+    if (this.spot_type === "building") {
+      this.is_charging_station = false;
+      this.charger_type = null;
+    }
+  }
+
+  next();
+});
+
+parkingSpotSchema.pre("save", async function (next) {
+  // Update the 'updated_at' field on document updates
+  if (!this.isNew) {
+    this.updated_at = Date.now();
+  }
+
+  // Only update coordinates if this is a private spot and the address was modified
+  if (
+    this.spot_type === "private" &&
+    this.address &&
+    (this.isModified("address.city") ||
+      this.isModified("address.street") ||
+      this.isModified("address.number"))
+  ) {
+    try {
+      // Only geocode if we have the minimum required address information
+      if (this.address.city && this.address.street) {
+        const geocodeResult = await geocoder.geocode({
+          city: this.address.city,
+          street: this.address.street,
+          number: this.address.number || "",
+        });
+
+        if (geocodeResult.success) {
+          this.address.latitude = geocodeResult.latitude;
+          this.address.longitude = geocodeResult.longitude;
+          console.log(
+            `Updated coordinates for spot ${this._id}: [${geocodeResult.latitude}, ${geocodeResult.longitude}]`
+          );
+        } else {
+          console.log(
+            `Failed to geocode address for spot ${this._id}: ${geocodeResult.message}`
+          );
+        }
+      }
+    } catch (error) {
+      console.error(`Error geocoding for spot ${this._id}:`, error);
+      // Don't block the save operation if geocoding fails
+    }
   }
 
   // If spot type is not private, reset private-specific fields
