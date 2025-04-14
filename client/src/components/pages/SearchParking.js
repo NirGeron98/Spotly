@@ -21,7 +21,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [currentTab, setCurrentTab] = useState("search");
 
   const [address, setAddress] = useState({ city: "", street: "", number: "" });
-  const [setGeocodeResult] = useState(null);
   const [maxPrice, setMaxPrice] = useState("100");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [startTime, setStartTime] = useState("");
@@ -93,7 +92,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           latitude: result.latitude,
           longitude: result.longitude,
         };
-        setGeocodeResult(result);
       } else {
         // Use building coordinates if in building mode
         if (user?.building?.location?.coordinates) {
