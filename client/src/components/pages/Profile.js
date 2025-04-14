@@ -60,9 +60,6 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
         last_name,
         email,
         phone_number,
-        ...(user.role === "private_prop_owner" && {
-          default_parking_price: user.default_parking_price,
-        }),
       });
 
       if (user.role === "private_prop_owner") {
@@ -214,30 +211,6 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                       }`}
                     />
                   </div>
-
-                  {user.role === "private_prop_owner" && (
-                    <div className="mb-6">
-                      <label className="block text-gray-700 text-sm font-bold mb-2">
-                        מחיר קבוע לשעת חנייה (₪)
-                      </label>
-                      <input
-                        type="number"
-                        value={user.default_parking_price || ""}
-                        onChange={(e) =>
-                          setUser((prev) => ({
-                            ...prev,
-                            default_parking_price: Number(e.target.value),
-                          }))
-                        }
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
-                          isEditing
-                            ? "focus:ring-2 focus:ring-blue-500"
-                            : "bg-gray-100 cursor-not-allowed"
-                        }`}
-                      />
-                    </div>
-                  )}
 
                   <div className="flex gap-4">
                     {isEditing ? (

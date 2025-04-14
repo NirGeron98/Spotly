@@ -21,6 +21,12 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const [parkingSlots, setParkingSlots] = useState([]);
   const [popupData, setPopupData] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [newPrice, setNewPrice] = useState("");
+  const [priceError, setPriceError] = useState("");
+  const [priceSuccess, setPriceSuccess] = useState("");
+
+
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -222,7 +228,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         />
         <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
           <h1 className="text-3xl font-extrabold text-blue-700 mb-6 text-center">
-            פינוי החנייה שלי
+            ניהול החנייה שלי
           </h1>
 
           <div className="grid grid-cols-1 md:grid-cols-[3fr_4fr] gap-8">
@@ -361,7 +367,16 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               )}
             </div>
           </div>
+          <div className="mt-12 mb-10 flex justify-center">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800 transition shadow-lg"
+            >
+              הגדרות חנייה
+            </button>
+          </div>
         </main>
+
       </div>
       <Footer />
 
@@ -385,8 +400,62 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           }
         />
       )}
+      {showSettings && (
+        <Popup
+          title="עדכון מחיר קבוע"
+          description={
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold">מחיר לשעה (בש"ח):</label>
+              <input
+                type="number"
+                className="w-full border rounded px-3 py-2"
+                value={newPrice}
+                onChange={(e) => {
+                  setNewPrice(e.target.value);
+                  setPriceError("");
+                  setPriceSuccess("");
+                }}
+                placeholder="לדוגמה: 15"
+              />
+              {priceError && (
+                <div className="text-red-600 text-sm text-center">{priceError}</div>
+              )}
+              {priceSuccess && (
+                <div className="text-green-600 text-sm text-center">{priceSuccess}</div>
+              )}
+            </div>
+          }
+          onClose={() => setShowSettings(false)}
+          onConfirm={async () => {
+            try {
+              const token = localStorage.getItem("token");
+              const privateSpot = parkingSlots.find((s) => s.spot_type === "private");
+              if (!privateSpot) {
+                setPopupData({ title: "שגיאה", description: "לא נמצאה חנייה פרטית" });
+                return;
+              }
+
+              await axios.patch(
+                `/api/v1/parking-spots/${privateSpot._id}`,
+                { hourly_price: Number(newPrice) },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+
+              await fetchMySpots();
+              setShowSettings(false);
+              setPriceSuccess("המחיר עודכן בהצלחה ✅");
+            } catch (err) {
+              setPriceError("עדכון המחיר נכשל. נסה שוב.");
+
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
+
+
+
 
 export default ReleaseParking;
