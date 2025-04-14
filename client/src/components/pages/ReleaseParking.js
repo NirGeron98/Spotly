@@ -69,6 +69,65 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
+  const fetchBookingDetails = async (spotId, scheduleId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `/api/v1/bookings/spot/${spotId}/schedule/${scheduleId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const booking = res.data?.data?.booking;
+
+      if (!booking || !booking.user) {
+        setPopupData({
+          title: "אין הזמנה",
+          description: "לא נמצאה הזמנה תואמת לפינוי הזה",
+          type: "info",
+        });
+        return;
+      }
+
+      const user = booking.user;
+      const start = new Date(booking.start_datetime).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const end = new Date(booking.end_datetime).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const content = (
+        <div className="text-right text-gray-800 space-y-2 leading-relaxed">
+          <p>
+            <strong>שם מלא:</strong> {user.first_name} {user.last_name}
+          </p>
+          <p>
+            <strong>אימייל:</strong> {user.email}
+          </p>
+          <p>
+            <strong>טלפון:</strong> {user.phone_number}
+          </p>
+          <p>
+            <strong>שעות ההזמנה:</strong> {start} - {end}
+          </p>
+        </div>
+      );
+
+      setPopupData({
+        title: "פרטי המזמין",
+        description: content,
+        type: "info",
+      });
+    } catch (err) {
+      setPopupData({
+        title: "שגיאה",
+        description: "לא ניתן לשלוף את פרטי המזמין",
+        type: "error",
+      });
+    }
+  };
+
   const isOverlap = (existing, date, newStart, newEnd) => {
     const [newStartH, newStartM] = newStart.split(":").map(Number);
     const [newEndH, newEndM] = newEnd.split(":").map(Number);
@@ -327,7 +386,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   type="date"
                   name="date"
                   value={formData.date}
-                  onChange={handleChange}                                                                                                                               
+                  onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
@@ -449,7 +508,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                   : "השכרה רגילה"}
                               </td>
                             )}
-                            <td className="border px-4 py-2 text-center">
+                            <td className="border px-4 py-2 text-center flex gap-2 justify-center">
                               <button
                                 onClick={() =>
                                   setConfirmDeleteId({
@@ -461,6 +520,19 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                               >
                                 מחק
                               </button>
+                              {!schedule.is_available && (
+                                <button
+                                  onClick={() =>
+                                    fetchBookingDetails(
+                                      schedule.slot._id,
+                                      schedule._id
+                                    )
+                                  }
+                                  className="border border-blue-500 text-blue-500 px-3 py-1 rounded hover:bg-blue-50 transition"
+                                >
+                                  פרטי מזמין
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}

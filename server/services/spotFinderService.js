@@ -30,7 +30,8 @@ class ParkingSpotFinder {
     desiredStartTime,
     desiredEndTime,
     additionalFilters = {},
-    maxResults = 10
+    maxResults = 10,
+    excludeOwnerId = null
   ) {
     // Convert string times to Date objects
     const desiredStart = new Date(desiredStartTime);
@@ -39,13 +40,21 @@ class ParkingSpotFinder {
     // Fetch all parking spots from database with additional filters
     const allSpots = await this._fetchAllSpots(additionalFilters);
 
+    let filteredSpots = allSpots;
+
+    if (excludeOwnerId) {
+      filteredSpots = filteredSpots.filter(
+        (spot) => spot.original?.owner?._id?.toString() !== excludeOwnerId
+      );
+    }
+
     // If no spots are available, return empty array
-    if (!allSpots || allSpots.length === 0) {
+    if (!filteredSpots || filteredSpots.length === 0) {
       return [];
     }
 
     // Filter spots by availability
-    const availableSpots = allSpots.filter((spot) =>
+    const availableSpots = filteredSpots.filter((spot) =>
       this._checkAvailability(spot.availability, desiredStart, desiredEnd)
     );
 

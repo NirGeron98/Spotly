@@ -12,21 +12,20 @@ import ForgotPassword from "./components/pages/ForgotPassword";
 import ResetPassword from "./components/pages/ResetPassword";
 import Dashboard from "./components/pages/Dashboard";
 import Profile from "./components/pages/Profile";
-import SearchParking from "./components/pages/SearchParking"; 
+import SearchParking from "./components/pages/SearchParking";
 import UsageHistory from "./components/pages/UsageHistory";
 import ReleaseParking from "./components/pages/ReleaseParking";
 
-
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
-      setLoggedIn(true); 
+      setLoggedIn(true);
     }
   }, []);
 
@@ -116,7 +115,13 @@ function App() {
         />
         <Route
           path="/usage-history"
-          element={loggedIn ? <UsageHistory /> : <Navigate to="/login" />}
+          element={
+            loggedIn ? (
+              <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
         />
       </Routes>
     </Router>

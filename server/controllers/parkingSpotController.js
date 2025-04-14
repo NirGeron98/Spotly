@@ -205,18 +205,37 @@ exports.updateAvailabilitySchedule = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.removeAvailabilitySchedule(
-    req.params.spotId,
-    req.params.scheduleId,
-    req.user.id
+exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
+  const parkingSpot = await ParkingSpot.findById(spotId);
+  if (!parkingSpot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  if (parkingSpot.owner.toString() !== userId) {
+    throw new AppError("You do not have permission to update this parking spot's availability", 403);
+  }
+
+  const scheduleIndex = parkingSpot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === scheduleId
   );
 
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
+  if (scheduleIndex === -1) {
+    throw new AppError("Schedule not found", 404);
+  }
+
+  const schedule = parkingSpot.availability_schedule[scheduleIndex];
+
+  await Booking.deleteOne({
+    parkingSpot: spotId,
+    schedule_id: schedule._id
   });
-});
+
+  parkingSpot.availability_schedule.splice(scheduleIndex, 1);
+  await parkingSpot.save();
+
+  return parkingSpot;
+};
+
 
 exports.getMyReleasedSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(
@@ -251,6 +270,7 @@ exports.releaseParkingSpot = catchAsync(async (req, res, next) => {
  * Find optimal parking spots based on user criteria
  * Uses the ParkingSpotFinder algorithm to rank spots by proximity, price, and other factors
  */
+
 exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
   const {
     latitude,
@@ -295,6 +315,7 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
 
   try {
     // Find optimal parking spots
+    const excludeOwnerId = req.user?.id;
     const rankedSpots = await parkingFinder.findParkingSpots(
       parseFloat(latitude),
       parseFloat(longitude),
@@ -302,7 +323,8 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
       startTimeStr,
       endTimeStr,
       additionalFilters,
-      20 // Return top 20 results
+      20,
+      excludeOwnerId 
     );
 
     if (rankedSpots.length === 0) {

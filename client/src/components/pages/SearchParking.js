@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
+import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Footer from "../shared/Footer";
 import Sidebar from "../shared/Sidebar";
@@ -19,7 +20,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const isBuildingMode = mode === "building";
 
   const [currentTab, setCurrentTab] = useState("search");
-
   const [address, setAddress] = useState({ city: "", street: "", number: "" });
   const [maxPrice, setMaxPrice] = useState("100");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -126,10 +126,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       const searchParams = {
         latitude: locationCoords.latitude,
         longitude: locationCoords.longitude,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
+        date,
+        startTime,
+        endTime,
         maxPrice: maxPrice ? parseFloat(maxPrice) : 1000,
+        userId: user?._id,
       };
 
       if (needsCharging) {
@@ -152,6 +153,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         setResults([]);
       } else {
         setResults(response.data?.data?.parkingSpots || []);
+        const filteredSpots = (response.data?.data?.parkingSpots || []).filter(
+          (spot) => spot.owner !== user._id
+        );
+        setResults(filteredSpots);
+
         setShowPopup(true);
         setFeedback("");
       }
@@ -165,138 +171,152 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const renderContent = () => {
-    if (currentTab !== "search") return null;
+  const handleBooking = async (spot) => {
+    const scheduleId = spot.availability?.[0]?.id; // 🟢 לוקח את הפינוי הראשון הזמין
 
-    return (
-      <>
-        <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
-          חיפוש חנייה
-        </h1>
-        <p className="text-gray-600 text-lg mb-8 text-center">
-          {isBuildingMode
-            ? "בחר תאריך, שעות זמינות וסוג טעינה (אם נדרש)"
-            : "בחר מיקום, טווח מחירים וזמן זמינות"}
-        </p>
+    if (!scheduleId) {
+      alert("❌ לא ניתן לבצע הזמנה – אין פינוי זמין");
+      return;
+    }
 
-        <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
-          {!isBuildingMode && (
-            <AddressMapSelector
-              address={address}
-              setAddress={setAddress}
-              feedback={feedback}
-              setFeedback={setFeedback}
-              searching={searching}
-              setSearching={setSearching}
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        "/api/v1/bookings",
+        {
+          spot: spot._id,
+          schedule: scheduleId, // ✅ שולח את מזהה הפינוי
+          start_datetime: `${date}T${startTime}`,
+          end_datetime: `${date}T${endTime}`,
+          base_rate: spot.hourly_price,
+          booking_type: needsCharging ? "charging" : "parking",
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      alert("✅ ההזמנה בוצעה בהצלחה!");
+      setShowPopup(false);
+    } catch (err) {
+      console.error("Booking error:", err);
+      alert("❌ שגיאה בביצוע ההזמנה");
+    }
+  };
+
+  const renderContent = () => (
+    <>
+      <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
+        חיפוש חנייה
+      </h1>
+      <p className="text-gray-600 text-lg mb-8 text-center">
+        {isBuildingMode
+          ? "בחר תאריך, שעות זמינות וסוג טעינה (אם נדרש)"
+          : "בחר מיקום, טווח מחירים וזמן זמינות"}
+      </p>
+
+      <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+        {!isBuildingMode && (
+          <AddressMapSelector
+            address={address}
+            setAddress={setAddress}
+            feedback={feedback}
+            setFeedback={setFeedback}
+            searching={searching}
+            setSearching={setSearching}
+          />
+        )}
+
+        <div>
+          <label className="block mb-2 text-sm font-bold text-gray-700">
+            תאריך
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            min={new Date().toISOString().split("T")[0]}
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 text-sm font-bold text-gray-700">
+            טווח זמן
+          </label>
+          <div className="flex gap-4">
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
             />
-          )}
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
+        </div>
 
+        {!isBuildingMode && (
           <div>
             <label className="block mb-2 text-sm font-bold text-gray-700">
-              תאריך
+              מחיר מקסימלי (₪)
             </label>
             <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              type="number"
+              placeholder="מחיר מקסימלי לשעה"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              min={new Date().toISOString().split("T")[0]}
+              min="0"
             />
           </div>
+        )}
 
-          <div>
-            <label className="block mb-2 text-sm font-bold text-gray-700">
-              טווח זמן
-            </label>
-            <div className="flex gap-4">
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+        <div>
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={needsCharging}
+              onChange={() => setNeedsCharging((prev) => !prev)}
+              className="w-5 h-5"
+            />
+            <span className="text-gray-800 font-semibold text-base">
+              אני צריך עמדת טעינה לרכב חשמלי
+            </span>
+          </label>
+          {needsCharging && (
+            <div className="mt-2">
+              <select
+                value={chargerType}
+                onChange={(e) => setChargerType(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-
-          {!isBuildingMode && (
-            <div>
-              <label className="block mb-2 text-sm font-bold text-gray-700">
-                מחיר מקסימלי (₪)
-              </label>
-              <input
-                type="number"
-                placeholder="מחיר מקסימלי לשעה"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                min="0"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={needsCharging}
-                onChange={() => setNeedsCharging((prev) => !prev)}
-                className="w-5 h-5"
-              />
-              <span className="text-gray-800 font-semibold text-base">
-                אני צריך עמדת טעינה לרכב חשמלי
-              </span>
-            </label>
-            {needsCharging && (
-              <div className="mt-2">
-                <select
-                  value={chargerType}
-                  onChange={(e) => setChargerType(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">כל סוגי המטענים</option>
-                  <option value="Type 2">Type 2</option>
-                  <option value="CCS">Combo (CCS)</option>
-                  <option value="CHAdeMO">CHAdeMO</option>
-                  <option value="Other">אחר</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="text-center pt-4">
-            <button
-              onClick={handleSearch}
-              disabled={searching}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md text-lg transition disabled:opacity-70"
-            >
-              {searching ? "מחפש..." : "חפש חנייה"}
-            </button>
-          </div>
-
-          {feedback && (
-            <div
-              className="text-center mt-2 text-sm font-medium"
-              style={{
-                color: feedback.includes("❌")
-                  ? "#e53e3e"
-                  : feedback.includes("✅")
-                  ? "#38a169"
-                  : "#2b6cb0",
-              }}
-            >
-              {feedback}
+              >
+                <option value="">כל סוגי המטענים</option>
+                <option value="Type 2">Type 2</option>
+                <option value="CCS">Combo (CCS)</option>
+                <option value="CHAdeMO">CHAdeMO</option>
+                <option value="Other">אחר</option>
+              </select>
             </div>
           )}
         </div>
-      </>
-    );
-  };
+
+        <div className="text-center pt-4">
+          <button
+            onClick={handleSearch}
+            disabled={searching}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md text-lg transition disabled:opacity-70"
+          >
+            {searching ? "מחפש..." : "חפש חנייה"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div
@@ -312,7 +332,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       </div>
       <Footer />
 
-      {/* Results Popup */}
       {showPopup && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
@@ -331,7 +350,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 ✕
               </button>
             </div>
-
             {results.length === 0 ? (
               <p className="text-center text-gray-600 py-8">
                 לא נמצאו חניות תואמות.
@@ -380,10 +398,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                         <td className="px-4 py-2">
                           <button
                             className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-                            onClick={() => {
-                              // Navigate to booking page
-                              window.location.href = `/book-parking/${spot._id}`;
-                            }}
+                            onClick={() => handleBooking(spot)}
                           >
                             הזמן
                           </button>
@@ -394,7 +409,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 </table>
               </div>
             )}
-
             <div className="text-center mt-6">
               <button
                 onClick={() => setShowPopup(false)}

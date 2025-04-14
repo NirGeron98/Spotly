@@ -7,7 +7,7 @@ const availabilityScheduleSchema = new mongoose.Schema(
       required: true,
     },
     start_time: {
-      type: String, // Format: "HH:MM" in 24-hour format
+      type: String, // Format: "HH:MM"
       required: true,
       validate: {
         validator: function (v) {
@@ -18,7 +18,7 @@ const availabilityScheduleSchema = new mongoose.Schema(
       },
     },
     end_time: {
-      type: String, // Format: "HH:MM" in 24-hour format
+      type: String, // Format: "HH:MM"
       required: true,
       validate: {
         validator: function (v) {
@@ -27,10 +27,19 @@ const availabilityScheduleSchema = new mongoose.Schema(
         message: (props) =>
           `${props.value} is not a valid time format. Use HH:MM in 24-hour format.`,
       },
-    },    
+    },
     is_available: {
       type: Boolean,
       default: true,
+    },
+    type: {
+      type: String,
+      enum: ["השכרה רגילה", "טעינה לרכב חשמלי"],
+      default: "השכרה רגילה",
+    },
+    charger: {
+      type: String,
+      enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other"],
     },
   },
   { _id: true }

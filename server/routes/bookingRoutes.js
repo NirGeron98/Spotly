@@ -12,6 +12,11 @@ router
   .get(bookingController.getAllBookings)
   .post(bookingController.createBooking);
 
+router.get(
+  "/spot/:spotId/schedule/:scheduleId",
+  bookingController.getBookingForSchedule
+);
+
 router
   .route("/:id")
   .get(bookingController.getBooking)
@@ -21,4 +26,4 @@ router
 // Get user's bookings
 router.get("/user/my-bookings", bookingController.getUserBookings);
 
-module.exports = router;            
+module.exports = router;

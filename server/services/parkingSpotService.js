@@ -491,6 +491,11 @@ exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
   parkingSpot.availability_schedule.splice(scheduleIndex, 1);
   await parkingSpot.save();
 
+  await Booking.deleteOne({
+    spot: spotId,
+    schedule: scheduleId,
+  });
+
   return parkingSpot;
 };
 
@@ -498,11 +503,6 @@ exports.isSpotAvailableForBooking = async (spotId, startTime, endTime) => {
   const parkingSpot = await ParkingSpot.findById(spotId);
   if (!parkingSpot) {
     throw new AppError("Parking spot not found", 404);
-  }
-
-  // Check if spot is generally available
-  if (!parkingSpot.is_available) {
-    return false;
   }
 
   // If it's not a private spot, just check if it's available and not occupied
@@ -631,12 +631,10 @@ exports.isSpotAvailableForBooking = async (spotId, startTime, endTime) => {
 exports.releaseParkingSpot = async (spotData) => {
   const { date, startTime, endTime, price, type, charger, userId } = spotData;
 
-  // Validate required fields
-  if (!date || !startTime || !endTime || !price || !userId) {
+  if (!date || !startTime || !endTime || price === undefined || !userId) {
     throw new AppError("Missing required fields", 400);
   }
 
-  // Find user's parking spot
   const parkingSpot = await ParkingSpot.findOne({
     owner: userId,
     spot_type: "private",
@@ -646,34 +644,29 @@ exports.releaseParkingSpot = async (spotData) => {
     throw new AppError("No private parking spot found for this user", 404);
   }
 
-  // Create new availability schedule
   const scheduleData = {
     date,
     start_time: startTime,
     end_time: endTime,
     is_available: true,
-    type,
-    charger,
   };
 
-  // Add the schedule
+  if (type) scheduleData.type = type;
+  if (charger) scheduleData.charger = charger;
+
   if (!parkingSpot.availability_schedule) {
     parkingSpot.availability_schedule = [];
   }
+
   parkingSpot.availability_schedule.push(scheduleData);
 
-  // Update price if provided
-  if (price) {
-    parkingSpot.hourly_price = price;
-  }
+  parkingSpot.hourly_price = price;
 
-  // Update charging station info if applicable
   if (type === "טעינה לרכב חשמלי") {
     parkingSpot.is_charging_station = true;
     parkingSpot.charger_type = charger;
   }
 
-  // Save the updated spot
   await parkingSpot.save();
 
   return parkingSpot;
