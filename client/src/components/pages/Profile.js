@@ -60,6 +60,9 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
         last_name,
         email,
         phone_number,
+        ...(user.role === "private_prop_owner" && {
+          default_parking_price: user.default_parking_price,
+        }),
       });
 
       if (user.role === "private_prop_owner") {
@@ -216,7 +219,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                     {isEditing ? (
                       <button
                         onClick={handleSaveProfile}
-                        className="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
+                        className="w-1/2 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
                       >
                         שמירה
                       </button>
@@ -226,7 +229,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                           setMessage("");
                           setIsEditing(true);
                         }}
-                        className="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
+                        className="w-1/2 bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
                       >
                         עריכה
                       </button>
@@ -237,7 +240,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                         setMessage("");
                         setIsChangingPassword(true);
                       }}
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
+                      className="w-1/2 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-200"
                     >
                       שינוי סיסמה
                     </button>
