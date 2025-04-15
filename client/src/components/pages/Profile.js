@@ -21,9 +21,11 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
 
   useEffect(() => {
     if (!user) {
-      userService.getMe()
+      userService
+        .getMe()
         .then((res) => {
-          const fetchedUser = res?.data?.user || res?.data?.data?.user || res?.data?.data;
+          const fetchedUser =
+            res?.data?.user || res?.data?.data?.user || res?.data?.data;
           if (!fetchedUser) throw new Error("User not found");
           localStorage.setItem("user", JSON.stringify(fetchedUser));
           setUser(fetchedUser);
@@ -40,21 +42,52 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
 
   const handleSaveProfile = async () => {
     try {
-      const [first_name, ...rest] = `${user.first_name} ${user.last_name}`.split(" ");
+      const [first_name, ...rest] =
+        `${user.first_name} ${user.last_name}`.split(" ");
       const last_name = rest.join(" ");
       const email = user.email;
       const phone_number = user.phone_number;
 
       if (!/^\d{10}$/.test(phone_number)) {
-        return setMessage({ type: "error", text: "מספר טלפון חייב להכיל בדיוק 10 ספרות" });
+        return setMessage({
+          type: "error",
+          text: "מספר טלפון חייב להכיל בדיוק 10 ספרות",
+        });
       }
 
-      await userService.updateMe({ first_name, last_name, email, phone_number, });
+      await userService.updateMe({
+        first_name,
+        last_name,
+        email,
+        phone_number,
+        ...(user.role === "private_prop_owner" && {
+          default_parking_price: user.default_parking_price,
+        }),
+      });
+
+      if (user.role === "private_prop_owner") {
+        const spotsRes = await userService.getMySpots();
+        const privateSpot = spotsRes?.data?.parkingSpots?.find(
+          (s) => s.spot_type === "private"
+        );
+
+        if (privateSpot) {
+          await userService.updateParkingSpot(privateSpot._id, {
+            hourly_price: user.default_parking_price,
+          });
+        }
+      }
 
       setIsEditing(false);
       setMessage({ type: "success", text: "הפרטים עודכנו בהצלחה ✅" });
 
-      const updatedUser = { ...user, first_name, last_name,email, phone_number,};
+      const updatedUser = {
+        ...user,
+        first_name,
+        last_name,
+        email,
+        phone_number,
+      };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
     } catch (err) {
@@ -120,7 +153,9 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
               {!isChangingPassword ? (
                 <>
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">שם מלא</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      שם מלא
+                    </label>
                     <input
                       type="text"
                       value={`${user.first_name} ${user.last_name}`}
@@ -131,44 +166,60 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                       }}
                       disabled={!isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
-                        isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
                       }`}
                     />
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">אימייל</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      אימייל
+                    </label>
                     <input
                       type="email"
                       value={user.email}
-                      onChange={(e) => setUser((prev) => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) =>
+                        setUser((prev) => ({ ...prev, email: e.target.value }))
+                      }
                       disabled={!isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
-                        isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
                       }`}
                     />
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">מספר טלפון</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      מספר טלפון
+                    </label>
                     <input
                       type="tel"
-                      value={user.phone_number}
                       dir="rtl"
-                      onChange={(e) => setUser((prev) => ({ ...prev, phone_number: e.target.value }))}
+                      value={user.phone_number}
+                      onChange={(e) =>
+                        setUser((prev) => ({
+                          ...prev,
+                          phone_number: e.target.value,
+                        }))
+                      }
                       disabled={!isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
-                        isEditing ? "focus:ring-2 focus:ring-blue-500" : "bg-gray-100 cursor-not-allowed"
+                        isEditing
+                          ? "focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-100 cursor-not-allowed"
                       }`}
                     />
                   </div>
-
 
                   <div className="flex gap-4">
                     {isEditing ? (
                       <button
                         onClick={handleSaveProfile}
-                        className="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
+                        className="w-1/2 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
                       >
                         שמירה
                       </button>
@@ -178,7 +229,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                           setMessage("");
                           setIsEditing(true);
                         }}
-                        className="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
+                        className="w-1/2 bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
                       >
                         עריכה
                       </button>
@@ -189,7 +240,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                         setMessage("");
                         setIsChangingPassword(true);
                       }}
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
+                      className="w-1/2 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-200"
                     >
                       שינוי סיסמה
                     </button>
@@ -198,7 +249,9 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
               ) : (
                 <>
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">סיסמה נוכחית</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      סיסמה נוכחית
+                    </label>
                     <input
                       type="password"
                       value={currentPassword}
@@ -208,7 +261,9 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">סיסמה חדשה</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      סיסמה חדשה
+                    </label>
                     <input
                       type="password"
                       value={newPassword}
@@ -218,7 +273,9 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">אימות סיסמה חדשה</label>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      אימות סיסמה חדשה
+                    </label>
                     <input
                       type="password"
                       value={confirmNewPassword}

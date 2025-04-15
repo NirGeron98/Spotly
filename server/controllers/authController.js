@@ -5,25 +5,45 @@ const { sendEmail, createPasswordResetEmail } = require("../utils/email");
 
 // Signing up a new user
 exports.signup = catchAsync(async (req, res, next) => {
+  // Create user with service
   const newUser = await authService.signup(req.body);
 
-  // Generate token and respond
-  const { token, cookieOptions, user } = authService.createAndSendToken(
-    newUser,
-    201,
-    res
-  );
+  // Generate token
+  const { token, cookieOptions } = authService.createAndSendToken(newUser, 201);
 
+  // Set cookie
   res.cookie("jwt", token, cookieOptions);
 
-  res.status(201).json({
-    status: "success",
-    token,
-    data: {
-      user,
-    },
-  });
+  // Store for next middleware
+  res.locals.user = newUser;
+  res.locals.token = token;
+  req.user = newUser;
+
+  next();
 });
+
+exports.sendSignupResponse = (req, res) => {
+  // Create response with user and token
+  const responseData = {
+    status: "success",
+    token: res.locals.token,
+    data: { user: res.locals.user },
+  };
+
+  // Add parking spot to response if created
+  if (res.locals.parkingSpot) {
+    responseData.data.parkingSpot = res.locals.parkingSpot;
+  }
+
+  // Add warning if spot creation failed
+  if (res.locals.parkingSpotWarning) {
+    responseData.warnings = {
+      parkingSpot: res.locals.parkingSpotWarning,
+    };
+  }
+
+  res.status(201).json(responseData);
+};
 
 // Logging in a user
 exports.login = catchAsync(async (req, res, next) => {
@@ -95,7 +115,6 @@ exports.restrictTo = (...roles) => {
 exports.updatePassword = catchAsync(async (req, res, next) => {
   const { passwordCurrent, password, passwordConfirm } = req.body;
 
-  // Use service to update password
   const user = await authService.updatePassword(
     req.user,
     passwordCurrent,

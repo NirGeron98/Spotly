@@ -1,9 +1,11 @@
 const crypto = require("crypto");
 const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose"); // Ensure mongoose is imported
 const User = require("../models/userModel");
+const Building = require("../models/buildingModel"); // Ensure Building model is imported
 const AppError = require("../utils/appError");
-const filterObj = require("../utils/filterObj"); // Ensure this utility is imported
+const { filterObj } = require("../utils/filterObj"); // Ensure this utility is imported
 
 // Helper functions
 exports.signToken = (id) => {
@@ -13,7 +15,7 @@ exports.signToken = (id) => {
 };
 
 exports.createAndSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
+  const token = this.signToken(user._id);
   const cookieOptions = {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -35,58 +37,130 @@ exports.createAndSendToken = (user, statusCode, res) => {
 
 // Auth business logic
 exports.signup = async (userData) => {
-  // Define allowed fields for all roles
-  const allowedFields = [
-    "first_name",
-    "last_name",
-    "email",
-    "password",
-    "passwordConfirm",
-    "phone_number",
-    "address",
-    "resident_building",
-    "owned_parking_spots",
-  ];
+  // Start a MongoDB session for transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // Filter user data to only include allowed fields
-  const filteredUserData = filterObj(userData, ...allowedFields);
+  try {
+    // Define allowed fields for all roles
+    const allowedFields = [
+      "first_name",
+      "last_name",
+      "email",
+      "password",
+      "passwordConfirm",
+      "phone_number",
+      "address",
+      "resident_building",
+      "owned_parking_spots",
+    ];
 
-  // Explicitly handle role assignment - restrict admin
-  if (userData.role && userData.role !== "admin") {
-    const allowedRoles = ["user", "building_resident", "private_prop_owner"];
-    if (allowedRoles.includes(userData.role)) {
-      filteredUserData.role = userData.role;
+    // Filter user data to only include allowed fields
+    const filteredUserData = filterObj(userData, ...allowedFields);
+
+    // Explicitly handle role assignment - restrict admin
+    if (userData.role && userData.role !== "admin") {
+      const allowedRoles = ["user", "building_resident", "private_prop_owner"];
+      if (allowedRoles.includes(userData.role)) {
+        filteredUserData.role = userData.role;
+      } else {
+        filteredUserData.role = "user"; // Default for unrecognized roles
+      }
     } else {
-      filteredUserData.role = "user"; // Default for unrecognized roles
+      filteredUserData.role = "user"; // Default role
     }
-  } else {
-    filteredUserData.role = "user"; // Default role
-  }
 
-  // Validate and handle role-specific fields
-  if (filteredUserData.role === "building_resident") {
-    if (!filteredUserData.resident_building) {
-      throw new AppError(
-        "Building residents must be assigned to a building",
-        400
-      );
+    // Validate role-specific fields
+    if (filteredUserData.role === "building_resident") {
+      if (!filteredUserData.resident_building) {
+        throw new AppError(
+          "Building residents must be assigned to a building",
+          400
+        );
+      }
+
+      // Verify building exists
+      const buildingExists = await Building.findById(
+        filteredUserData.resident_building
+      ).session(session);
+      if (!buildingExists) {
+        throw new AppError("The specified building does not exist", 404);
+      }
     }
-  } else if (filteredUserData.role === "private_prop_owner") {
+
+    // Create new user with the session
+    const newUser = await User.create([filteredUserData], { session });
+    const userId = newUser[0]._id;
+
+    // If this is a building resident, update the building's residents array
     if (
-      !filteredUserData.owned_parking_spots ||
-      filteredUserData.owned_parking_spots.length === 0
+      filteredUserData.role === "building_resident" &&
+      filteredUserData.resident_building
     ) {
-      throw new AppError(
-        "Private property owners must own at least one parking spot",
-        400
+      const buildingId = filteredUserData.resident_building;
+
+      // Add user to building's residents array
+      await Building.findByIdAndUpdate(
+        buildingId,
+        { $addToSet: { residents: userId } }, // $addToSet prevents duplicates
+        { session, new: true }
+      );
+
+      // Create a parking spot for this building resident
+      const ParkingSpot = require("../models/parkingSpotModel");
+      const parkingSpotData = {
+        spot_type: "building",
+        spot_number: `${userId.toString().slice(-4)}`, // Use last 4 digits of user ID
+        floor: "1", // Default floor
+        building: buildingId,
+        is_available: true,
+        owner: userId
+      };
+
+      // Create the parking spot
+      const newParkingSpot = await ParkingSpot.create([parkingSpotData], { session });
+
+      // Add the parking spot reference to the user
+      await User.findByIdAndUpdate(
+        userId,
+        { $push: { owned_parking_spots: newParkingSpot[0]._id } },
+        { session }
       );
     }
+
+    // If this is a private property owner, create a private parking spot for them
+    if (filteredUserData.role === "private_prop_owner" && filteredUserData.address) {
+      const ParkingSpot = require("../models/parkingSpotModel");
+      const parkingSpotData = {
+        spot_type: "private",
+        is_available: true,
+        hourly_price: 0, // Default price, user will need to update this
+        owner: userId,
+        address: filteredUserData.address,
+      };
+
+      // Create the parking spot
+      const newParkingSpot = await ParkingSpot.create([parkingSpotData], { session });
+
+      // Add the parking spot reference to the user
+      await User.findByIdAndUpdate(
+        userId,
+        { $push: { owned_parking_spots: newParkingSpot[0]._id } },
+        { session }
+      );
+    }
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return newUser[0];
+  } catch (error) {
+    // Abort transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    throw error; // Re-throw for controller to handle
   }
-
-  // Create the user with filtered data
-  const newUser = await User.create(filteredUserData);
-
-  return newUser;
 };
 
 exports.login = async (email, password) => {

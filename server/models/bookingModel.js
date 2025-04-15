@@ -55,15 +55,18 @@ const bookingSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  schedule: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false,
+    ref: "ParkingSpot.availability_schedule",
+  },
 });
 
-// Pre-save middleware to update the updated_at field
 bookingSchema.pre("save", function (next) {
   this.updated_at = Date.now();
   next();
 });
 
-// Create indexes for efficient queries
 bookingSchema.index({ user: 1, status: 1 });
 bookingSchema.index({ spot: 1, status: 1 });
 bookingSchema.index({ booking_type: 1, status: 1 });

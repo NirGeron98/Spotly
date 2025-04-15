@@ -8,31 +8,28 @@ const AppError = require("../utils/appError");
  * @returns {Promise<Object>} The created booking
  */
 exports.createBooking = async (bookingData) => {
-  // Check if the parking spot exists
+  // Check if the parking spot exists and is available for the requested time
   const parkingSpot = await ParkingSpot.findById(bookingData.spot);
   if (!parkingSpot) {
     throw new AppError("Parking spot not found", 404);
   }
 
-  // Check if there's already an active booking for this spot at this time
+  // Check availability with corrected parameter names
   const isAvailable = await exports.checkParkingSpotAvailability(
     bookingData.spot,
-    bookingData.start_datetime
+    bookingData.start_datetime,
+    bookingData.end_datetime
   );
 
   if (!isAvailable) {
     throw new AppError(
-      "This parking spot is already booked for the requested time",
+      "Parking spot is not available for the requested time period",
       400
     );
   }
 
   // Create booking
-  const booking = await Booking.create({
-    ...bookingData,
-    status: 'active'
-  });
-  
+  const booking = await Booking.create(bookingData);
   return booking;
 };
 
@@ -65,20 +62,29 @@ exports.getUserBookings = async (userId) => {
  * @param {Date} endTime - End time of the period to check
  * @returns {Promise<boolean>} Whether the spot is available
  */
-exports.checkParkingSpotAvailability = async (spotId, startTime, endTime) => {
-  // Find any overlapping active bookings for this spot
-  const existingBooking = await Booking.findOne({
+exports.checkParkingSpotAvailability = async (
+  spotId,
+  startTime,
+  endTime
+) => {
+  // If no end time is provided, consider it available
+  if (!endTime) return true;
+
+  // Find any overlapping bookings
+  const overlappingBookings = await Booking.find({
     spot: spotId,
-    status: 'active',
-    start_datetime: { $lte: startTime },
+    status: "active",
     $or: [
-      { end_datetime: null },
-      { end_datetime: { $gt: startTime } }
-    ]
+      { start_datetime: { $lt: endTime, $gte: startTime } },
+      { end_datetime: { $gt: startTime, $lte: endTime } },
+      { 
+        start_datetime: { $lte: startTime }, 
+        end_datetime: { $gte: endTime }
+      },
+    ],
   });
 
-  // If there's an existing active booking, the spot is not available
-  return !existingBooking;
+  return overlappingBookings.length === 0;
 };
 
 /**

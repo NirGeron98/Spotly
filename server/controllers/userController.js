@@ -71,3 +71,17 @@ exports.getAllUsers = factory.getAll(User, {
 exports.getUser = factory.getOne(User);
 exports.updateUser = factory.updateOne(User);
 exports.deleteUser = factory.deleteOne(User);
+
+exports.updatePreferences = catchAsync(async (req, res, next) => {
+  const updatedUser = await userService.updatePreferences(req.user.id, {
+    distance_importance: req.body.distance_importance,
+    price_importance: req.body.price_importance
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      preferences: updatedUser.preferences
+    }
+  });
+});

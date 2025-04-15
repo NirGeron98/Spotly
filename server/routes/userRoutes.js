@@ -1,10 +1,16 @@
 const express = require("express");
 const authController = require("./../controllers/authController");
 const userController = require("./../controllers/userController");
+const parkingSpotController = require("./../controllers/parkingSpotController");
 
 const router = express.Router();
 
-router.post("/signup", authController.signup);
+router.post(
+  "/signup",
+  authController.signup,
+  parkingSpotController.createUserParkingSpot,
+  authController.sendSignupResponse
+);
 router.post("/login", authController.login);
 router.get("/logout", authController.logout);
 
@@ -20,6 +26,8 @@ router.get("/me", userController.getMe, userController.getUser);
 
 router.patch("/updateMe", userController.updateMe);
 router.delete("/deleteMe", userController.deleteMe);
+
+router.patch('/preferences', userController.updatePreferences);  // Add this line
 
 // Admin routes
 router.use(authController.restrictTo("admin"));

@@ -12,6 +12,11 @@ router
   .get(bookingController.getAllBookings)
   .post(bookingController.createBooking);
 
+router.get(
+  "/spot/:spotId/schedule/:scheduleId",
+  bookingController.getBookingForSchedule
+);
+
 router
   .route("/:id")
   .get(bookingController.getBooking)

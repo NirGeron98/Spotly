@@ -68,7 +68,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/buildings", buildingRouter);
 app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/requests", requestRouter);
-app.use("/api/v1/parkingSpots", parkingSpotRouter);
+app.use("/api/v1/parking-spots", parkingSpotRouter); 
 
 app.all("*", (req, res, next) => {
   // Runs for all HTTP Methods

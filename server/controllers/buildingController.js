@@ -64,3 +64,19 @@ exports.updateBuildingResident = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+exports.addResidentToBuilding = catchAsync(async (req, res, next) => {
+  const { buildingId } = req.params;
+  const { userId } = req.body;
+
+  // Use the buildingService to add the resident
+  const building = await buildingService.addResident(buildingId, userId);
+
+  res.status(200).json({
+    status: "success",
+    message: "User added to building successfully",
+    data: {
+      building,
+    },
+  });
+});

@@ -52,9 +52,33 @@ const userSchema = new mongoose.Schema({
       },
     },
   },
+  // Parking Details
+  
   preferred_charger_type: {
     type: String,
     enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other", null],
+  },
+  preferences: {
+    distance_importance: {
+      type: Number,
+      default: 3,
+      min: 1,
+      max: 5,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Distance importance must be an integer between 1 and 5'
+      }
+    },
+    price_importance: {
+      type: Number,
+      default: 3,
+      min: 1,
+      max: 5,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Price importance must be an integer between 1 and 5'
+      }
+    }
   },
   // Building and parking spot relationships
   managed_buildings: {
@@ -82,18 +106,7 @@ const userSchema = new mongoose.Schema({
     },
   },
   owned_parking_spots: {
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "ParkingSpot" }],
-    validate: {
-      validator: function (spots) {
-        // Required for private property owners and must have at least one spot
-        return (
-          this.role !== "private_prop_owner" ||
-          this.role !== "building_resident" ||
-          (spots && spots.length > 0)
-        );
-      },
-      message: "Private property owners must own at least one parking spot",
-    },
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "ParkingSpot" }]
   },
   payment_methods: [
     {
