@@ -64,7 +64,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     };
 
     fetchUsage();
-  }, []);
+  }, [user._id]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

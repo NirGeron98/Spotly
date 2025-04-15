@@ -58,6 +58,28 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other", null],
   },
+  preferences: {
+    distance_importance: {
+      type: Number,
+      default: 3,
+      min: 1,
+      max: 5,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Distance importance must be an integer between 1 and 5'
+      }
+    },
+    price_importance: {
+      type: Number,
+      default: 3,
+      min: 1,
+      max: 5,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Price importance must be an integer between 1 and 5'
+      }
+    }
+  },
   // Building and parking spot relationships
   managed_buildings: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Building" }],

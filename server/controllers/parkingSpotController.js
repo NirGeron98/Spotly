@@ -4,6 +4,8 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const parkingSpotService = require("../services/parkingSpotService");
 const parkingFinder = require("../services/spotFinderService");
+const Booking = require("../models/bookingModel");
+const mongoose = require("mongoose");
 
 // Get & Create use factory
 exports.getAllParkingSpots = factory.getAll(ParkingSpot);
@@ -54,7 +56,7 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
   } else {
     return next();
   }
-  
+
   try {
     const parkingSpot =
       await parkingSpotService.createParkingSpot(parkingSpotData);
@@ -205,37 +207,53 @@ exports.updateAvailabilitySchedule = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
-  const parkingSpot = await ParkingSpot.findById(spotId);
-  if (!parkingSpot) {
-    throw new AppError("Parking spot not found", 404);
+exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { spotId, scheduleId } = req.params;
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(spotId) || !mongoose.Types.ObjectId.isValid(scheduleId)) {
+      throw new AppError("Invalid spotId or scheduleId format", 400);
+    }
+
+    const parkingSpot = await ParkingSpot.findById(spotId).session(session);
+
+    if (!parkingSpot) {
+      throw new AppError("Parking spot not found", 404);
+    }
+
+    const scheduleIndex = parkingSpot.availability_schedule.findIndex(
+      (schedule) => schedule._id.toString() === scheduleId
+    );
+
+    if (scheduleIndex === -1) {
+      throw new AppError("Schedule not found", 404);
+    }
+
+    // Remove related bookings
+    await Booking.deleteMany({ spot: spotId, schedule: scheduleId }).session(session);
+
+    // Remove the schedule
+    parkingSpot.availability_schedule.splice(scheduleIndex, 1);
+    await parkingSpot.save({ session });
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(204).json({
+      status: "success",
+      data: null,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    next(err);
   }
-
-  if (parkingSpot.owner.toString() !== userId) {
-    throw new AppError("You do not have permission to update this parking spot's availability", 403);
-  }
-
-  const scheduleIndex = parkingSpot.availability_schedule.findIndex(
-    (schedule) => schedule._id.toString() === scheduleId
-  );
-
-  if (scheduleIndex === -1) {
-    throw new AppError("Schedule not found", 404);
-  }
-
-  const schedule = parkingSpot.availability_schedule[scheduleIndex];
-
-  await Booking.deleteOne({
-    parkingSpot: spotId,
-    schedule_id: schedule._id
-  });
-
-  parkingSpot.availability_schedule.splice(scheduleIndex, 1);
-  await parkingSpot.save();
-
-  return parkingSpot;
-};
-
+});
 
 exports.getMyReleasedSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(
@@ -324,7 +342,7 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
       endTimeStr,
       additionalFilters,
       20,
-      excludeOwnerId 
+      excludeOwnerId
     );
 
     if (rankedSpots.length === 0) {
