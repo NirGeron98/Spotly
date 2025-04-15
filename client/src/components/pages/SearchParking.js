@@ -229,7 +229,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   const handleBooking = async (spot) => {
-    const scheduleId = spot.availability?.[0]?.id; // 🟢 לוקח את הפינוי הראשון הזמין
+    const scheduleId = spot.availability?.[0]?.id; 
 
     if (!scheduleId) {
       alert("❌ לא ניתן לבצע הזמנה – אין פינוי זמין");
@@ -242,7 +242,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         "/api/v1/bookings",
         {
           spot: spot._id,
-          schedule: scheduleId, // ✅ שולח את מזהה הפינוי
+          schedule: scheduleId, 
           start_datetime: `${date}T${startTime}`,
           end_datetime: `${date}T${endTime}`,
           base_rate: spot.hourly_price,
@@ -271,28 +271,25 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
   const renderContent = () => (
     <>
-      <div className="relative mb-6 flex items-center justify-center">
-        {!isBuildingMode && mode === "regular" && (
-          <div className="absolute left-0">
-            <button
-              onClick={() => setShowPreferences(true)}
-              className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow"
-            >
-              <i className="fas fa-cog"></i>
-              העדפות חיפוש מתקדמות
-            </button>
-          </div>
-        )}
-
-        <h1 className="text-3xl font-extrabold text-blue-700 text-center">
+      <div className="relative mb-6 flex flex-col items-center">
+        <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
           חיפוש חנייה
         </h1>
+
+        <p className="text-gray-600 text-lg mb-4 text-center">
+          בחר מיקום, טווח מחירים וזמן זמינות
+        </p>
+
+        <div className="mt-4 mb-6 flex items-center justify-center">
+          <button
+            onClick={() => setShowPreferences(true)}
+            className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow w-auto justify-center"
+          >
+            <i className="fas fa-cog text-lg"></i>
+            <span className="inline">העדפות חיפוש מתקדמות</span>
+          </button>
+        </div>
       </div>
-      <p className="text-gray-600 text-lg mb-8 text-center">
-        {isBuildingMode
-          ? "בחר תאריך, שעות זמינות וסוג טעינה (אם נדרש)"
-          : "בחר מיקום, טווח מחירים וזמן זמינות"}
-      </p>
 
       <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
         {!isBuildingMode && (

@@ -355,24 +355,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           role={user?.role || "user"}
         />
         <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
-          <div className="relative mb-6 flex items-center justify-center">
-            {!isBuildingMode && (
-              <div className="absolute left-0">
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow"
-                >
-                  <i className="fas fa-cog"></i>
-                  הגדרות חנייה
-                </button>
-              </div>
-            )}
-
-            <h1 className="text-3xl font-extrabold text-blue-700 text-center">
+          <div className="relative mb-6 flex flex-col items-center">
+            <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
               ניהול החנייה שלי
             </h1>
 
-            <div className="invisible w-[160px]"></div>
+            {!isBuildingMode && (
+              <div className="mt-4 flex items-center justify-center">
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow sm:w-auto sm:flex sm:gap-2 sm:px-4 sm:py-2 w-auto justify-center"
+                >
+                  <i className="fas fa-cog text-lg"></i>
+                  <span className="inline">הגדרות חנייה</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] gap-8">
