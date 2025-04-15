@@ -38,8 +38,10 @@ function App() {
             loggedIn ? (
               user?.role === "user" || user?.role === "private_prop_owner" ? (
                 <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
+              ) : user?.role === "building_resident" ? (
                 <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Home />
               )
             ) : (
               <Home />

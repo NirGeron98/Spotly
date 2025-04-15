@@ -17,7 +17,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const location = useLocation();
   const [popupData, setPopupData] = useState(null);
 
-  const mode = location?.state?.mode || "regular";
+  const mode =
+    location?.state?.mode || localStorage.getItem("mode") || "regular";
   const isBuildingMode = mode === "building";
 
   const [currentTab, setCurrentTab] = useState("search");
@@ -43,7 +44,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           <div key={v} className="flex flex-col items-center">
             <button
               onClick={() => setValue(v)}
-              className={`text-3xl ${v <= value ? "text-yellow-400" : "text-gray-300"} transition`}
+              className={`text-3xl ${
+                v <= value ? "text-yellow-400" : "text-gray-300"
+              } transition`}
             >
               ★
             </button>
@@ -70,11 +73,19 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         }
       );
 
-      setPopupData({ title: "הצלחה", description: "העדפותייך נשמרו במערכת ✅" , type: "success" });
+      setPopupData({
+        title: "הצלחה",
+        description: "העדפותייך נשמרו במערכת ✅",
+        type: "success",
+      });
       setShowPreferences(false);
     } catch (error) {
       console.error("שגיאה בשמירת העדפות:", error);
-      setPopupData({ title: "שגיאה", description: "שגיאה בשמירת ההעדפות  ❌" , type: "error" });
+      setPopupData({
+        title: "שגיאה",
+        description: "שגיאה בשמירת ההעדפות  ❌",
+        type: "error",
+      });
     }
   };
 
@@ -261,7 +272,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const renderContent = () => (
     <>
       <div className="relative mb-6 flex items-center justify-center">
-        {!isBuildingMode && (
+        {!isBuildingMode && mode === "regular" && (
           <div className="absolute left-0">
             <button
               onClick={() => setShowPreferences(true)}
@@ -439,8 +450,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                     {results.map((spot, index) => (
                       <tr
                         key={spot._id}
-                        className={`border-b hover:bg-blue-50 ${index === 0 ? "bg-blue-50" : ""
-                          }`}
+                        className={`border-b hover:bg-blue-50 ${
+                          index === 0 ? "bg-blue-50" : ""
+                        }`}
                       >
                         <td className="px-4 py-2">
                           {index === 0 ? (
@@ -530,20 +542,26 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       )}
 
       {popupData && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-70 flex items-center justify-center"
           onClick={() => setPopupData(null)}
         >
-          <div 
+          <div
             className={`bg-white p-6 rounded-xl shadow-xl w-full max-w-md m-4 ${
-              popupData.type === "success" ? "border-l-4 border-green-500" : "border-l-4 border-red-500"
+              popupData.type === "success"
+                ? "border-l-4 border-green-500"
+                : "border-l-4 border-red-500"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className={`text-xl font-bold ${
-                popupData.type === "success" ? "text-green-600" : "text-red-600"
-              }`}>
+              <h2
+                className={`text-xl font-bold ${
+                  popupData.type === "success"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
                 {popupData.title}
               </h2>
               <button
