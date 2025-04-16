@@ -72,7 +72,7 @@ const parkingSpotSchema = new mongoose.Schema(
     // Common fields for both types
     is_available: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     user: {
       type: mongoose.Schema.ObjectId,

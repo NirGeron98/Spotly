@@ -15,8 +15,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const user = storedUser ? JSON.parse(storedUser) : null;
   const role = user?.role;
   const location = useLocation();
+  const [popupData, setPopupData] = useState(null);
 
-  const mode = location?.state?.mode || "regular";
+  const mode =
+    location?.state?.mode || localStorage.getItem("mode") || "regular";
   const isBuildingMode = mode === "building";
 
   const [currentTab, setCurrentTab] = useState("search");
@@ -31,6 +33,61 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [distancePreference, setDistancePreference] = useState(3);
+  const [pricePreference, setPricePreference] = useState(3);
+
+  const renderStars = (value, setValue) => (
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex gap-2 justify-center">
+        {[1, 2, 3, 4, 5].map((v) => (
+          <div key={v} className="flex flex-col items-center">
+            <button
+              onClick={() => setValue(v)}
+              className={`text-3xl ${
+                v <= value ? "text-yellow-400" : "text-gray-300"
+              } transition`}
+            >
+              ★
+            </button>
+            <span className="text-xs text-gray-500">{v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const savePreferences = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        "/api/v1/users/preferences",
+        {
+          distance_importance: distancePreference,
+          price_importance: pricePreference,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setPopupData({
+        title: "הצלחה",
+        description: "העדפותייך נשמרו במערכת ✅",
+        type: "success",
+      });
+      setShowPreferences(false);
+    } catch (error) {
+      console.error("שגיאה בשמירת העדפות:", error);
+      setPopupData({
+        title: "שגיאה",
+        description: "שגיאה בשמירת ההעדפות  ❌",
+        type: "error",
+      });
+    }
+  };
 
   const handleSearch = async () => {
     if (
@@ -172,7 +229,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   const handleBooking = async (spot) => {
-    const scheduleId = spot.availability?.[0]?.id; // 🟢 לוקח את הפינוי הראשון הזמין
+    const scheduleId = spot.availability?.[0]?.id; 
 
     if (!scheduleId) {
       alert("❌ לא ניתן לבצע הזמנה – אין פינוי זמין");
@@ -185,7 +242,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         "/api/v1/bookings",
         {
           spot: spot._id,
-          schedule: scheduleId, // ✅ שולח את מזהה הפינוי
+          schedule: scheduleId, 
           start_datetime: `${date}T${startTime}`,
           end_datetime: `${date}T${endTime}`,
           base_rate: spot.hourly_price,
@@ -196,24 +253,43 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         }
       );
 
-      alert("✅ ההזמנה בוצעה בהצלחה!");
+      setPopupData({
+        title: "הצלחה",
+        description: "ההזמנה בוצעה בהצלחה ✅",
+        type: "success",
+      });
       setShowPopup(false);
     } catch (err) {
       console.error("Booking error:", err);
-      alert("❌ שגיאה בביצוע ההזמנה");
+      setPopupData({
+        title: "שגיאה",
+        description: "פעולת ההזמנה נכשלה בשרת",
+        type: "error",
+      });
     }
   };
 
   const renderContent = () => (
     <>
-      <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
-        חיפוש חנייה
-      </h1>
-      <p className="text-gray-600 text-lg mb-8 text-center">
-        {isBuildingMode
-          ? "בחר תאריך, שעות זמינות וסוג טעינה (אם נדרש)"
-          : "בחר מיקום, טווח מחירים וזמן זמינות"}
-      </p>
+      <div className="relative mb-6 flex flex-col items-center">
+        <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
+          חיפוש חנייה
+        </h1>
+
+        <p className="text-gray-600 text-lg mb-4 text-center">
+          בחר מיקום, טווח מחירים וזמן זמינות
+        </p>
+
+        <div className="mt-4 mb-6 flex items-center justify-center">
+          <button
+            onClick={() => setShowPreferences(true)}
+            className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow w-auto justify-center"
+          >
+            <i className="fas fa-cog text-lg"></i>
+            <span className="inline">העדפות חיפוש מתקדמות</span>
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
         {!isBuildingMode && (
@@ -326,7 +402,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
       <div className="flex flex-1">
         <Sidebar current={currentTab} setCurrent={setCurrentTab} role={role} />
-        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto">
+        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto mt-4">
           {renderContent()}
         </main>
       </div>
@@ -415,6 +491,90 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-5 py-2 rounded"
               >
                 יציאה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPreferences && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-10 backdrop-blur-sm z-60 flex items-center justify-center"
+          onClick={() => setShowPreferences(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md m-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-blue-700 mb-4 text-center">
+              העדפות חיפוש מתקדמות
+            </h2>
+
+            <div className="space-y-4 text-right">
+              <div>
+                <label className="block font-semibold mb-1">
+                  עד כמה חשוב לך שמרחק החנייה יהיה קרוב? (1-5)
+                </label>
+                {renderStars(distancePreference, setDistancePreference)}
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">
+                  עד כמה חשוב לך שמחיר החנייה יהיה נמוך? (1-5)
+                </label>
+                {renderStars(pricePreference, setPricePreference)}
+              </div>
+            </div>
+
+            <div className="text-center mt-6">
+              <button
+                onClick={savePreferences}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow"
+              >
+                שמור וסגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popupData && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-70 flex items-center justify-center"
+          onClick={() => setPopupData(null)}
+        >
+          <div
+            className={`bg-white p-6 rounded-xl shadow-xl w-full max-w-md m-4 ${
+              popupData.type === "success"
+                ? "border-l-4 border-green-500"
+                : "border-l-4 border-red-500"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2
+                className={`text-xl font-bold ${
+                  popupData.type === "success"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {popupData.title}
+              </h2>
+              <button
+                onClick={() => setPopupData(null)}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-gray-700">{popupData.description}</p>
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setPopupData(null)}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-5 py-2 rounded"
+              >
+                סגור
               </button>
             </div>
           </div>

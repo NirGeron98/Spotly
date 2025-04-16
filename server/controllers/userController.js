@@ -84,4 +84,8 @@ exports.updatePreferences = catchAsync(async (req, res, next) => {
       preferences: updatedUser.preferences
     }
   });
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> bbef96eac881ba50414ebf79b051afc0cf97e233
