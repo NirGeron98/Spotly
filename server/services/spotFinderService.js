@@ -1,4 +1,5 @@
 const ParkingSpot = require("../models/parkingSpotModel");
+const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 
 /**
@@ -21,6 +22,7 @@ class ParkingSpotFinder {
    * @param {string} desiredEndTime - End time for parking (string in format "YYYY-MM-DD HH:MM")
    * @param {Object} additionalFilters - Additional filters like charger type, etc.
    * @param {number} maxResults - Maximum number of results to return
+   * @param {string} excludeOwnerId - User ID to exclude from results
    * @returns {Array} - Ranked parking spots
    */
   async findParkingSpots(
@@ -33,6 +35,18 @@ class ParkingSpotFinder {
     maxResults = 10,
     excludeOwnerId = null
   ) {
+    // Get user preferences
+    let userPreferences;
+    if (!excludeOwnerId) {
+      throw new AppError('User ID is required for optimal parking spot search', 400);
+    }
+
+    const user = await User.findById(excludeOwnerId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    userPreferences = user.preferences;
+
     // Convert string times to Date objects
     const desiredStart = new Date(desiredStartTime);
     const desiredEnd = new Date(desiredEndTime);
@@ -73,7 +87,7 @@ class ParkingSpotFinder {
       return [];
     }
 
-    // Calculate features for each spot
+    // Calculate features for each spot with preference weights
     const spotsWithFeatures = priceFilteredSpots.map((spot) => {
       const distance = this._calculateDistance(
         spot.latitude,
@@ -83,10 +97,14 @@ class ParkingSpotFinder {
       );
       const priceRatio = spot.price_per_hour / maxPrice;
 
+      // Apply user preference weights
+      const weightedDistance = distance * (userPreferences.distance_importance / 3);
+      const weightedPrice = priceRatio * (userPreferences.price_importance / 3);
+
       return {
         ...spot,
-        distance,
-        priceRatio,
+        distance: weightedDistance,
+        priceRatio: weightedPrice,
       };
     });
 
@@ -97,15 +115,16 @@ class ParkingSpotFinder {
       spot.priceRatio,
     ]);
 
-    // If we have too few spots, we can't calculate Mahalanobis distance reliably
-    // Just sort by distance and price in this case
+    // If we have too few spots, use simple weighted ranking
     if (features.length < 4) {
       const simpleRankedSpots = spotsWithFeatures.sort((a, b) => {
-        // Normalize scores between 0-1 and combine them
-        const distanceScore = a.distance / (a.distance + b.distance);
-        const priceScore =
-          a.price_per_hour / (a.price_per_hour + b.price_per_hour);
-        return distanceScore + priceScore - (distanceScore + priceScore);
+        const distanceWeight = userPreferences.distance_importance / 5;
+        const priceWeight = userPreferences.price_importance / 5;
+        
+        const aScore = (a.distance * distanceWeight) + (a.priceRatio * priceWeight);
+        const bScore = (b.distance * distanceWeight) + (b.priceRatio * priceWeight);
+        
+        return aScore - bScore;
       });
 
       return simpleRankedSpots.slice(0, maxResults);
@@ -123,7 +142,7 @@ class ParkingSpotFinder {
     // Calculate inverse of covariance matrix
     const invCovMatrix = this._invertMatrix(augmentedCovMatrix);
 
-    // Calculate Mahalanobis distance for each spot
+    // Calculate Mahalanobis distance for each spot with preference weights
     const idealPoint = [0, 0, 0]; // [distance, price, priceRatio] - Ideal is minimum of each
 
     for (let i = 0; i < spotsWithFeatures.length; i++) {
@@ -132,10 +151,15 @@ class ParkingSpotFinder {
         idealPoint,
         invCovMatrix
       );
-      spotsWithFeatures[i].mahalanobisDistance = mahalanobisDistance;
+
+      // Apply preference weights to final distance
+      const weightedDistance = mahalanobisDistance * 
+        ((userPreferences.distance_importance + userPreferences.price_importance) / 6);
+      
+      spotsWithFeatures[i].mahalanobisDistance = weightedDistance;
     }
 
-    // Sort by Mahalanobis distance (lowest to highest)
+    // Sort by weighted Mahalanobis distance (lowest to highest)
     const rankedSpots = spotsWithFeatures.sort(
       (a, b) => a.mahalanobisDistance - b.mahalanobisDistance
     );
