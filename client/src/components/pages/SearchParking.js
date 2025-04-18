@@ -372,6 +372,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-md"
               >
                 <option value="">כל סוגי המטענים</option>
+                <option value="Type 1">Type 1</option>
                 <option value="Type 2">Type 2</option>
                 <option value="CCS">Combo (CCS)</option>
                 <option value="CHAdeMO">CHAdeMO</option>

@@ -19,15 +19,20 @@ import ReleaseParking from "./components/pages/ReleaseParking";
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
+    const token = localStorage.getItem("token");
+    if (storedUser && token) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       setLoggedIn(true);
     }
+    setIsLoading(false);
   }, []);
+
+  if (isLoading) return null;
 
   return (
     <Router>

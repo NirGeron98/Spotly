@@ -61,8 +61,4 @@ exports.updatePreferences = async (userId, preferences) => {
   }
 
   return updatedUser;
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> bbef96eac881ba50414ebf79b051afc0cf97e233
