@@ -181,15 +181,43 @@ exports.getAvailableParkingSpots = catchAsync(async (req, res, next) => {
 });
 
 exports.addAvailabilitySchedule = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.addAvailabilitySchedule(
-    req.params.spotId,
+  const updatedSpot = await parkingSpotService.addAvailabilitySchedule(
+    req.params.id,
     req.body,
     req.user.id
   );
 
-  res.status(201).json({
+  // Store the updated spot for potential middleware use
+  req.updatedSpot = updatedSpot;
+
+  // If no next middleware, send the response
+  if (!next.called) {
+    res.status(200).json({
+      status: "success",
+      data: {
+        parkingSpot: updatedSpot,
+      },
+    });
+  } else {
+    next();
+  }
+});
+
+exports.getAvailabilitySchedules = catchAsync(async (req, res, next) => {
+  const parkingSpot = await ParkingSpot.findById(req.params.id);
+
+  if (!parkingSpot) {
+    return next(new AppError("No parking spot found with that ID", 404));
+  }
+
+  res.status(200).json({
     status: "success",
-    data: { parkingSpot },
+    results: parkingSpot.availability_schedule
+      ? parkingSpot.availability_schedule.length
+      : 0,
+    data: {
+      schedules: parkingSpot.availability_schedule || [],
+    },
   });
 });
 
@@ -201,10 +229,17 @@ exports.updateAvailabilitySchedule = catchAsync(async (req, res, next) => {
     req.user.id
   );
 
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
+  req.updatedSpot = parkingSpot; // Store the updated spot for potential middleware use
+  if (!next.called) {
+    res.status(200).json({
+      status: "success",
+      data: {
+        parkingSpot,
+      },
+    });
+  } else {
+    next();
+  }
 });
 
 exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
@@ -373,3 +408,6 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
     );
   }
 });
+
+// ADDED NOW
+

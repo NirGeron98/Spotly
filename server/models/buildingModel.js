@@ -45,7 +45,7 @@ buildingSchema.pre("save", async function (next) {
     );
 
     // Format the serial number with leading zeros (e.g., BLD-00001)
-    this.building_number = `BLD-${counter.seq.toString().padStart(5, "0")}`;
+    this.building_number = `BLD-${counter.seq.toString()}`;
     next();
   } catch (error) {
     return next(error);
