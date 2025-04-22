@@ -18,6 +18,21 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
     navigate("/login", { replace: true });
   };
 
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
+      navigate("/");
+    } else if (user.role === "building_resident") {
+      navigate("/dashboard");
+    } else if (["private_prop_owner", "user"].includes(user.role)) {
+      navigate("/search-parking");
+    } else {
+      navigate("/");
+    }
+  };
+
   const isActive = (path) => {
     if (path === "/signup" || path === "/signup-details") {
       return (
@@ -43,7 +58,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-14 sm:h-16">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* לוגו */}
-        <Link to="/" className="flex items-center gap-2">
+        <Link
+          to="#"
+          onClick={handleLogoClick}
+          className="flex items-center gap-2"
+        >
           <img
             src="/assets/spotlyLogo.jpeg"
             alt="Spotly Logo"
