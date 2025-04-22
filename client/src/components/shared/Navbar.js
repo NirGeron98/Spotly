@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaHome,
   FaUser,
@@ -34,14 +34,20 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   };
 
   const isActive = (path) => {
+    if (path === "/") {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user?.role === "building_resident" && location.pathname === "/dashboard") {
+        return true;
+      }
+      if (["private_prop_owner", "user"].includes(user?.role) && location.pathname === "/search-parking") {
+        return true;
+      }
+    }
     if (path === "/signup" || path === "/signup-details") {
       return (
         location.pathname === "/signup" ||
         location.pathname === "/signup-details"
       );
-    }
-    if (loggedIn && path === "/") {
-      return location.pathname === "/dashboard";
     }
     return location.pathname === path;
   };
@@ -58,31 +64,30 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-14 sm:h-16">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* לוגו */}
-        <Link
-          to="#"
-          onClick={handleLogoClick}
-          className="flex items-center gap-2"
-        >
+        <a href="#" onClick={handleLogoClick} className="flex items-center gap-2">
           <img
             src="/assets/spotlyLogo.jpeg"
             alt="Spotly Logo"
             className="h-10 sm:h-12 w-auto"
           />
-        </Link>
+        </a>
 
         {/* כפתורים */}
         <div className="flex items-center gap-2 sm:gap-4">
           {loggedIn ? (
             <>
-              <Link to="/dashboard" className={linkStyle("/")}>
+              <button onClick={handleLogoClick} className={linkStyle("/")}>
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
-              </Link>
+              </button>
 
-              <Link to="/profile" className={linkStyle("/profile")}>
+              <button
+                onClick={() => navigate("/profile")}
+                className={linkStyle("/profile")}
+              >
                 <FaUser className="ml-1.5 text-lg" />
                 ניהול פרופיל
-              </Link>
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -94,20 +99,26 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
             </>
           ) : (
             <>
-              <Link to="/" className={linkStyle("/")}>
+              <button onClick={handleLogoClick} className={linkStyle("/")}>
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
-              </Link>
+              </button>
 
-              <Link to="/login" className={linkStyle("/login")}>
+              <button
+                onClick={() => navigate("/login")}
+                className={linkStyle("/login")}
+              >
                 <FaSignInAlt className="ml-1.5 text-lg" />
                 התחברות
-              </Link>
+              </button>
 
-              <Link to="/signup" className={linkStyle("/signup")}>
+              <button
+                onClick={() => navigate("/signup")}
+                className={linkStyle("/signup")}
+              >
                 <FaUserPlus className="ml-1.5 text-lg" />
                 הרשמה
-              </Link>
+              </button>
             </>
           )}
         </div>
