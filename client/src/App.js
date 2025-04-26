@@ -15,6 +15,8 @@ import Profile from "./components/pages/Profile";
 import SearchParking from "./components/pages/SearchParking";
 import UsageHistory from "./components/pages/UsageHistory";
 import ReleaseParking from "./components/pages/ReleaseParking";
+import ActiveParkingReservations from "./components/pages/ActiveParkingReservations";
+
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -66,6 +68,7 @@ function App() {
             <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
           }
         />
+
         <Route
           path="/signup"
           element={
@@ -89,6 +92,10 @@ function App() {
               <Navigate to="/login" />
             )
           }
+        />
+        <Route
+          path="/active-reservations"
+          element={<ActiveParkingReservations loggedIn={loggedIn} setLoggedIn={setLoggedIn} />}
         />
         <Route
           path="/profile"

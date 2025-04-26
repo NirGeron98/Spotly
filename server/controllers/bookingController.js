@@ -68,9 +68,10 @@ exports.updateBooking = catchAsync(async (req, res, next) => {
 
 exports.getUserBookings = catchAsync(async (req, res, next) => {
   const userId = req.params.userId || req.user.id;
+  
+  // Get ALL bookings for the user, including cancelled ones
   const bookings = await Booking.find({
-    user: userId,
-    status: { $ne: "cancelled" },
+    user: userId
   }).populate("spot");
 
   res.status(200).json({
