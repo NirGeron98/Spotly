@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema({
       },
     },
   },
+  apartment_number: {
+    type: Number,
+    required: function () {
+      return this.role === "building_resident"; // Only required for building residents
+    },
+  },
   // Parking Details
   
   preferred_charger_type: {

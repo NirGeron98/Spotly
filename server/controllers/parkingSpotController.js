@@ -15,8 +15,10 @@ exports.deleteParkingSpot = factory.deleteOne(ParkingSpot);
 
 // ✅ Updated version – custom handler instead of factory
 exports.updateParkingSpot = catchAsync(async (req, res, next) => {
+  console.log("Update Parking Spot Request Body:", req.body); // Debugging line
+  console.log("Update Parking Spot Request Params:", req.params); // Debugging line
   const updatedSpot = await parkingSpotService.updateParkingSpot(
-    req.params.id,
+    req.params.spotId,
     req.body,
     req.user.id,
     req.user.role
@@ -43,7 +45,8 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
     owner: req.user._id,
     is_available: true,
   };
-
+  console.log(parkingSpotData.floor);
+  console.log(parkingSpotData.spot_number);
   if (req.user.role === "private_prop_owner") {
     parkingSpotData.spot_type = "private";
     parkingSpotData.address = req.user.address;
@@ -85,41 +88,6 @@ exports.getParkingSpotsByBuilding = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.assignUser = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.assignUser(
-    req.params.id,
-    req.body.userId
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
-
-exports.unassignUser = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.unassignUser(req.params.id);
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
-
-exports.toggleAvailability = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.toggleAvailability(
-    req.params.id,
-    req.body.is_available,
-    req.user.id,
-    req.user.role
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
-
 exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getAvailablePrivateSpots();
 
@@ -132,6 +100,7 @@ exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
 
 exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   const ownerId = req.params.ownerId || req.user.id;
+  console.log("Owner ID:", ownerId); // Debugging line
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(ownerId);
 
   res.status(200).json({
@@ -181,15 +150,43 @@ exports.getAvailableParkingSpots = catchAsync(async (req, res, next) => {
 });
 
 exports.addAvailabilitySchedule = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.addAvailabilitySchedule(
-    req.params.spotId,
+  const updatedSpot = await parkingSpotService.addAvailabilitySchedule(
+    req.params.id,
     req.body,
     req.user.id
   );
 
-  res.status(201).json({
+  // Store the updated spot for potential middleware use
+  req.updatedSpot = updatedSpot;
+
+  // If no next middleware, send the response
+  if (!next.called) {
+    res.status(200).json({
+      status: "success",
+      data: {
+        parkingSpot: updatedSpot,
+      },
+    });
+  } else {
+    next();
+  }
+});
+
+exports.getAvailabilitySchedules = catchAsync(async (req, res, next) => {
+  const parkingSpot = await ParkingSpot.findById(req.params.id);
+
+  if (!parkingSpot) {
+    return next(new AppError("No parking spot found with that ID", 404));
+  }
+
+  res.status(200).json({
     status: "success",
-    data: { parkingSpot },
+    results: parkingSpot.availability_schedule
+      ? parkingSpot.availability_schedule.length
+      : 0,
+    data: {
+      schedules: parkingSpot.availability_schedule || [],
+    },
   });
 });
 
@@ -201,10 +198,17 @@ exports.updateAvailabilitySchedule = catchAsync(async (req, res, next) => {
     req.user.id
   );
 
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
+  req.updatedSpot = parkingSpot; // Store the updated spot for potential middleware use
+  if (!next.called) {
+    res.status(200).json({
+      status: "success",
+      data: {
+        parkingSpot,
+      },
+    });
+  } else {
+    next();
+  }
 });
 
 exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
@@ -215,7 +219,10 @@ exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
     const { spotId, scheduleId } = req.params;
 
     // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(spotId) || !mongoose.Types.ObjectId.isValid(scheduleId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(spotId) ||
+      !mongoose.Types.ObjectId.isValid(scheduleId)
+    ) {
       throw new AppError("Invalid spotId or scheduleId format", 400);
     }
 
@@ -234,7 +241,9 @@ exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
     }
 
     // Remove related bookings
-    await Booking.deleteMany({ spot: spotId, schedule: scheduleId }).session(session);
+    await Booking.deleteMany({ spot: spotId, schedule: scheduleId }).session(
+      session
+    );
 
     // Remove the schedule
     parkingSpot.availability_schedule.splice(scheduleIndex, 1);
@@ -373,3 +382,5 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
     );
   }
 });
+
+// ADDED NOW

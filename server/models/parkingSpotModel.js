@@ -20,7 +20,7 @@ const parkingSpotSchema = new mongoose.Schema(
       },
       trim: true,
     },
-    floor: {
+    spot_floor: {
       type: String,
       required: function () {
         return this.spot_type === "building";
@@ -69,11 +69,6 @@ const parkingSpotSchema = new mongoose.Schema(
       default: [], // Default to empty array, making it optional
     },
 
-    // Common fields for both types
-    is_available: {
-      type: Boolean,
-      default: true,
-    },
     user: {
       type: mongoose.Schema.ObjectId,
       ref: "User",
