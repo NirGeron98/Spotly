@@ -20,7 +20,7 @@ const parkingSpotSchema = new mongoose.Schema(
       },
       trim: true,
     },
-    floor: {
+    spot_floor: {
       type: String,
       required: function () {
         return this.spot_type === "building";

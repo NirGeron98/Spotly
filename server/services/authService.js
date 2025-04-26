@@ -40,7 +40,7 @@ exports.signup = async (userData) => {
   // Start a MongoDB session for transaction
   const session = await mongoose.startSession();
   session.startTransaction();
-
+  console.log("data: ", userData);
   try {
     // Define allowed fields for all roles
     const allowedFields = [
@@ -53,10 +53,15 @@ exports.signup = async (userData) => {
       "address",
       "resident_building",
       "owned_parking_spots",
+      "apartment_number",
+      "spot_type",
+      "spot_number",
+      "spot_floor",
     ];
 
     // Filter user data to only include allowed fields
     const filteredUserData = filterObj(userData, ...allowedFields);
+    console.log("filtered data: ", filteredUserData);
 
     // Explicitly handle role assignment - restrict admin
     if (userData.role && userData.role !== "admin") {
@@ -110,15 +115,16 @@ exports.signup = async (userData) => {
       const ParkingSpot = require("../models/parkingSpotModel");
       const parkingSpotData = {
         spot_type: "building",
-        spot_number: `${userId.toString().slice(-4)}`, // Use last 4 digits of user ID
-        floor: "1", // Default floor
+        spot_number: filteredUserData.spot_number,
+        spot_floor: filteredUserData.spot_floor,
         building: buildingId,
-        is_available: true,
-        owner: userId
+        owner: userId,
       };
-
+      console.log("parking spot data: ", parkingSpotData);
       // Create the parking spot
-      const newParkingSpot = await ParkingSpot.create([parkingSpotData], { session });
+      const newParkingSpot = await ParkingSpot.create([parkingSpotData], {
+        session,
+      });
 
       // Add the parking spot reference to the user
       await User.findByIdAndUpdate(
@@ -129,7 +135,10 @@ exports.signup = async (userData) => {
     }
 
     // If this is a private property owner, create a private parking spot for them
-    if (filteredUserData.role === "private_prop_owner" && filteredUserData.address) {
+    if (
+      filteredUserData.role === "private_prop_owner" &&
+      filteredUserData.address
+    ) {
       const ParkingSpot = require("../models/parkingSpotModel");
       const parkingSpotData = {
         spot_type: "private",
@@ -140,7 +149,9 @@ exports.signup = async (userData) => {
       };
 
       // Create the parking spot
-      const newParkingSpot = await ParkingSpot.create([parkingSpotData], { session });
+      const newParkingSpot = await ParkingSpot.create([parkingSpotData], {
+        session,
+      });
 
       // Add the parking spot reference to the user
       await User.findByIdAndUpdate(

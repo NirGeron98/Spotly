@@ -217,35 +217,6 @@ exports.unassignUser = async (spotId) => {
   return parkingSpot;
 };
 
-exports.toggleAvailability = async (spotId, isAvailable, userId, userRole) => {
-  const parkingSpot = await ParkingSpot.findById(spotId);
-  if (!parkingSpot) {
-    throw new AppError("Parking spot not found", 404);
-  }
-
-  if (
-    parkingSpot.owner.toString() !== userId &&
-    !["admin", "building_manager"].includes(userRole)
-  ) {
-    throw new AppError(
-      "You do not have permission to update this parking spot",
-      403
-    );
-  }
-
-  if (parkingSpot.user && isAvailable === false) {
-    throw new AppError(
-      "Cannot change availability of an occupied parking spot",
-      400
-    );
-  }
-
-  parkingSpot.is_available = isAvailable;
-  await parkingSpot.save();
-
-  return parkingSpot;
-};
-
 exports.getAvailablePrivateSpots = async () => {
   return await ParkingSpot.find({
     spot_type: "private",

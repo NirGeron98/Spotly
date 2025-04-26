@@ -7,8 +7,32 @@ const router = express.Router();
 // Protect all routes after this middleware
 router.use(authController.protect);
 
-// Routes accessible by all authenticated users
-router.get("/", parkingSpotController.getAllParkingSpots);
+//=============================================================================
+// COMMON ROUTES
+//=============================================================================
+
+router
+  .route("/")
+  .get(parkingSpotController.getAllParkingSpots)
+  .post(parkingSpotController.createParkingSpot);
+
+router
+  .route("/:spotId")
+  .get(parkingSpotController.getParkingSpot)
+  .patch(parkingSpotController.updateParkingSpot)
+  .delete(
+    authController.restrictTo("admin", "building_manager"),
+    parkingSpotController.deleteParkingSpot
+  );
+
+router
+  .route("/:spotId/availability")
+  .get(parkingSpotController.getAvailabilitySchedules);
+
+router
+  .route("/:spotId/availability/:scheduleId")
+  .delete(parkingSpotController.removeAvailabilitySchedule);
+
 router.get("/my-spots", parkingSpotController.getMyParkingSpots);
 router.get("/charging-stations", parkingSpotController.getChargingStations);
 router.get(
@@ -16,12 +40,7 @@ router.get(
   parkingSpotController.getAvailablePrivateSpots
 );
 router.post("/find-optimal", parkingSpotController.findOptimalParkingSpots);
-router.get("/:id", parkingSpotController.getParkingSpot);
 
-// Update is allowed for authenticated users (authorization is handled in the service)
-router.patch("/:id", parkingSpotController.updateParkingSpot);
-
-// Availability schedule management (restricted to private property owners and building residents)
 router.post(
   "/:spotId/availability-schedule",
   authController.restrictTo("private_prop_owner", "building_resident"),
@@ -55,26 +74,6 @@ router.post(
   "/",
   authController.restrictTo("admin", "building_manager"),
   parkingSpotController.createParkingSpot
-);
-router.delete(
-  "/:id",
-  authController.restrictTo("admin", "building_manager"),
-  parkingSpotController.deleteParkingSpot
-);
-router.patch(
-  "/:id/availability",
-  authController.restrictTo("admin", "building_manager"),
-  parkingSpotController.toggleAvailability
-);
-router.patch(
-  "/:id/assign",
-  authController.restrictTo("admin", "building_manager"),
-  parkingSpotController.assignUser
-);
-router.patch(
-  "/:id/unassign",
-  authController.restrictTo("admin", "building_manager"),
-  parkingSpotController.unassignUser
 );
 
 module.exports = router;

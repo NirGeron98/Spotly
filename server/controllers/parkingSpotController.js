@@ -43,7 +43,8 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
     owner: req.user._id,
     is_available: true,
   };
-
+  console.log(parkingSpotData.floor);
+  console.log(parkingSpotData.spot_number);
   if (req.user.role === "private_prop_owner") {
     parkingSpotData.spot_type = "private";
     parkingSpotData.address = req.user.address;
@@ -82,41 +83,6 @@ exports.getParkingSpotsByBuilding = catchAsync(async (req, res, next) => {
     data: {
       parkingSpots,
     },
-  });
-});
-
-exports.assignUser = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.assignUser(
-    req.params.id,
-    req.body.userId
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
-
-exports.unassignUser = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.unassignUser(req.params.id);
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
-
-exports.toggleAvailability = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.toggleAvailability(
-    req.params.id,
-    req.body.is_available,
-    req.user.id,
-    req.user.role
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
   });
 });
 
@@ -250,7 +216,10 @@ exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
     const { spotId, scheduleId } = req.params;
 
     // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(spotId) || !mongoose.Types.ObjectId.isValid(scheduleId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(spotId) ||
+      !mongoose.Types.ObjectId.isValid(scheduleId)
+    ) {
       throw new AppError("Invalid spotId or scheduleId format", 400);
     }
 
@@ -269,7 +238,9 @@ exports.removeAvailabilitySchedule = catchAsync(async (req, res, next) => {
     }
 
     // Remove related bookings
-    await Booking.deleteMany({ spot: spotId, schedule: scheduleId }).session(session);
+    await Booking.deleteMany({ spot: spotId, schedule: scheduleId }).session(
+      session
+    );
 
     // Remove the schedule
     parkingSpot.availability_schedule.splice(scheduleIndex, 1);
@@ -410,4 +381,3 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
 });
 
 // ADDED NOW
-

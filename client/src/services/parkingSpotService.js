@@ -12,10 +12,7 @@ export const parkingSpotService = {
   getMyParkingSpots: () => api.get("/parking-spots/my-spots"),
 
   // General availability
-  toggleAvailability: (id, isAvailable) =>
-    api.patch(`/parking-spots/${id}/availability`, {
-      is_available: isAvailable,
-    }),
+
 
   // Availability schedules for private spots
   addAvailabilitySchedule: (spotId, scheduleData) =>
