@@ -3,16 +3,16 @@ import api from "./api";
 export const parkingSpotService = {
   // Basic CRUD operations
   getAllParkingSpots: () => api.get("/parking-spots"),
-  getParkingSpot: (id) => api.get(`/parking-spots/${id}`),
+  getParkingSpot: (spotId) => api.get(`/parking-spots/${spotId}`),
   createParkingSpot: (data) => api.post("/parking-spots", data),
-  updateParkingSpot: (id, data) => api.patch(`/parking-spots/${id}`, data),
-  deleteParkingSpot: (id) => api.delete(`/parking-spots/${id}`),
+  updateParkingSpot: (spotId, data) =>
+    api.patch(`/parking-spots/${spotId}`, data),
+  deleteParkingSpot: (spotId) => api.delete(`/parking-spots/${spotId}`),
 
   // Get personal spots
   getMyParkingSpots: () => api.get("/parking-spots/my-spots"),
 
   // General availability
-
 
   // Availability schedules for private spots
   addAvailabilitySchedule: (spotId, scheduleData) =>

@@ -69,11 +69,6 @@ const parkingSpotSchema = new mongoose.Schema(
       default: [], // Default to empty array, making it optional
     },
 
-    // Common fields for both types
-    is_available: {
-      type: Boolean,
-      default: true,
-    },
     user: {
       type: mongoose.Schema.ObjectId,
       ref: "User",

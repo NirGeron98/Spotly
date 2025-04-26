@@ -464,7 +464,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
     const gridRect = timeGridRef.current.getBoundingClientRect();
     const headerHeight = 60;
-    const relativeY = e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
+    const relativeY =
+      e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
 
     const selectedDate = new Date(startOfWeek);
     selectedDate.setDate(selectedDate.getDate() + dayIndex);
@@ -946,13 +947,16 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           {showSettings && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
-                <h3 className="text-xl font-bold mb-4 text-center">
+                <h3 className="text-xl font-bold mb-5 text-center">
                   הגדרות חנייה
                 </h3>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="font-semibold">מחיר לשעה (₪)</label>
+                  {/* Price setting - editable */}
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <label className="font-semibold text-blue-800">
+                      מחיר לשעה (₪)
+                    </label>
                     <input
                       type="number"
                       value={newPrice}
@@ -965,19 +969,107 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         parkingSlots.find((s) => s.spot_type === "private")
                           ?.hourly_price || "לא הוגדר מחיר"
                       }
-                      className="w-full border rounded px-3 py-2"
+                      className="w-full border border-blue-200 rounded px-3 py-2 mt-1 bg-white"
                     />
                   </div>
 
+                  {/* Address section - styled without dividing line */}
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="font-semibold text-gray-700 mb-2">
+                      פרטי כתובת החנייה
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-sm text-gray-600">עיר</label>
+                        <input
+                          type="text"
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.city || ""
+                          }
+                          disabled
+                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="text-sm text-gray-600">רחוב</label>
+                        <input
+                          type="text"
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.street || ""
+                          }
+                          disabled
+                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-gray-600">
+                          מספר בית
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.number || ""
+                          }
+                          disabled
+                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-gray-600">מיקוד</label>
+                        <input
+                          type="text"
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.postal_code || ""
+                          }
+                          disabled
+                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-gray-500 mt-2 flex items-start">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-gray-400 mr-1 mt-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span>
+                        פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות
+                        לשירות לקוחות.
+                      </span>
+                    </div>
+                  </div>
+
                   {priceError && (
-                    <div className="text-red-500 text-sm">{priceError}</div>
+                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">
+                      {priceError}
+                    </div>
                   )}
 
                   {priceSuccess && (
-                    <div className="text-green-500 text-sm">{priceSuccess}</div>
+                    <div className="text-green-500 text-sm bg-green-50 p-2 rounded">
+                      {priceSuccess}
+                    </div>
                   )}
 
-                  <div className="flex gap-3 mt-6">
+                  <div className="flex gap-3 mt-4">
                     <button
                       onClick={async () => {
                         if (!newPrice) {
@@ -1013,9 +1105,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                           setPriceError("שגיאה בעדכון המחיר");
                         }
                       }}
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                     >
-                      שמור
+                      שמור שינויים
                     </button>
                     <button
                       onClick={() => {
@@ -1024,7 +1116,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         setPriceError("");
                         setPriceSuccess("");
                       }}
-                      className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+                      className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
                     >
                       סגור
                     </button>

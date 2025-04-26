@@ -15,8 +15,10 @@ exports.deleteParkingSpot = factory.deleteOne(ParkingSpot);
 
 // ✅ Updated version – custom handler instead of factory
 exports.updateParkingSpot = catchAsync(async (req, res, next) => {
+  console.log("Update Parking Spot Request Body:", req.body); // Debugging line
+  console.log("Update Parking Spot Request Params:", req.params); // Debugging line
   const updatedSpot = await parkingSpotService.updateParkingSpot(
-    req.params.id,
+    req.params.spotId,
     req.body,
     req.user.id,
     req.user.role
@@ -98,6 +100,7 @@ exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
 
 exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   const ownerId = req.params.ownerId || req.user.id;
+  console.log("Owner ID:", ownerId); // Debugging line
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(ownerId);
 
   res.status(200).json({

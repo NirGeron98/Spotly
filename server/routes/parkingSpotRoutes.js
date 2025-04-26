@@ -11,10 +11,12 @@ router.use(authController.protect);
 // COMMON ROUTES
 //=============================================================================
 
-router
-  .route("/")
-  .get(parkingSpotController.getAllParkingSpots)
-  .post(parkingSpotController.createParkingSpot);
+router.get("/my-spots", parkingSpotController.getMyParkingSpots);
+router.get("/charging-stations", parkingSpotController.getChargingStations);
+router.get(
+  "/private-available",
+  parkingSpotController.getAvailablePrivateSpots
+);
 
 router
   .route("/:spotId")
@@ -33,12 +35,6 @@ router
   .route("/:spotId/availability/:scheduleId")
   .delete(parkingSpotController.removeAvailabilitySchedule);
 
-router.get("/my-spots", parkingSpotController.getMyParkingSpots);
-router.get("/charging-stations", parkingSpotController.getChargingStations);
-router.get(
-  "/private-available",
-  parkingSpotController.getAvailablePrivateSpots
-);
 router.post("/find-optimal", parkingSpotController.findOptimalParkingSpots);
 
 router.post(
@@ -75,5 +71,10 @@ router.post(
   authController.restrictTo("admin", "building_manager"),
   parkingSpotController.createParkingSpot
 );
+
+router
+  .route("/")
+  .get(parkingSpotController.getAllParkingSpots)
+  .post(parkingSpotController.createParkingSpot);
 
 module.exports = router;
