@@ -241,7 +241,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       case "publication":
         return "התחלת פעילות";
       case "availability":
-        return "הוספת זמינות חדשה";
+        return "שינוי/ הוספת זמינות ";
       default:
         return type;
     }
@@ -419,8 +419,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   <option value="all">הכל</option>
                   <option value="booking">הזמנת חניה</option>
                   <option value="rental">השכרת חניה</option>
-                  <option value="publication">פרסום חניה</option>
-                  <option value="availability">זמינות חניה</option>
+                  <option value="publication">התחלת פעילות</option>
+                  <option value="availability">שינוי/ הוספת זמינות לחניה פרטית </option>
                 </select>
               </div>
 
@@ -479,77 +479,65 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           </div>
 
           <div className="overflow-x-auto bg-white rounded-lg shadow-md max-w-7xl mx-auto">
-            <table className="w-full text-base text-right border-collapse">
-              <thead className="bg-indigo-50 text-indigo-800">
-                <tr>
-                  <th
-                    className="px-4 py-3 border-b cursor-pointer w-24"
-                    onClick={() => handleSort("date")}
-                  >
-                    תאריך
-                  </th>
-                  <th
-                    className="px-4 py-3 border-b cursor-pointer w-36"
-                    onClick={() => handleSort("startTime")}
-                  >
-                    שעות
-                  </th>
-                  <th
-                    className="px-4 py-3 border-b cursor-pointer w-60"
-                    onClick={() => handleSort("address")}
-                  >
-                    כתובת
-                  </th>
-                  <th
-                    className="px-4 py-3 border-b cursor-pointer w-32"
-                    onClick={() => handleSort("city")}
-                  >
-                    עיר
-                  </th>
-                  <th
-                    className="px-4 py-3 border-b cursor-pointer w-24"
-                    onClick={() => handleSort("price")}
-                  >
-                    מחיר
-                  </th>
-                  <th className="px-4 py-3 border-b w-36">סוג פעילות</th>
-                  <th className="px-4 py-3 border-b w-24">סטטוס</th>
-                  <th className="px-4 py-3 border-b w-36">תשלום</th>
-                </tr>
-              </thead>
-              <tbody>
+            {/* Table container using divs with customized column widths */}
+            <div className="w-full text-base text-right">
+              {/* Header row */}
+              <div className="flex bg-indigo-50 text-indigo-800 border-b">
+                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("date")}>
+                  תאריך
+                </div>
+                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("startTime")}>
+                  שעות
+                </div>
+                <div className="px-3 py-3 w-[30%] font-semibold cursor-pointer text-center" onClick={() => handleSort("address")}>
+                  כתובת
+                </div>
+                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("city")}>
+                  עיר
+                </div>
+                <div className="px-3 py-3 w-[14%] font-semibold text-center">
+                  סוג פעילות
+                </div>
+                <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  סטטוס
+                </div>
+                <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  תשלום
+                </div>
+              </div>
+
+              {/* Table body */}
+              <div className="divide-y">
                 {filteredHistory.map((item, index) => {
                   const status = getStatusDisplay(item.status);
                   const paymentStatus = getPaymentStatusDisplay(item.paymentStatus);
                   return (
-                    <tr
-                      key={index}
-                      className="hover:bg-indigo-50 transition-colors duration-150"
-                    >
-                      <td className="px-4 py-3 border-b">{item.date}</td>
-                      <td className="px-4 py-3 border-b">
+                    <div key={index} className="flex hover:bg-indigo-50 transition-colors duration-150">
+                      <div className="px-3 py-3 w-[12%] text-center">{item.date}</div>
+                      <div className="px-3 py-3 w-[12%] text-center whitespace-nowrap">
                         {item.startTime} {item.endTime !== "-" ? `- ${item.endTime}` : ""}
-                      </td>
-                      <td className="px-4 py-3 border-b">{item.address}</td>
-                      <td className="px-4 py-3 border-b">{item.city}</td>
-                      <td className="px-4 py-3 border-b">{item.price} ₪</td>
-                      <td className="px-4 py-3 border-b">
-                        <div className="flex items-center gap-2">
+                      </div>
+                      <div className="px-3 py-3 w-[30%] text-center" title={item.address}>
+                        {item.address}
+                      </div>
+                      <div className="px-3 py-3 w-[12%] text-center">{item.city}</div>
+                      <div className="px-3 py-3 w-[14%]">
+                        <div className="flex items-center justify-center gap-1">
                           <span className="w-5 h-5 flex items-center justify-center">
                             {getActivityIcon(item.icon)}
                           </span>
-                          <span>{getActivityTypeDisplay(item.activityType)}</span>
+                          <span className="whitespace-nowrap">{getActivityTypeDisplay(item.activityType)}</span>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 border-b">
+                      </div>
+                      <div className="px-3 py-3 w-[10%] flex justify-center">
                         {item.status === "booked" ? (
-                          <div className="flex items-center">
+                          <div className="flex items-center justify-center">
                             <span
                               className={`px-2 py-1 rounded-full text-xs ${status.class} flex items-center gap-1`}
                               onClick={() => getBookingDetails(item)}
                             >
                               {status.text}
-                              <FaInfoCircle className="cursor-pointer text-purple-700" />
+                              <FaInfoCircle className="cursor-pointer text-purple-700 ml-1" />
                             </span>
                           </div>
                         ) : (
@@ -557,10 +545,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                             {status.text}
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 border-b">
+                      </div>
+                      <div className="px-3 py-3 w-[10%] flex justify-center">
                         {item.paymentStatus !== "n/a" && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-1">
                             {item.showPaymentIcon && (
                               <FaMoneyBill className="text-green-600" />
                             )}
@@ -569,12 +557,12 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                             </span>
                           </div>
                         )}
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
 
             {!loading && filteredHistory.length === 0 && (
               <div className="text-center py-6 text-gray-500">

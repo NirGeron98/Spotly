@@ -210,6 +210,15 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     const { date, startTime, endTime, type, charger } = dataToAdd;
     if (!date || !startTime || !endTime) return;
 
+    if (isDateInPast(date)) {
+      setPopupData({
+        title: "שגיאה",
+        description: "לא ניתן להוסיף זמינות לתאריכים שכבר עברו",
+        type: "error",
+      });
+      return;
+    }
+
     if (type === "טעינה לרכב חשמלי" && !charger) {
       setPopupData({ title: "שגיאה", description: "יש לבחור סוג טעינה" });
       return;
@@ -462,6 +471,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const handleMouseDown = (e, dayIndex) => {
     if (loadingSpots) return;
 
+    // Check if the day is in the past
+    if (isDayInPast(dayIndex)) {
+      return; // Prevent interaction with past days
+    }
+
     const gridRect = timeGridRef.current.getBoundingClientRect();
     const headerHeight = 60;
     const relativeY = e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
@@ -521,6 +535,20 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     setDragStart(null);
     setDragEnd(null);
     setSelectedDay(null);
+  };
+
+  const isDateInPast = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    return compareDate < today;
+  };
+
+  const isDayInPast = (dayIndex) => {
+    const dayDate = new Date(startOfWeek);
+    dayDate.setDate(dayDate.getDate() + dayIndex);
+    return isDateInPast(dayDate);
   };
 
   return (
@@ -636,6 +664,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </button>
             </div>
 
+            {/* לוח פינוי חניות  */}
             <div className="bg-white p-6 rounded-xl shadow-md flex flex-col h-[650px]">
               <h2 className="text-xl font-bold text-center mb-4">
                 לוח פינויי החניות
@@ -711,131 +740,124 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                     {/* Days Grid with Events */}
                     <div className="mr-16 flex">
-                      {Array.from({ length: 7 }).map((_, dayIndex) => (
-                        <div
-                          key={dayIndex}
-                          className="flex-1 relative border-r border-gray-200 min-h-[1140px]"
-                          onMouseDown={(e) => handleMouseDown(e, dayIndex)}
-                          onMouseMove={handleMouseMove}
-                          onMouseUp={handleMouseUp}
-                          onMouseLeave={handleMouseUp}
-                        >
-                          {/* Horizontal hour lines */}
-                          {Array.from({ length: 19 }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="absolute w-full h-[1px] bg-gray-100"
-                              style={{ top: i * 60 }}
-                            ></div>
-                          ))}
+                      {Array.from({ length: 7 }).map((_, dayIndex) => {
+                        const isPastDay = isDayInPast(dayIndex);
+                        return (
+                          <div
+                            key={dayIndex}
+                            className={`flex-1 relative border-r border-gray-200 min-h-[1140px] ${isPastDay ? "bg-gray-100 cursor-not-allowed" : ""
+                              }`}
+                            onMouseDown={(e) => handleMouseDown(e, dayIndex)}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                          >
+                            {/* Horizontal hour lines */}
+                            {Array.from({ length: 19 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`absolute w-full h-[1px] ${isPastDay ? "bg-gray-200" : "bg-gray-100"
+                                  }`}
+                                style={{ top: i * 60 }}
+                              ></div>
+                            ))}
 
-                          {/* Drag selection display */}
-                          {isDragging && selectedDay === dayIndex && (
-                            <div
-                              className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70"
-                              style={{
-                                top: `${Math.min(dragStart, dragEnd)}px`,
-                                height: `${Math.abs(dragEnd - dragStart)}px`,
-                                minHeight: "15px",
-                              }}
-                            ></div>
-                          )}
+                            {/* Drag selection display */}
+                            {isDragging && selectedDay === dayIndex && (
+                              <div
+                                className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70"
+                                style={{
+                                  top: `${Math.min(dragStart, dragEnd)}px`,
+                                  height: `${Math.abs(dragEnd - dragStart)}px`,
+                                  minHeight: "15px",
+                                }}
+                              ></div>
+                            )}
 
-                          {/* Parking Schedule Blocks */}
-                          {weekViewSchedules
-                            .filter(
-                              (schedule) => schedule.dayOfWeek === dayIndex
-                            )
-                            .map((schedule, idx) => {
-                              const top = getTimePosition(schedule.start_time);
-                              const height = getTimeSlotHeight(
-                                schedule.start_time,
-                                schedule.end_time
-                              );
-                              const isBooked = !schedule.is_available;
-                              const isExpanded =
-                                expandedSchedule &&
-                                expandedSchedule._id === schedule._id;
+                            {/* Parking Schedule Blocks */}
+                            {weekViewSchedules
+                              .filter((schedule) => schedule.dayOfWeek === dayIndex)
+                              .map((schedule, idx) => {
+                                const top = getTimePosition(schedule.start_time);
+                                const height = getTimeSlotHeight(
+                                  schedule.start_time,
+                                  schedule.end_time
+                                );
+                                const isBooked = !schedule.is_available;
+                                const isExpanded =
+                                  expandedSchedule && expandedSchedule._id === schedule._id;
 
-                              return (
-                                <div
-                                  key={idx}
-                                  onClick={() =>
-                                    setExpandedSchedule(
-                                      isExpanded ? null : schedule
-                                    )
-                                  }
-                                  // המשך הקוד מהנקודה האחרונה (סוף את החלק הנוכחי של הרנדור)
-                                  className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${isBooked
-                                    ? "bg-red-100 border border-red-300 text-red-800"
-                                    : schedule.type === "טעינה לרכב חשמלי"
-                                      ? "bg-green-100 border border-green-300 text-green-800"
-                                      : "bg-blue-100 border border-blue-300 text-blue-800"
-                                    } ${isExpanded ? "shadow-lg z-10" : ""}`}
-                                  style={{
-                                    top: `${top}px`,
-                                    height: `${Math.max(height, 20)}px`,
-                                  }}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex gap-2">
-                                      {!isBooked && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setConfirmDeleteId({
-                                              spotId: schedule.slot._id,
-                                              scheduleId: schedule._id,
-                                            });
-                                          }}
-                                          className="text-red-500 hover:text-red-700 text-sm"
-                                          title="מחק פינוי"
-                                        >
-                                          <i className="fas fa-trash"></i>
-                                        </button>
-                                      )}
-                                      {isBooked && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchBookingDetails(
-                                              schedule.slot._id,
-                                              schedule._id
-                                            );
-                                          }}
-                                          className="text-blue-500 hover:text-blue-700 text-sm"
-                                          title="פרטי המזמין"
-                                        >
-                                          <i className="fas fa-user"></i>
-                                        </button>
-                                      )}
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => setExpandedSchedule(isExpanded ? null : schedule)}
+                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${isBooked
+                                      ? "bg-red-100 border border-red-300 text-red-800"
+                                      : schedule.type === "טעינה לרכב חשמלי"
+                                        ? "bg-green-100 border border-green-300 text-green-800"
+                                        : "bg-blue-100 border border-blue-300 text-blue-800"
+                                      } ${isExpanded ? "shadow-lg z-10" : ""}`}
+                                    style={{
+                                      top: `${top}px`,
+                                      height: `${Math.max(height, 20)}px`,
+                                    }}
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex gap-2">
+                                        {!isBooked && !isPastDay && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setConfirmDeleteId({
+                                                spotId: schedule.slot._id,
+                                                scheduleId: schedule._id,
+                                              });
+                                            }}
+                                            className="text-red-500 hover:text-red-700 text-sm"
+                                            title="מחק פינוי"
+                                          >
+                                            <i className="fas fa-trash"></i>
+                                          </button>
+                                        )}
+                                        {isBooked && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              fetchBookingDetails(
+                                                schedule.slot._id,
+                                                schedule._id
+                                              );
+                                            }}
+                                            className="text-blue-500 hover:text-blue-700 text-sm"
+                                            title="פרטי המזמין"
+                                          >
+                                            <i className="fas fa-user"></i>
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div
+                                        className={`font-semibold ${isExpanded ? "text-base" : "text-xs"}`}
+                                      >
+                                        {schedule.start_time} - {schedule.end_time}
+                                      </div>
                                     </div>
-                                    <div
-                                      className={`font-semibold ${isExpanded ? "text-base" : "text-xs"
-                                        }`}
-                                    >
-                                      {schedule.start_time} -{" "}
-                                      {schedule.end_time}
-                                    </div>
+                                    {isExpanded && (
+                                      <div className="mt-2 text-sm">
+                                        <div>
+                                          {schedule.type === "טעינה לרכב חשמלי" &&
+                                            `סוג טעינה: ${schedule.charger || "לא צוין"}`}
+                                        </div>
+                                        <div className="mt-1">
+                                          סטטוס: {isBooked ? "הוזמן" : "זמין להזמנה"}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                  {isExpanded && (
-                                    <div className="mt-2 text-sm">
-                                      <div>
-                                        {schedule.type === "טעינה לרכב חשמלי" &&
-                                          `סוג טעינה: ${schedule.charger || "לא צוין"
-                                          }`}
-                                      </div>
-                                      <div className="mt-1">
-                                        סטטוס:{" "}
-                                        {isBooked ? "הוזמן" : "זמין להזמנה"}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      ))}
+                                );
+                              })}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -857,10 +879,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     <input
                       type="date"
                       name="date"
-                      value={quickAddData.date}
-                      onChange={handleQuickAddChange}
+                      value={formData.date}
+                      onChange={handleChange}
+                      min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
                       className="w-full border rounded px-3 py-2"
-                      readOnly
                     />
                   </div>
                   <div className="flex gap-4">
