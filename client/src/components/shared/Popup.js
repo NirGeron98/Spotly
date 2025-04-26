@@ -27,17 +27,17 @@ const Popup = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center px-4">
       <div
         className={`bg-white rounded-xl shadow-xl relative transform transition-all duration-300 ease-out 
         ${show ? "opacity-100 scale-100" : "opacity-0 scale-90"} 
         ${isAlert ? `border ${borderColor}` : "border border-gray-300"} 
-        p-8 w-auto pointer-events-auto`}
-        style={{
-          minWidth: "380px",
-          maxWidth: wide ? "900px" : "700px",
+        p-6 pointer-events-auto inline-block`}
+        style={{ maxWidth: wide ? "900px" : "700px",
+          minwidth: "280px",
         }}
       >
+        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-3 left-3 text-gray-400 hover:text-gray-700 text-xl"
@@ -45,17 +45,21 @@ const Popup = ({
           ✖
         </button>
 
+        {/* Title */}
+        <h3 className="text-xl font-bold text-center text-gray-800 mb-4">
+          {title}
+        </h3>
+
+        {/* Content */}
         <div className="flex items-start gap-4">
           {isAlert && <div className="text-2xl mt-1">{icon}</div>}
 
-          <div className="flex-1">
-            <h3 className="text-lg font-bold mb-2 text-gray-800">{title}</h3>
-            <div className="text-sm text-gray-700 max-h-[60vh] overflow-y-auto">
-              {description}
-            </div>
+          <div className="text-sm text-gray-700 leading-relaxed max-h-[60vh] overflow-y-auto">
+            {description}
           </div>
         </div>
 
+        {/* Confirm Button (optional) */}
         {onConfirm && (
           <div className="mt-6 flex justify-end">
             <button

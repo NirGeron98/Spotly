@@ -7,6 +7,7 @@ import Sidebar from "../shared/Sidebar";
 import AddressMapSelector from "../shared/AddressMapSelector";
 import { geocodeAddress } from "../utils/geocoding";
 import parkingSpotService from "../../services/parkingSpotService";
+import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
 
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חנייה | Spotly";
@@ -229,7 +230,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   const handleBooking = async (spot) => {
-    const scheduleId = spot.availability?.[0]?.id; 
+    const scheduleId = spot.availability?.[0]?.id;
 
     if (!scheduleId) {
       alert("❌ לא ניתן לבצע הזמנה – אין פינוי זמין");
@@ -242,7 +243,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         "/api/v1/bookings",
         {
           spot: spot._id,
-          schedule: scheduleId, 
+          schedule: scheduleId,
           start_datetime: `${date}T${startTime}`,
           end_datetime: `${date}T${endTime}`,
           base_rate: spot.hourly_price,
@@ -499,44 +500,14 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       )}
 
       {showPreferences && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-10 backdrop-blur-sm z-60 flex items-center justify-center"
-          onClick={() => setShowPreferences(false)}
-        >
-          <div
-            className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold text-blue-700 mb-4 text-center">
-              העדפות חיפוש מתקדמות
-            </h2>
-
-            <div className="space-y-4 text-right">
-              <div>
-                <label className="block font-semibold mb-1">
-                  עד כמה חשוב לך שמרחק החנייה יהיה קרוב? (1-5)
-                </label>
-                {renderStars(distancePreference, setDistancePreference)}
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">
-                  עד כמה חשוב לך שמחיר החנייה יהיה נמוך? (1-5)
-                </label>
-                {renderStars(pricePreference, setPricePreference)}
-              </div>
-            </div>
-
-            <div className="text-center mt-6">
-              <button
-                onClick={savePreferences}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow"
-              >
-                שמור וסגור
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdvancedPreferencesPopup
+          distancePreference={distancePreference}
+          pricePreference={pricePreference}
+          setDistancePreference={setDistancePreference}
+          setPricePreference={setPricePreference}
+          savePreferences={savePreferences}
+          onClose={() => setShowPreferences(false)}
+        />
       )}
 
       {popupData && (
