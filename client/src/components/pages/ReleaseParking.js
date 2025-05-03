@@ -478,8 +478,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
     const gridRect = timeGridRef.current.getBoundingClientRect();
     const headerHeight = 60;
-    const relativeY =
-      e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
+    const relativeY = e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
 
     const selectedDate = new Date(startOfWeek);
     selectedDate.setDate(selectedDate.getDate() + dayIndex);
@@ -967,7 +966,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-5 text-center">
-                <h3 className="text-xl font-bold mb-5 text-center">
                   הגדרות חנייה
                 </h3>
 
@@ -987,7 +985,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         parkingSlots.find((s) => s.spot_type === "private")
                           ?.hourly_price || "לא הוגדר מחיר"
                       }
-                      className="w-full border border-blue-200 rounded px-3 py-2 mt-1 bg-white"
                       className="w-full border border-blue-200 rounded px-3 py-2 mt-1 bg-white"
                     />
                   </div>
@@ -1055,7 +1052,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   )}
 
                   <div className="flex gap-3 mt-4">
-                  <div className="flex gap-3 mt-4">
                     <button
                       onClick={async () => {
                         if (!newPrice) {
@@ -1092,9 +1088,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         }
                       }}
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                     >
-                      שמור שינויים
                       שמור שינויים
                     </button>
                     <button
@@ -1104,7 +1098,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         setPriceError("");
                         setPriceSuccess("");
                       }}
-                      className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
                       className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
                     >
                       סגור

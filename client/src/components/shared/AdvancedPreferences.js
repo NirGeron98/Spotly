@@ -1,6 +1,6 @@
 import React from "react";
 
-const AdvancedPreferencesPopup = ({
+const AdvancedPreferences = ({
   distancePreference,
   pricePreference,
   setDistancePreference,
@@ -76,4 +76,4 @@ const AdvancedPreferencesPopup = ({
   );
 };
 
-export default AdvancedPreferencesPopup;
+export default AdvancedPreferences;

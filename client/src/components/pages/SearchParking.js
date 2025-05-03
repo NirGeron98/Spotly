@@ -1,63 +1,150 @@
-import React, { useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
-import Footer from "../shared/Footer";
 import Sidebar from "../shared/Sidebar";
+import Footer from "../shared/Footer";
+import Popup from "../shared/Popup";
 import AddressMapSelector from "../shared/AddressMapSelector";
-import { geocodeAddress } from "../utils/geocoding";
-import parkingSpotService from "../../services/parkingSpotService";
 import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
+import { FaSearch, FaSync, FaParking, FaCalendarAlt, FaMapMarkerAlt, FaClock, FaMoneyBillWave, FaFilter, FaStar, FaArrowUp, FaArrowDown, FaBolt, FaCarSide, FaCog } from "react-icons/fa";
 
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
-  document.title = "חיפוש חנייה | Spotly";
+  document.title = "חיפוש חניה | Spotly";
 
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : null;
-  const role = user?.role;
-  const location = useLocation();
+  const [current, setCurrent] = useState("search");
+  const user = JSON.parse(localStorage.getItem("user"));
+  const role = user?.role || "user";
+
+  const [parkingSpots, setParkingSpots] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [popupData, setPopupData] = useState(null);
 
-  const mode =
-    location?.state?.mode || localStorage.getItem("mode") || "regular";
-  const isBuildingMode = mode === "building";
-
-  const [currentTab, setCurrentTab] = useState("search");
-  const [address, setAddress] = useState({ city: "", street: "", number: "" });
-  const [maxPrice, setMaxPrice] = useState("100");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [needsCharging, setNeedsCharging] = useState(false);
-  const [chargerType, setChargerType] = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState([]);
-  const [showPopup, setShowPopup] = useState(false);
+  // Preferences state
   const [showPreferences, setShowPreferences] = useState(false);
   const [distancePreference, setDistancePreference] = useState(3);
   const [pricePreference, setPricePreference] = useState(3);
 
-  const renderStars = (value, setValue) => (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex gap-2 justify-center">
-        {[1, 2, 3, 4, 5].map((v) => (
-          <div key={v} className="flex flex-col items-center">
-            <button
-              onClick={() => setValue(v)}
-              className={`text-3xl ${
-                v <= value ? "text-yellow-400" : "text-gray-300"
-              } transition`}
-            >
-              ★
-            </button>
-            <span className="text-xs text-gray-500">{v}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  // Get user's current location
+  const [userLocation, setUserLocation] = useState({
+    latitude: 31.7683, // Default to Israel center
+    longitude: 35.2137
+  });
 
+  // Address state for map selector
+  const [address, setAddress] = useState({
+    city: "",
+    street: "",
+    number: ""
+  });
+
+  // Map selector feedback
+  const [mapFeedback, setMapFeedback] = useState("");
+  const [searchingAddress, setSearchingAddress] = useState(false);
+
+  const roundToQuarter = (date = new Date()) => {
+    const minutes = date.getMinutes();
+    const mod = minutes % 15;
+    // round to nearest: if mod ≥ 8, go up; else go down
+    let rounded = minutes - mod + (mod >= 8 ? 15 : 0);
+    if (rounded === 60) {
+      date.setHours(date.getHours() + 1);
+      rounded = 0;
+    }
+    return {
+      hours: date.getHours().toString().padStart(2, "0"),
+      minutes: rounded.toString().padStart(2, "0")
+    };
+  };
+
+  const { hours, minutes } = roundToQuarter();
+  const initialStart = `${hours}:${minutes}`;
+  const [h, m] = [parseInt(hours, 10), parseInt(minutes, 10)];
+  const endDate = new Date();
+  endDate.setHours(h + 1, m);
+  const initialEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes().toString().padStart(2, "0")}`;
+  
+
+
+  // Search filters
+  const [searchParams, setSearchParams] = useState({
+    location: "",
+    latitude: "",
+    longitude: "",
+    date: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+    startTime: initialStart,
+    endTime:   initialEnd,
+    maxPrice: "",
+    is_charging_station: false,
+    charger_type: "",
+    sortBy: "distance",
+    sortOrder: "asc"
+  });
+
+  // Filter panel state
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Charger types from your model
+  const chargerTypes = [
+    { id: "Type 1", label: "סוג 1" },
+    { id: "Type 2", label: "סוג 2" },
+    { id: "CCS", label: "CCS" },
+    { id: "CHAdeMO", label: "CHAdeMO" },
+    { id: "Other", label: "אחר" }
+  ];
+
+  
+
+  useEffect(() => {
+    // Try to get user location when component mounts
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log("Error getting location:", error);
+        }
+      );
+    }
+
+    // Fetch user preferences when component mounts
+    fetchUserPreferences();
+  }, []);
+
+  // Update search params when address changes
+  useEffect(() => {
+    if (address.city && address.street && address.number) {
+      const locationString = `${address.street} ${address.number}, ${address.city}`;
+      setSearchParams(prev => ({
+        ...prev,
+        location: locationString
+      }));
+    }
+  }, [address]);
+
+  // Fetch user preferences from the server
+  const fetchUserPreferences = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/v1/users/preferences", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data?.data?.preferences) {
+        const { distance_importance, price_importance } = response.data.data.preferences;
+        if (distance_importance) setDistancePreference(distance_importance);
+        if (price_importance) setPricePreference(price_importance);
+      }
+    } catch (error) {
+      console.error("שגיאה בטעינת העדפות משתמש:", error);
+      // No need to show error to user for preferences loading
+    }
+  };
+
+  // Save user preferences to the server
   const savePreferences = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -90,311 +177,324 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const handleSearch = async () => {
-    if (
-      !isBuildingMode &&
-      (!address.city || !address.street || !address.number)
-    ) {
-      setFeedback("❌ יש להזין/לבחור כתובת");
-      return;
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSearchParams(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const lookupAddress = async () => {
+    // If we have a complete address, use that for geocoding
+    if (address.city && address.street && address.number) {
+      try {
+        setLoading(true);
+
+        // Use Nominatim for geocoding (same as in AddressMapSelector)
+        const query = `${address.street} ${address.number}, ${address.city}`;
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+        );
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const latitude = parseFloat(data[0].lat);
+          const longitude = parseFloat(data[0].lon);
+
+          setSearchParams(prev => ({
+            ...prev,
+            latitude,
+            longitude
+          }));
+
+          return true;
+        } else {
+          setPopupData({
+            title: "שגיאה בחיפוש",
+            description: "לא הצלחנו למצוא את הכתובת שהוזנה. אנא נסה שנית או בחר מיקום מהמפה.",
+            type: "error"
+          });
+          return false;
+        }
+      } catch (err) {
+        console.error("שגיאה בחיפוש כתובת:", err);
+        setPopupData({
+          title: "שגיאה בחיפוש",
+          description: "אירעה שגיאה בעת חיפוש הכתובת. אנא נסה שנית.",
+          type: "error"
+        });
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    }
+    // Otherwise, if we have a general location string but not structured address
+    else if (searchParams.location.trim()) {
+      try {
+        setLoading(true);
+
+        // Call a geocoding service to convert address to coordinates
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchParams.location)}`
+        );
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const latitude = parseFloat(data[0].lat);
+          const longitude = parseFloat(data[0].lon);
+
+          setSearchParams(prev => ({
+            ...prev,
+            latitude,
+            longitude
+          }));
+
+          return true;
+        } else {
+          setPopupData({
+            title: "שגיאה בחיפוש",
+            description: "לא הצלחנו למצוא את הכתובת שהוזנה. אנא נסה שנית עם כתובת מדויקת יותר.",
+            type: "error"
+          });
+          return false;
+        }
+      } catch (err) {
+        console.error("שגיאה בחיפוש כתובת:", err);
+        setPopupData({
+          title: "שגיאה בחיפוש",
+          description: "אירעה שגיאה בעת חיפוש הכתובת. אנא נסה שנית.",
+          type: "error"
+        });
+        return false;
+      } finally {
+        setLoading(false);
+      }
     }
 
-    if (!date) {
-      setFeedback("❌ יש לבחור תאריך");
-      return;
-    }
+    return false;
+  };
 
-    if (!startTime || !endTime) {
-      setFeedback("❌ יש לבחור שעות");
-      return;
-    }
-
-    // Validate that end time is after start time
-    const startHour = parseInt(startTime.split(":")[0]);
-    const startMinute = parseInt(startTime.split(":")[1]);
-    const endHour = parseInt(endTime.split(":")[0]);
-    const endMinute = parseInt(endTime.split(":")[1]);
-
-    if (
-      startHour > endHour ||
-      (startHour === endHour && startMinute >= endMinute)
-    ) {
-      setFeedback("❌ שעת הסיום חייבת להיות מאוחרת משעת ההתחלה");
-      return;
-    }
-
-    setSearching(true);
-    setFeedback("מחפש...");
+  const searchParkingSpots = async (e) => {
+    if (e) e.preventDefault();
 
     try {
-      let locationCoords = null;
+      setLoading(true);
 
-      if (!isBuildingMode) {
-        console.log("Geocoding address:", address);
-        const result = await geocodeAddress(address);
-        console.log("Geocoding result:", result);
-
-        if (!result.success) {
-          setFeedback("❌ " + result.message);
-          setSearching(false);
-          return;
-        }
-
-        if (!result.latitude || !result.longitude) {
-          setFeedback("❌ לא ניתן לאתר את המיקום המבוקש. אנא נסה כתובת אחרת.");
-          setSearching(false);
-          return;
-        }
-
-        locationCoords = {
-          latitude: result.latitude,
-          longitude: result.longitude,
-        };
+      // If we have an address or location but no coordinates, try to lookup first
+      let coordinatesFound = false;
+      if ((!searchParams.latitude || !searchParams.longitude)) {
+        coordinatesFound = await lookupAddress();
       } else {
-        // Use building coordinates if in building mode
-        if (user?.building?.location?.coordinates) {
-          locationCoords = {
-            latitude: user.building.location.coordinates[1],
-            longitude: user.building.location.coordinates[0],
-          };
-        }
+        coordinatesFound = true;
       }
 
-      // Fallback to user's address coordinates if available
-      if (
-        !locationCoords &&
-        user?.address?.latitude &&
-        user?.address?.longitude
-      ) {
-        locationCoords = {
-          latitude: user.address.latitude,
-          longitude: user.address.longitude,
-        };
-      }
+      // If coordinates weren't found through lookup, use user's current location
+      const latitude = searchParams.latitude || userLocation.latitude;
+      const longitude = searchParams.longitude || userLocation.longitude;
 
-      if (!locationCoords) {
-        setFeedback("❌ לא ניתן להשיג את מיקום החיפוש");
-        setSearching(false);
+      if (!latitude || !longitude) {
+        setPopupData({
+          title: "מיקום חסר",
+          description: "אנא הזן כתובת או אפשר גישה למיקום שלך",
+          type: "error"
+        });
+        setLoading(false);
         return;
       }
 
-      console.log("Search coordinates:", locationCoords);
+      // Format dates and times correctly for your API
+      const startDateTime = `${searchParams.date}T${searchParams.startTime}:00`;
+      const endDateTime = `${searchParams.date}T${searchParams.endTime}:00`;
 
-      // Prepare search parameters for optimized finder
-      const searchParams = {
-        latitude: locationCoords.latitude,
-        longitude: locationCoords.longitude,
-        date,
-        startTime,
-        endTime,
-        maxPrice: maxPrice ? parseFloat(maxPrice) : 1000,
-        userId: user?._id,
+      // Create the search payload based on your API structure (from the controller code)
+      const searchPayload = {
+        latitude,
+        longitude,
+        date: searchParams.date,
+        startTime: searchParams.startTime,
+        endTime: searchParams.endTime,
+        maxPrice: searchParams.maxPrice || 1000, // Default if not specified
+        distance_importance: distancePreference,
+        price_importance: pricePreference
       };
 
-      if (needsCharging) {
-        searchParams.is_charging_station = true;
-        if (chargerType) {
-          searchParams.charger_type = chargerType;
+      // Add filters for charging stations if selected
+      if (searchParams.is_charging_station) {
+        searchPayload.is_charging_station = true;
+        if (searchParams.charger_type) {
+          searchPayload.charger_type = searchParams.charger_type;
         }
       }
 
-      console.log("Search parameters:", searchParams);
+      const token = localStorage.getItem("token");
 
-      // Use the optimized parking spot finder
-      const response = await parkingSpotService.findOptimalParkingSpots(
-        searchParams
+      // Call your API endpoint for finding private spots (adjusted to match your controller)
+      const response = await axios.post(
+        "/api/v1/parking-spots/find-optimal", // Using your actual endpoint
+        searchPayload,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
       );
-      console.log("Search response:", response);
 
-      if (response.data?.results === 0) {
-        setFeedback("לא נמצאו חניות זמינות התואמות את החיפוש");
-        setResults([]);
-      } else {
-        setResults(response.data?.data?.parkingSpots || []);
-        const filteredSpots = (response.data?.data?.parkingSpots || []).filter(
-          (spot) => spot.owner !== user._id
-        );
-        setResults(filteredSpots);
+      let spots = response.data?.data?.parkingSpots || [];
 
-        setShowPopup(true);
-        setFeedback("");
+      // Sort results
+      spots = sortParkingSpots(spots);
+
+      setParkingSpots(spots);
+
+      if (spots.length === 0) {
+        setPopupData({
+          title: "לא נמצאו חניות",
+          description: "לא נמצאו חניות פנויות העונות על הקריטריונים שלך. אנא נסה לשנות את פרמטרי החיפוש.",
+          type: "info"
+        });
       }
     } catch (err) {
-      console.error("Search failed:", err);
-      const errorMessage =
-        err.response?.data?.message || err.message || "שגיאה לא ידועה";
-      setFeedback(`❌ חלה שגיאה בחיפוש: ${errorMessage}`);
+      console.error("שגיאה בחיפוש חניות:", err);
+      setPopupData({
+        title: "שגיאה בחיפוש",
+        description: "אירעה שגיאה בעת חיפוש חניות. אנא נסה שנית.",
+        type: "error"
+      });
     } finally {
-      setSearching(false);
+      setLoading(false);
     }
   };
 
-  const handleBooking = async (spot) => {
-    const scheduleId = spot.availability?.[0]?.id;
+  const sortParkingSpots = (spots) => {
+    return [...spots].sort((a, b) => {
+      let valueA, valueB;
 
-    if (!scheduleId) {
-      alert("❌ לא ניתן לבצע הזמנה – אין פינוי זמין");
-      return;
-    }
+      switch (searchParams.sortBy) {
+        case "price":
+          valueA = a.hourly_price || 0;
+          valueB = b.hourly_price || 0;
+          break;
+        case "rating":
+          valueA = a.rating || 0;
+          valueB = b.rating || 0;
+          break;
+        case "distance":
+        default:
+          valueA = a.distance || 0;
+          valueB = b.distance || 0;
+          break;
+      }
 
+      return searchParams.sortOrder === "asc" ? valueA - valueB : valueB - valueA;
+    });
+  };
+
+  const handleSortChange = (sortField) => {
+    setSearchParams(prev => {
+      if (prev.sortBy === sortField) {
+        return { ...prev, sortOrder: prev.sortOrder === "asc" ? "desc" : "asc" };
+      } else {
+        return { ...prev, sortBy: sortField, sortOrder: "asc" };
+      }
+    });
+  };
+
+  const resetFilters = () => {
+    setSearchParams({
+      ...searchParams,
+      maxPrice: "",
+      is_charging_station: false,
+      charger_type: ""
+    });
+  };
+
+  const handleBookParking = async (spotId) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        "/api/v1/bookings",
-        {
-          spot: spot._id,
-          schedule: scheduleId,
-          start_datetime: `${date}T${startTime}`,
-          end_datetime: `${date}T${endTime}`,
-          base_rate: spot.hourly_price,
-          booking_type: needsCharging ? "charging" : "parking",
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
 
+      // Format the booking data according to your API
+      const bookingData = {
+        spot: spotId,
+        user: user._id,
+        booking_type: searchParams.is_charging_station ? "charging" : "parking",
+        start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
+        end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
+        base_rate: parkingSpots.find(spot => spot._id === spotId)?.hourly_price || 0,
+      };
+
+      // Show confirmation popup
       setPopupData({
-        title: "הצלחה",
-        description: "ההזמנה בוצעה בהצלחה ✅",
-        type: "success",
+        title: "אישור הזמנה",
+        description: "האם אתה בטוח שברצונך להזמין חניה זו?",
+        type: "confirm",
+        onConfirm: async () => {
+          try {
+            // Create booking
+            const response = await axios.post("/api/v1/bookings", bookingData, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data?.status === "success") {
+              setPopupData({
+                title: "הזמנה בוצעה בהצלחה",
+                description: "ההזמנה שלך בוצעה בהצלחה! פרטים נשלחו לאימייל שלך.",
+                type: "success"
+              });
+
+              // Refresh search results to reflect the new booking
+              searchParkingSpots();
+            }
+          } catch (err) {
+            console.error("שגיאה בביצוע הזמנה:", err);
+            setPopupData({
+              title: "שגיאה בהזמנה",
+              description: "אירעה שגיאה בעת ביצוע ההזמנה. אנא נסה שנית.",
+              type: "error"
+            });
+          }
+        }
       });
-      setShowPopup(false);
     } catch (err) {
-      console.error("Booking error:", err);
+      console.error("שגיאה בהכנת ההזמנה:", err);
       setPopupData({
-        title: "שגיאה",
-        description: "פעולת ההזמנה נכשלה בשרת",
-        type: "error",
+        title: "שגיאה בהזמנה",
+        description: "אירעה שגיאה בעת הכנת ההזמנה. אנא נסה שנית.",
+        type: "error"
       });
     }
   };
 
-  const renderContent = () => (
-    <>
-      <div className="relative mb-6 flex flex-col items-center">
-        <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
-          חיפוש חנייה
-        </h1>
+  const getSortIcon = (field) => {
+    if (searchParams.sortBy === field) {
+      return searchParams.sortOrder === "asc" ?
+        <FaArrowUp className="text-blue-600 ml-1" /> :
+        <FaArrowDown className="text-blue-600 ml-1" />;
+    }
+    return null;
+  };
 
-        <p className="text-gray-600 text-lg mb-4 text-center">
-          בחר מיקום, טווח מחירים וזמן זמינות
-        </p>
+  // Format address function
+  const formatAddress = (address) => {
+    if (!address) return "כתובת לא זמינה";
+    return `${address.street || ""} ${address.number || ""}, ${address.city || ""}`;
+  };
 
-        <div className="mt-4 mb-6 flex items-center justify-center">
-          <button
-            onClick={() => setShowPreferences(true)}
-            className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow w-auto justify-center"
-          >
-            <i className="fas fa-cog text-lg"></i>
-            <span className="inline">העדפות חיפוש מתקדמות</span>
-          </button>
-        </div>
-      </div>
+  // Calculate time difference in hours (for price calculation)
+  const calculateHours = () => {
+    if (!searchParams.startTime || !searchParams.endTime) return 0;
 
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
-        {!isBuildingMode && (
-          <AddressMapSelector
-            address={address}
-            setAddress={setAddress}
-            feedback={feedback}
-            setFeedback={setFeedback}
-            searching={searching}
-            setSearching={setSearching}
-          />
-        )}
+    const [startHour, startMinute] = searchParams.startTime.split(":").map(Number);
+    const [endHour, endMinute] = searchParams.endTime.split(":").map(Number);
 
-        <div>
-          <label className="block mb-2 text-sm font-bold text-gray-700">
-            תאריך
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
-            min={new Date().toISOString().split("T")[0]}
-          />
-        </div>
+    const startTotalMinutes = startHour * 60 + startMinute;
+    const endTotalMinutes = endHour * 60 + endMinute;
 
-        <div>
-          <label className="block mb-2 text-sm font-bold text-gray-700">
-            טווח זמן
-          </label>
-          <div className="flex gap-4">
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md"
-            />
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md"
-            />
-          </div>
-        </div>
+    // Handle case where end time is on the next day
+    const diffMinutes = endTotalMinutes >= startTotalMinutes
+      ? endTotalMinutes - startTotalMinutes
+      : (24 * 60) - startTotalMinutes + endTotalMinutes;
 
-        {!isBuildingMode && (
-          <div>
-            <label className="block mb-2 text-sm font-bold text-gray-700">
-              מחיר מקסימלי (₪)
-            </label>
-            <input
-              type="number"
-              placeholder="מחיר מקסימלי לשעה"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              min="0"
-            />
-          </div>
-        )}
-
-        <div>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={needsCharging}
-              onChange={() => setNeedsCharging((prev) => !prev)}
-              className="w-5 h-5"
-            />
-            <span className="text-gray-800 font-semibold text-base">
-              אני צריך עמדת טעינה לרכב חשמלי
-            </span>
-          </label>
-          {needsCharging && (
-            <div className="mt-2">
-              <select
-                value={chargerType}
-                onChange={(e) => setChargerType(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">כל סוגי המטענים</option>
-                <option value="Type 1">Type 1</option>
-                <option value="Type 2">Type 2</option>
-                <option value="CCS">Combo (CCS)</option>
-                <option value="CHAdeMO">CHAdeMO</option>
-                <option value="Other">אחר</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div className="text-center pt-4">
-          <button
-            onClick={handleSearch}
-            disabled={searching}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md text-lg transition disabled:opacity-70"
-          >
-            {searching ? "מחפש..." : "חפש חנייה"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
+    return Math.max(Math.ceil(diffMinutes / 60), 1); // Minimum of 1 hour
+  };
 
   return (
     <div
@@ -402,103 +502,426 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       dir="rtl"
     >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-      <div className="flex flex-1">
-        <Sidebar current={currentTab} setCurrent={setCurrentTab} role={role} />
-        <main className="flex-1 py-16 px-6 max-w-4xl mx-auto mt-4">
-          {renderContent()}
+      <div className="flex flex-grow">
+        <Sidebar current={current} setCurrent={setCurrent} role={role} />
+
+        <main className="flex-grow p-4 md:p-6 md:mr-5 mt-12">
+          <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
+            חיפוש חניה פרטית
+          </h1>
+          <p className="text-gray-600 text-lg mb-8 text-center">
+            מצא את החניה הפרטית המושלמת בדיוק במקום ובזמן שאתה צריך
+          </p>
+
+          {/* Search Form */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8 max-w-6xl mx-auto">
+            <form onSubmit={searchParkingSpots} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Selected Location Display */}
+              {searchParams.location && (
+                <div className="md:col-span-4 bg-blue-50 p-3 rounded-md mb-2 flex justify-between items-center">
+                  <div className="flex items-center text-blue-700">
+                    <FaMapMarkerAlt className="mr-2" />
+                    <span className="font-medium">{searchParams.location}</span>
+                  </div>
+                  {searchParams.latitude && searchParams.longitude && (
+                    <div className="text-xs text-gray-500">
+                      {searchParams.latitude.toFixed(6)}, {searchParams.longitude.toFixed(6)}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Location with Map Selector */}
+              <div className="md:col-span-4 mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  מיקום
+                </label>
+                <AddressMapSelector
+                  address={address}
+                  setAddress={setAddress}
+                  feedback={mapFeedback}
+                  setFeedback={setMapFeedback}
+                  searching={searchingAddress}
+                  setSearching={setSearchingAddress}
+                />
+              </div>
+
+              {/* Date Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  תאריך
+                </label>
+                <input
+                  type="date"
+                  name="date"
+                  value={searchParams.date}
+                  onChange={handleInputChange}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
+                />
+              </div>
+
+              {/* Start Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  שעת התחלה
+                </label>
+                <select
+                  name="startTime"
+                  value={searchParams.startTime}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 rounded-md border border-gray-300"
+                >
+                  {Array.from({ length: 96 }).map((_, i) => {
+                    const hours = Math.floor(i / 4);
+                    const minutes = (i % 4) * 15;
+                    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    return (
+                      <option key={i} value={timeString}>
+                        {timeString}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* End Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  שעת סיום
+                </label>
+                <select
+                  name="endTime"
+                  value={searchParams.endTime}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 rounded-md border border-gray-300"
+                >
+                  {Array.from({ length: 96 }).map((_, i) => {
+                    const hours = Math.floor(i / 4);
+                    const minutes = (i % 4) * 15;
+                    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    return (
+                      <option key={i} value={timeString}>
+                        {timeString}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Price Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  מחיר מקסימלי לשעה
+                </label>
+                <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
+                  <input
+                    type="number"
+                    name="maxPrice"
+                    placeholder="ללא הגבלה"
+                    value={searchParams.maxPrice}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border-0 outline-none"
+                    min="0"
+                  />
+                  <span className="px-3 bg-gray-100 py-2 text-gray-500">₪</span>
+                </div>
+              </div>
+
+              {/* Filter Button and Search Button */}
+              <div className="md:col-span-4 flex justify-between items-center mt-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center gap-2"
+                  >
+                    <FaFilter /> סינון מתקדם
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreferences(true)}
+                    className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md hover:bg-blue-100 flex items-center gap-2"
+                  >
+                    <FaCog /> העדפות חיפוש
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!address.city || !address.street || !address.number}
+                  className={`px-6 py-2 rounded-md flex items-center gap-2 ${!address.city || !address.street || !address.number
+                    ? "bg-gray-400 text-white cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
+                >
+                  <FaSearch /> חפש חניה
+                </button>
+              </div>
+
+              {/* Advanced Filters Panel */}
+              {showFilters && (
+                <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg mt-2">
+                  {/* Parking Preferences */}
+                  <div className="flex flex-col">
+                    <h3 className="font-semibold mb-2">העדפות חניה</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      <label className="flex items-center text-sm">
+                        <input
+                          type="checkbox"
+                          name="indoor"
+                          className="mr-2"
+                        />
+                        חניה מקורה
+                      </label>
+
+                      {/* Rating Filter */}
+                      <div className="mt-4">
+                        <h3 className="font-semibold mb-2">דירוג מינימלי</h3>
+                        <div className="flex items-center gap-2">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setSearchParams(prev => ({ ...prev, minRating: star }))}
+                                className="text-xl focus:outline-none"
+                              >
+                                <span className={`${star <= (searchParams.minRating || 0)
+                                  ? 'text-yellow-400'
+                                  : 'text-gray-300'
+                                  }`}>
+                                  ★
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-sm text-gray-500 mr-2">
+                            {searchParams.minRating ? `${searchParams.minRating} כוכבים ומעלה` : 'כל הדירוגים'}
+                          </span>
+                          {searchParams.minRating > 0 && (
+                            <button
+                              onClick={() => setSearchParams(prev => ({ ...prev, minRating: 0 }))}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              (נקה)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Charging Station */}
+                  <div>
+                    <h3 className="font-semibold mb-2">עמדת טעינה לרכב חשמלי</h3>
+                    <div className="flex items-center mb-2">
+                      <input
+                        type="checkbox"
+                        id="is_charging_station"
+                        name="is_charging_station"
+                        checked={searchParams.is_charging_station}
+                        onChange={handleInputChange}
+                        className="ml-2"
+                      />
+                      <label htmlFor="is_charging_station" className="text-sm">
+                        חפש רק חניות עם עמדת טעינה
+                      </label>
+                    </div>
+
+                    {searchParams.is_charging_station && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          סוג מטען
+                        </label>
+                        <select
+                          name="charger_type"
+                          value={searchParams.charger_type}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 rounded-md border border-gray-300"
+                        >
+                          <option value="">כל סוגי המטענים</option>
+                          {chargerTypes.map(type => (
+                            <option key={type.id} value={type.id}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reset Filters Button */}
+                  <div className="md:col-span-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetFilters();
+                        setSearchParams(prev => ({ ...prev, minRating: 0 }));
+                      }}
+                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm flex items-center gap-2"
+                    >
+                      <FaSync /> איפוס מסננים
+                    </button>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+
+          {/* Results Sorting Bar */}
+          {parkingSpots.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4 max-w-6xl mx-auto flex justify-between items-center">
+              <div className="text-gray-700 flex items-center gap-2">
+                <span>נמצאו {parkingSpots.length} תוצאות</span>
+                {distancePreference !== 3 || pricePreference !== 3 ? (
+                  <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center">
+                    <FaCog className="ml-1" />
+                    <span>
+                      {distancePreference > 3 ? "מרחק חשוב מאוד" :
+                        distancePreference < 3 ? "מרחק פחות חשוב" : ""}
+                      {distancePreference !== 3 && pricePreference !== 3 ? " • " : ""}
+                      {pricePreference > 3 ? "מחיר חשוב מאוד" :
+                        pricePreference < 3 ? "מחיר פחות חשוב" : ""}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => handleSortChange("distance")}
+                  className={`flex items-center ${searchParams.sortBy === "distance" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                >
+                  מרחק {getSortIcon("distance")}
+                </button>
+                <button
+                  onClick={() => handleSortChange("price")}
+                  className={`flex items-center ${searchParams.sortBy === "price" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                >
+                  מחיר {getSortIcon("price")}
+                </button>
+                <button
+                  onClick={() => handleSortChange("rating")}
+                  className={`flex items-center ${searchParams.sortBy === "rating" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                >
+                  דירוג {getSortIcon("rating")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Results List */}
+          {!loading && parkingSpots.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {parkingSpots.map((spot) => (
+                <div key={spot._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                  {/* Parking Image or Placeholder */}
+                  <div className="h-48 bg-gray-200 relative">
+                    {spot.photos && spot.photos.length > 0 ? (
+                      <img
+                        src={spot.photos[0]}
+                        alt={`חניה ב-${spot.address?.city || ''}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-blue-100 to-indigo-100">
+                        {spot.is_charging_station ? (
+                          <FaBolt className="text-blue-400 text-5xl" />
+                        ) : (
+                          <FaParking className="text-blue-400 text-5xl" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Price Tag */}
+                    <div className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded-lg font-bold shadow-sm">
+                      ₪{spot.hourly_price}/שעה
+                    </div>
+
+                    {/* Total cost badge */}
+                    <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm shadow-sm">
+                      סה״כ: ₪{(spot.hourly_price * calculateHours()).toFixed(0)} ל-{calculateHours()} שעות
+                    </div>
+
+                    {/* Charging Station Badge */}
+                    {spot.is_charging_station && (
+                      <div className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded-lg text-sm shadow-sm flex items-center">
+                        <FaBolt className="mr-1" /> עמדת טעינה
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">{formatAddress(spot.address)}</h3>
+
+                    {/* Distance */}
+                    {spot.distance && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        <FaMapMarkerAlt className="inline mr-1" />
+                        {typeof spot.distance === 'number' ?
+                          `${spot.distance < 1 ? (spot.distance * 1000).toFixed(0) + ' מטר' : spot.distance.toFixed(1) + ' ק"מ'}` :
+                          spot.distance}
+                      </p>
+                    )}
+
+                    {/* Charger Type */}
+                    {spot.is_charging_station && spot.charger_type && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        <FaCarSide className="inline mr-1" />
+                        סוג מטען: {spot.charger_type}
+                      </p>
+                    )}
+
+                    {/* Availability */}
+                    <div className="flex items-center text-sm text-gray-600 mb-3">
+                      <FaCalendarAlt className="ml-2" /> זמין בתאריך {new Date(searchParams.date).toLocaleDateString('he-IL')}
+                      <FaClock className="mr-3 ml-2" /> {searchParams.startTime} - {searchParams.endTime}
+                    </div>
+
+                    {/* Book Button */}
+                    <button
+                      onClick={() => handleBookParking(spot._id)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center gap-2 mt-2"
+                    >
+                      <FaParking /> הזמן חניה
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !loading ? (
+            <div className="text-center py-12 max-w-6xl mx-auto bg-white rounded-lg shadow-md">
+              <FaSearch className="text-gray-300 text-6xl mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-700 mb-2">התחל לחפש חניה</h3>
+              <p className="text-gray-600">
+                הזן מיקום, תאריך ושעות כדי למצוא חניות פרטיות זמינות.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="inline-block">
+                <FaSync className="animate-spin text-blue-600 text-4xl mb-4" />
+              </div>
+              <p className="text-gray-600">טוען חניות זמינות...</p>
+            </div>
+          )}
         </main>
       </div>
+
       <Footer />
 
-      {showPopup && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-          onClick={() => setShowPopup(false)}
-        >
-          <div
-            className="bg-white p-6 rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-auto m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-blue-700">תוצאות חיפוש</h2>
-              <button
-                onClick={() => setShowPopup(false)}
-                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
-              >
-                ✕
-              </button>
-            </div>
-            {results.length === 0 ? (
-              <p className="text-center text-gray-600 py-8">
-                לא נמצאו חניות תואמות.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-right border">
-                  <thead className="bg-blue-50 text-blue-800">
-                    <tr>
-                      <th className="px-4 py-2">דירוג</th>
-                      <th className="px-4 py-2">כתובת</th>
-                      <th className="px-4 py-2">מרחק</th>
-                      <th className="px-4 py-2">מחיר</th>
-                      <th className="px-4 py-2">סוג</th>
-                      <th className="px-4 py-2">פעולות</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((spot, index) => (
-                      <tr
-                        key={spot._id}
-                        className={`border-b hover:bg-blue-50 ${
-                          index === 0 ? "bg-blue-50" : ""
-                        }`}
-                      >
-                        <td className="px-4 py-2">
-                          {index === 0 ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              מומלץ
-                            </span>
-                          ) : (
-                            <span>{index + 1}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          {spot.address.city}, {spot.address.street}{" "}
-                          {spot.address.number}
-                        </td>
-                        <td className="px-4 py-2">{spot.distance_km} ק"מ</td>
-                        <td className="px-4 py-2">{spot.hourly_price} ₪/שעה</td>
-                        <td className="px-4 py-2">
-                          {spot.is_charging_station
-                            ? `טעינה לרכב חשמלי (${spot.charger_type})`
-                            : "חנייה רגילה"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <button
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-                            onClick={() => handleBooking(spot)}
-                          >
-                            הזמן
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="text-center mt-6">
-              <button
-                onClick={() => setShowPopup(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-5 py-2 rounded"
-              >
-                יציאה
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Popup for various actions */}
+      {popupData && (
+        <Popup
+          title={popupData.title}
+          description={popupData.description}
+          type={popupData.type || "info"}
+          onClose={() => setPopupData(null)}
+          onConfirm={popupData.type === "confirm" ? popupData.onConfirm : null}
+        />
       )}
 
+      {/* Advanced Preferences Popup */}
       {showPreferences && (
         <AdvancedPreferencesPopup
           distancePreference={distancePreference}
@@ -508,49 +931,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           savePreferences={savePreferences}
           onClose={() => setShowPreferences(false)}
         />
-      )}
-
-      {popupData && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-70 flex items-center justify-center"
-          onClick={() => setPopupData(null)}
-        >
-          <div
-            className={`bg-white p-6 rounded-xl shadow-xl w-full max-w-md m-4 ${
-              popupData.type === "success"
-                ? "border-l-4 border-green-500"
-                : "border-l-4 border-red-500"
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2
-                className={`text-xl font-bold ${
-                  popupData.type === "success"
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {popupData.title}
-              </h2>
-              <button
-                onClick={() => setPopupData(null)}
-                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-gray-700">{popupData.description}</p>
-            <div className="text-center mt-6">
-              <button
-                onClick={() => setPopupData(null)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-5 py-2 rounded"
-              >
-                סגור
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
