@@ -4,7 +4,18 @@ import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
-import { FaSearch, FaSync, FaParking, FaCar, FaCalendarAlt, FaMapMarkerAlt, FaMoneyBill, FaInfoCircle } from "react-icons/fa";
+import {
+  FaSearch,
+  FaSync,
+  FaParking,
+  FaCar,
+  FaCalendarAlt,
+  FaMapMarkerAlt,
+  FaMoneyBill,
+  FaInfoCircle,
+  FaChevronRight,
+  FaChevronLeft,
+} from "react-icons/fa";
 
 const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   document.title = "היסטוריית שימוש | Spotly";
@@ -17,28 +28,47 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   const [loading, setLoading] = useState(true);
   const [popupData, setPopupData] = useState(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+
   const [filters, setFilters] = useState({
     searchTerm: "",
-    searchField: "address",
     triggerSearch: false,
     usageType: "all",
     status: "all",
     activityType: "all",
-    paymentStatus: "all"
+    paymentStatus: "all",
   });
 
-  const [sortField, setSortField] = useState("date");
+  const [sortField, setSortField] = useState("actionDate");
   const [sortOrder, setSortOrder] = useState("desc");
 
   useEffect(() => {
     fetchAllUserActivity();
   }, []);
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   const formatTimeTo24Hour = (dateString) => {
     const date = new Date(dateString);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
     return `${hours}:${minutes}`;
+  };
+
+  const formatActionDateTime = (date) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    const formattedDate = d.toLocaleDateString("he-IL");
+    const formattedTime = d.toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${formattedDate} ${formattedTime}`;
   };
 
   const fetchAllUserActivity = async () => {
@@ -47,9 +77,12 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const token = localStorage.getItem("token");
 
       // Fetch user's bookings (either as customer or as owner)
-      const bookingsResponse = await axios.get("/api/v1/bookings/user/my-bookings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const bookingsResponse = await axios.get(
+        "/api/v1/bookings/user/my-bookings",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       // Fetch user's published parking spots
       const spotsResponse = await axios.get("/api/v1/parking-spots/my-spots", {
@@ -66,9 +99,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         date: new Date(b.start_datetime).toLocaleDateString(),
         startTime: formatTimeTo24Hour(b.start_datetime),
         endTime: formatTimeTo24Hour(b.end_datetime),
+        actionDate: b.created_at,
         address: b.spot?.address
-          ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${b.spot.address.city || ""
-          }`
+          ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
+              b.spot.address.city || ""
+            }`
           : "כתובת לא זמינה",
         city: b.spot?.address?.city || "",
         price: b.final_amount || b.base_rate || 0,
@@ -77,25 +112,27 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         paymentStatus: b.payment_status || "pending",
         bookingType: b.booking_type || "parking",
         rawDate: new Date(b.start_datetime),
-        activityType: b.spot?.owner?.toString() === user._id ? "rental" : "booking",
+        rawActionDate: new Date(b.created_at),
+        activityType:
+          b.spot?.owner?.toString() === user._id ? "rental" : "booking",
         icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
-        // Add payment icon if completed
-        showPaymentIcon: b.payment_status === "completed" && b.status === "completed",
-        // Save original booking object for the popup
-        originalBooking: b
+        showPaymentIcon:
+          b.payment_status === "completed" && b.status === "completed",
+        originalBooking: b,
       }));
 
       // Transform published spots into history items
       const spotHistory = spots.flatMap((spot) => {
-        // For each spot, create entries for when it was published and its schedules
         const spotEntry = {
           id: spot._id,
           date: new Date(spot.created_at).toLocaleDateString(),
           startTime: formatTimeTo24Hour(spot.created_at),
           endTime: "-",
+          actionDate: spot.created_at,
           address: spot.address
-            ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
-            }`
+            ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
+                spot.address.city || ""
+              }`
             : "כתובת לא זמינה",
           city: spot.address?.city || "",
           price: spot.hourly_rate || 0,
@@ -103,50 +140,53 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           status: "active",
           paymentStatus: "n/a",
           rawDate: new Date(spot.created_at),
+          rawActionDate: new Date(spot.created_at),
           activityType: "publication",
           icon: "FaMapMarkerAlt",
           showPaymentIcon: false,
-          originalSpot: spot
+          originalSpot: spot,
         };
 
-        // Create entries for each scheduled availability
-        const scheduleEntries = (spot.availability_schedule || []).map((schedule) => {
-          const scheduleDate = new Date(schedule.date);
+        const scheduleEntries = (spot.availability_schedule || []).map(
+          (schedule) => {
+            const scheduleDate = new Date(schedule.date);
 
-          // Format time strings to 24-hour format
-          const formatTime = (timeStr) => {
-            if (!timeStr || timeStr === "-") return "-";
-            // If already in proper format, return as is
-            if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+            const formatTime = (timeStr) => {
+              if (!timeStr || timeStr === "-") return "-";
+              if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
 
-            // Try to parse HH:MM format
-            const [hours, minutes] = timeStr.split(":").map(Number);
-            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-          };
+              const [hours, minutes] = timeStr.split(":").map(Number);
+              return `${hours.toString().padStart(2, "0")}:${minutes
+                .toString()
+                .padStart(2, "0")}`;
+            };
 
-          return {
-            id: `${spot._id}-${schedule._id}`,
-            date: scheduleDate.toLocaleDateString(),
-            startTime: formatTime(schedule.start_time),
-            endTime: formatTime(schedule.end_time),
-            address: spot.address
-              ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
-              }`
-              : "כתובת לא זמינה",
-            city: spot.address?.city || "",
-            price: spot.hourly_rate || 0,
-            type: "זמינות חניה",
-            status: schedule.is_available ? "available" : "booked",
-            paymentStatus: "n/a",
-            rawDate: scheduleDate,
-            activityType: "availability",
-            icon: "FaCalendarAlt",
-            showPaymentIcon: false,
-            originalSchedule: schedule,
-            originalSpot: spot,
-            scheduleId: schedule._id
-          };
-        });
+            return {
+              id: `${spot._id}-${schedule._id}`,
+              date: scheduleDate.toLocaleDateString(),
+              startTime: formatTime(schedule.start_time),
+              endTime: formatTime(schedule.end_time),
+              address: spot.address
+                ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
+                    spot.address.city || ""
+                  }`
+                : "כתובת לא זמינה",
+              city: spot.address?.city || "",
+              price: spot.hourly_rate || 0,
+              type: "זמינות חניה",
+              status: schedule.is_available ? "available" : "booked",
+              paymentStatus: "n/a",
+              rawDate: scheduleDate,
+              rawActionDate: new Date(schedule.created_at || spot.created_at),
+              activityType: "availability",
+              icon: "FaCalendarAlt",
+              showPaymentIcon: false,
+              originalSchedule: schedule,
+              originalSpot: spot,
+              scheduleId: schedule._id,
+            };
+          }
+        );
 
         return [spotEntry, ...scheduleEntries];
       });
@@ -169,7 +209,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   const resetFilters = () => {
     setFilters({
       searchTerm: "",
-      searchField: "all",
       usageType: "all",
       status: "all",
       activityType: "all",
@@ -183,7 +222,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder("asc");
+      setSortOrder(
+        field === "actionDate" || field === "actionTime" ? "desc" : "asc"
+      );
     }
   };
 
@@ -198,7 +239,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       case "available":
         return { text: "זמין", class: "bg-emerald-100 text-emerald-800" };
       case "booked":
-        return { text: "מוזמן", class: "bg-purple-100 text-purple-800 cursor-pointer" };
+        return {
+          text: "מוזמן",
+          class: "bg-purple-100 text-purple-800 cursor-pointer",
+        };
       default:
         return { text: status, class: "bg-gray-100 text-gray-800" };
     }
@@ -247,16 +291,12 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  // Function to get the booking details for a scheduled spot
-  // Function to get the booking details for a scheduled spot
-  // Function to get the booking details for a scheduled spot
   const getBookingDetails = async (item) => {
     if (item.status !== "booked") return;
 
     try {
       const token = localStorage.getItem("token");
 
-      // Using the correct endpoint format identical to ReleaseParking.jsx
       const res = await axios.get(
         `/api/v1/bookings/spot/${item.originalSpot._id}/schedule/${item.scheduleId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -319,10 +359,26 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       if (!filters.triggerSearch) return true;
 
       const term = filters.searchTerm.toLowerCase();
-      const matchText =
-        filters.searchField === "all"
-          ? `${item.address} ${item.city} ${item.date}`.toLowerCase()
-          : (item[filters.searchField] || "").toLowerCase();
+
+      const searchableText = `
+      ${item.address || ""} 
+      ${item.city || ""} 
+      ${item.date || ""} 
+      ${item.startTime || ""} 
+      ${item.endTime || ""} 
+      ${getActivityTypeDisplay(item.activityType) || ""} 
+      ${getStatusDisplay(item.status).text || ""}
+      ${getPaymentStatusDisplay(item.paymentStatus).text || ""}
+      ${
+        formatActionDateTime(
+          item.originalBooking?.created_at ||
+            item.originalSpot?.created_at ||
+            item.actionDate
+        ) || ""
+      }
+    `.toLowerCase();
+
+      const matchText = searchableText.includes(term);
 
       const matchUsage =
         filters.usageType === "all" || filters.usageType === item.type;
@@ -331,14 +387,29 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         filters.status === "all" || filters.status === item.status;
 
       const matchActivityType =
-        filters.activityType === "all" || filters.activityType === item.activityType;
+        filters.activityType === "all" ||
+        filters.activityType === item.activityType;
 
       const matchPaymentStatus =
-        filters.paymentStatus === "all" || filters.paymentStatus === item.paymentStatus;
+        filters.paymentStatus === "all" ||
+        filters.paymentStatus === item.paymentStatus;
 
-      return matchText.includes(term) && matchUsage && matchStatus && matchActivityType && matchPaymentStatus;
+      return (
+        matchText &&
+        matchUsage &&
+        matchStatus &&
+        matchActivityType &&
+        matchPaymentStatus
+      );
     })
     .sort((a, b) => {
+      if (sortField === "actionDate" || sortField === "actionTime") {
+        const dateA = new Date(a.rawActionDate || a.actionDate);
+        const dateB = new Date(b.rawActionDate || b.actionDate);
+
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      }
+
       if (sortField === "date") {
         return sortOrder === "asc"
           ? a.rawDate - b.rawDate
@@ -352,6 +423,56 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         ? valA.toString().localeCompare(valB.toString())
         : valB.toString().localeCompare(valA.toString());
     });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredHistory.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxButtons = 5; // Maximum number of page buttons to show
+
+    if (totalPages <= maxButtons) {
+      // Show all pages if less than maxButtons
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Show limited page numbers with ellipsis
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      }
+    }
+
+    return pageNumbers;
+  };
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
 
   return (
     <div
@@ -371,24 +492,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           </p>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end max-w-6xl w-full">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  חפש לפי:
-                </label>
-                <select
-                  name="searchField"
-                  value={filters.searchField}
-                  onChange={handleFilterChange}
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm"
-                >
-                  <option value="address">כתובת</option>
-                  <option value="city">עיר</option>
-                  <option value="date">תאריך</option>
-                  <option value="all">הכל</option>
-                </select>
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end max-w-6xl w-full">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   מונח חיפוש:
@@ -420,7 +524,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   <option value="booking">הזמנת חניה</option>
                   <option value="rental">השכרת חניה</option>
                   <option value="publication">התחלת פעילות</option>
-                  <option value="availability">שינוי/ הוספת זמינות לחניה פרטית </option>
+                  <option value="availability">
+                    שינוי/ הוספת זמינות לחניה פרטית{" "}
+                  </option>
                 </select>
               </div>
 
@@ -478,27 +584,33 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
             </div>
           </div>
 
-          <div className="overflow-x-auto bg-white rounded-lg shadow-md max-w-7xl mx-auto">
-            {/* Table container using divs with customized column widths */}
+          <div
+            className="overflow-x-auto bg-white rounded-lg shadow-md max-w-7xl mx-auto flex flex-col"
+            style={{ height: "600px" }}
+          >
+            {/* Table container */}
             <div className="w-full text-base text-right">
               {/* Header row */}
               <div className="flex bg-indigo-50 text-indigo-800 border-b">
-                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("date")}>
-                  תאריך
+                <div
+                  className="px-3 py-3 w-[10%] font-semibold cursor-pointer text-center"
+                  onClick={() => handleSort("actionDate")}
+                >
+                  תאריך ביצוע
                 </div>
-                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("startTime")}>
-                  שעות
+                <div
+                  className="px-3 py-3 w-[10%] font-semibold cursor-pointer text-center"
+                  onClick={() => handleSort("actionDate")}
+                >
+                  שעת ביצוע
                 </div>
-                <div className="px-3 py-3 w-[30%] font-semibold cursor-pointer text-center" onClick={() => handleSort("address")}>
-                  כתובת
+                <div className="px-3 py-3 w-[35%] font-semibold text-center">
+                  פרטים נוספים
                 </div>
-                <div className="px-3 py-3 w-[12%] font-semibold cursor-pointer text-center" onClick={() => handleSort("city")}>
-                  עיר
-                </div>
-                <div className="px-3 py-3 w-[14%] font-semibold text-center">
+                <div className="px-3 py-3 w-[20%] font-semibold text-center">
                   סוג פעילות
                 </div>
-                <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                <div className="px-3 py-3 w-[15%] font-semibold text-center">
                   סטטוס
                 </div>
                 <div className="px-3 py-3 w-[10%] font-semibold text-center">
@@ -508,42 +620,90 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
               {/* Table body */}
               <div className="divide-y">
-                {filteredHistory.map((item, index) => {
+                {currentItems.map((item, index) => {
                   const status = getStatusDisplay(item.status);
-                  const paymentStatus = getPaymentStatusDisplay(item.paymentStatus);
+                  const paymentStatus = getPaymentStatusDisplay(
+                    item.paymentStatus
+                  );
+
+                  const formatActionDate = (date) => {
+                    if (!date) return "-";
+                    const d = new Date(date);
+                    return d.toLocaleDateString("he-IL");
+                  };
+
+                  const formatActionTime = (date) => {
+                    if (!date) return "-";
+                    const d = new Date(date);
+                    return d.toLocaleTimeString("he-IL", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                  };
+
+                  const actionDateTime =
+                    item.originalBooking?.created_at ||
+                    item.originalSpot?.created_at ||
+                    item.actionDate;
+
                   return (
-                    <div key={index} className="flex hover:bg-indigo-50 transition-colors duration-150">
-                      <div className="px-3 py-3 w-[12%] text-center">{item.date}</div>
-                      <div className="px-3 py-3 w-[12%] text-center whitespace-nowrap">
-                        {item.startTime} {item.endTime !== "-" ? `- ${item.endTime}` : ""}
+                    <div
+                      key={index}
+                      className="flex hover:bg-indigo-50 transition-colors duration-150"
+                    >
+                      <div className="px-3 py-3 w-[10%] text-center">
+                        {formatActionDate(actionDateTime)}
                       </div>
-                      <div className="px-3 py-3 w-[30%] text-center" title={item.address}>
-                        {item.address}
+                      <div className="px-3 py-3 w-[10%] text-center">
+                        {formatActionTime(actionDateTime)}
                       </div>
-                      <div className="px-3 py-3 w-[12%] text-center">{item.city}</div>
-                      <div className="px-3 py-3 w-[14%]">
+                      <div className="px-3 py-3 w-[35%] text-center">
+                        {item.activityType !== "publication" ? (
+                          <div className="text-sm">
+                            {item.activityType === "booking" && (
+                              <div>כתובת: {item.address}</div>
+                            )}
+                            <div>תאריך : {item.date}</div>
+                            <div>
+                              שעות: {item.startTime}{" "}
+                              {item.endTime !== "-" ? `- ${item.endTime}` : ""}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm">
+                            {/* Empty cell for publication */}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-3 w-[20%]">
                         <div className="flex items-center justify-center gap-1">
                           <span className="w-5 h-5 flex items-center justify-center">
                             {getActivityIcon(item.icon)}
                           </span>
-                          <span className="whitespace-nowrap">{getActivityTypeDisplay(item.activityType)}</span>
+                          <span className="whitespace-nowrap">
+                            {getActivityTypeDisplay(item.activityType)}
+                          </span>
                         </div>
                       </div>
-                      <div className="px-3 py-3 w-[10%] flex justify-center">
+                      <div className="px-3 py-3 w-[15%] flex justify-center">
                         {item.status === "booked" ? (
-                          <div className="flex items-center justify-center">
+                          <div>
                             <span
-                              className={`px-2 py-1 rounded-full text-xs ${status.class} flex items-center gap-1`}
+                              className={`inline-block px-2 py-1 rounded-full text-xs ${status.class} cursor-pointer`}
                               onClick={() => getBookingDetails(item)}
                             >
                               {status.text}
-                              <FaInfoCircle className="cursor-pointer text-purple-700 ml-1" />
+                              <FaInfoCircle className="inline-block text-purple-700 ml-1" />
                             </span>
                           </div>
                         ) : (
-                          <span className={`px-2 py-1 rounded-full text-xs ${status.class}`}>
-                            {status.text}
-                          </span>
+                          <div>
+                            <span
+                              className={`inline-block px-2 py-1 rounded-full text-xs ${status.class}`}
+                            >
+                              {status.text}
+                            </span>
+                          </div>
                         )}
                       </div>
                       <div className="px-3 py-3 w-[10%] flex justify-center">
@@ -552,7 +712,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                             {item.showPaymentIcon && (
                               <FaMoneyBill className="text-green-600" />
                             )}
-                            <span className={`px-2 py-1 rounded-full text-xs ${paymentStatus.class}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${paymentStatus.class}`}
+                            >
                               {paymentStatus.text}
                             </span>
                           </div>
@@ -563,6 +725,62 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 })}
               </div>
             </div>
+
+            {!loading && filteredHistory.length > 0 && (
+              <div className="flex justify-between items-center px-6 py-4 border-t bg-white mt-auto">
+                <div className="text-sm text-gray-600">
+                  מציג {indexOfFirstItem + 1}-
+                  {Math.min(indexOfLastItem, filteredHistory.length)} מתוך{" "}
+                  {filteredHistory.length}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded-full transition ${
+                      currentPage === 1
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
+                  >
+                    הקודם
+                  </button>
+
+                  {getPageNumbers().map((pageNumber, index) => (
+                    <button
+                      key={index}
+                      onClick={() =>
+                        typeof pageNumber === "number" &&
+                        handlePageChange(pageNumber)
+                      }
+                      disabled={pageNumber === "..."}
+                      className={`px-4 py-1.5 rounded-full font-medium transition ${
+                        pageNumber === currentPage
+                          ? "bg-blue-700 text-white"
+                          : pageNumber === "..."
+                          ? "bg-transparent text-gray-400 cursor-default"
+                          : "bg-gray-100 text-gray-700 hover:bg-blue-100"
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded-full transition ${
+                      currentPage === totalPages
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
+                  >
+                    הבא
+                  </button>
+                </div>
+              </div>
+            )}
 
             {!loading && filteredHistory.length === 0 && (
               <div className="text-center py-6 text-gray-500">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
@@ -55,6 +55,38 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     charger: "",
   });
 
+  const generateWeekViewData = useCallback(() => {
+    const schedules = [];
+    parkingSlots.forEach((slot) => {
+      if (slot.availability_schedule) {
+        slot.availability_schedule.forEach((schedule) => {
+          const scheduleDate = new Date(schedule.date);
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+          const scheduleDay = new Date(schedule.date);
+          scheduleDay.setHours(0, 0, 0, 0);
+
+          const start = new Date(startOfWeek);
+          start.setHours(0, 0, 0, 0);
+
+          const end = new Date(start);
+          end.setDate(start.getDate() + 6);
+          end.setHours(23, 59, 59, 999);
+
+          if (scheduleDay >= start && scheduleDay <= end) {
+            schedules.push({
+              ...schedule,
+              slot,
+              dayOfWeek: scheduleDate.getDay(),
+            });
+          }
+        });
+      }
+    });
+    setWeekViewSchedules(schedules);
+  }, [parkingSlots, startOfWeek]);
+
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
@@ -74,37 +106,16 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     if (parkingSlots.length > 0) {
       generateWeekViewData();
     }
-  }, [parkingSlots, startOfWeek]);
+  }, [parkingSlots, startOfWeek, generateWeekViewData]);
 
   function getStartOfWeek(date) {
     const newDate = new Date(date);
-    const day = newDate.getDay();
-    // In Israel, Sunday is the first day (0), so we adjust accordingly
-    const diff = newDate.getDate() - day;
-    return new Date(newDate.setDate(diff));
+    const day = newDate.getDay(); // 0 (Sunday) to 6 (Saturday)
+    const diff = newDate.getDate() - day; // Go back to Sunday
+    newDate.setDate(diff);
+    newDate.setHours(0, 0, 0, 0);
+    return newDate;
   }
-
-  const generateWeekViewData = () => {
-    const schedules = [];
-    parkingSlots.forEach((slot) => {
-      if (slot.availability_schedule) {
-        slot.availability_schedule.forEach((schedule) => {
-          const scheduleDate = new Date(schedule.date);
-          const endOfWeek = new Date(startOfWeek);
-          endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-          if (scheduleDate >= startOfWeek && scheduleDate <= endOfWeek) {
-            schedules.push({
-              ...schedule,
-              slot,
-              dayOfWeek: scheduleDate.getDay(), // 0 for Sunday, 1 for Monday, etc.
-            });
-          }
-        });
-      }
-    });
-    setWeekViewSchedules(schedules);
-  };
 
   const fetchMySpots = async () => {
     setLoadingSpots(true);
@@ -458,10 +469,17 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
   // Convert pixel position to time
   const pixelToTime = (pixel) => {
-    const startHour = 6; // 6:00 AM start
-    const heightPerHour = 60; // 60px per hour
-    const hour = Math.floor(pixel / heightPerHour) + startHour;
-    const minute = Math.round(((pixel % heightPerHour) / heightPerHour) * 60);
+    const startHour = 6;
+    const heightPerHour = 60;
+    const totalMinutes = Math.round((pixel / heightPerHour) * 60);
+    let hour = Math.floor(totalMinutes / 60) + startHour;
+    let minute = totalMinutes % 60;
+
+    if (hour >= 24) {
+      hour = 23;
+      minute = 59;
+    }
+
     return `${hour.toString().padStart(2, "0")}:${minute
       .toString()
       .padStart(2, "0")}`;
@@ -471,18 +489,14 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const handleMouseDown = (e, dayIndex) => {
     if (loadingSpots) return;
 
-    // Check if the day is in the past
-    if (isDayInPast(dayIndex)) {
-      return; // Prevent interaction with past days
-    }
+    if (isDayInPast(dayIndex)) return;
 
     const gridRect = timeGridRef.current.getBoundingClientRect();
     const headerHeight = 60;
-    const relativeY = e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
+    const relativeY =
+      e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
 
-    const selectedDate = new Date(startOfWeek);
-    selectedDate.setDate(selectedDate.getDate() + dayIndex);
-
+    // תקן כאן - תעדכן את selectedDay לפני שאתה מחשב את התאריך
     setSelectedDay(dayIndex);
     setDragStart(relativeY);
     setDragEnd(relativeY);
@@ -497,7 +511,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     const relativeY = e.clientY - gridRect.top + timeGridRef.current.scrollTop;
 
     // Keep within grid bounds
-    const boundedY = Math.max(0, Math.min(relativeY, 18 * 60)); // 18 hours * 60px/hour
+    const boundedY = Math.max(0, Math.min(relativeY, 18 * 60));
 
     setDragEnd(boundedY);
   };
@@ -505,28 +519,31 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   // Handle mouse up after drag
   const handleMouseUp = () => {
     if (isDragging) {
-      // Calculate the start and end times based on drag positions
       const startY = Math.min(dragStart, dragEnd);
       const endY = Math.max(dragStart, dragEnd);
 
-      // Only show popup if drag distance is at least 15 pixels (15 minutes)
       if (Math.abs(dragEnd - dragStart) >= 15) {
         const selectedDate = new Date(startOfWeek);
-        selectedDate.setDate(selectedDate.getDate() + selectedDay);
+        selectedDate.setDate(startOfWeek.getDate() + selectedDay);
+
+        const date = new Date(
+          selectedDate.getFullYear(),
+          selectedDate.getMonth(),
+          selectedDate.getDate()
+        );
+        date.setHours(0, 0, 0, 0);
 
         const startTime = pixelToTime(startY);
         const endTime = pixelToTime(endY);
 
-        // Set quick add form data
         setQuickAddData({
-          date: selectedDate.toISOString().split("T")[0],
+          date: selectedDate.toLocaleDateString("sv-SE"),
           startTime,
           endTime,
           type: "השכרה רגילה",
           charger: "",
         });
 
-        // Show quick add popup
         setShowQuickAddPopup(true);
       }
     }
@@ -592,8 +609,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                 <input
                   type="date"
                   name="date"
-                  value={formData.date}
-                  onChange={handleChange}
+                  value={quickAddData.date}
+                  onChange={handleQuickAddChange}
+                  min={new Date().toISOString().split("T")[0]}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
@@ -728,7 +746,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <div className="relative min-w-[1000px]">
                     {/* Time Labels */}
                     <div className="absolute top-0 right-0 h-full w-16 border-r border-gray-200">
-                      {Array.from({ length: 19 }).map((_, i) => (
+                      {Array.from({ length: 18 }).map((_, i) => (
                         <div
                           key={i}
                           className="h-[60px] border-b border-gray-200 text-xs text-gray-500 flex items-center justify-center"
@@ -745,19 +763,21 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         return (
                           <div
                             key={dayIndex}
-                            className={`flex-1 relative border-r border-gray-200 min-h-[1140px] ${isPastDay ? "bg-gray-100 cursor-not-allowed" : ""
-                              }`}
+                            className={`flex-1 relative border-r border-gray-200 min-h-[1080px] ${
+                              isPastDay ? "bg-gray-100 cursor-not-allowed" : ""
+                            }`}
                             onMouseDown={(e) => handleMouseDown(e, dayIndex)}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                             onMouseLeave={handleMouseUp}
                           >
                             {/* Horizontal hour lines */}
-                            {Array.from({ length: 19 }).map((_, i) => (
+                            {Array.from({ length: 18 }).map((_, i) => (
                               <div
                                 key={i}
-                                className={`absolute w-full h-[1px] ${isPastDay ? "bg-gray-200" : "bg-gray-100"
-                                  }`}
+                                className={`absolute w-full h-[1px] ${
+                                  isPastDay ? "bg-gray-200" : "bg-gray-100"
+                                }`}
                                 style={{ top: i * 60 }}
                               ></div>
                             ))}
@@ -776,27 +796,37 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                             {/* Parking Schedule Blocks */}
                             {weekViewSchedules
-                              .filter((schedule) => schedule.dayOfWeek === dayIndex)
+                              .filter(
+                                (schedule) => schedule.dayOfWeek === dayIndex
+                              )
                               .map((schedule, idx) => {
-                                const top = getTimePosition(schedule.start_time);
+                                const top = getTimePosition(
+                                  schedule.start_time
+                                );
                                 const height = getTimeSlotHeight(
                                   schedule.start_time,
                                   schedule.end_time
                                 );
                                 const isBooked = !schedule.is_available;
                                 const isExpanded =
-                                  expandedSchedule && expandedSchedule._id === schedule._id;
+                                  expandedSchedule &&
+                                  expandedSchedule._id === schedule._id;
 
                                 return (
                                   <div
                                     key={idx}
-                                    onClick={() => setExpandedSchedule(isExpanded ? null : schedule)}
-                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${isBooked
-                                      ? "bg-red-100 border border-red-300 text-red-800"
-                                      : schedule.type === "טעינה לרכב חשמלי"
+                                    onClick={() =>
+                                      setExpandedSchedule(
+                                        isExpanded ? null : schedule
+                                      )
+                                    }
+                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${
+                                      isBooked
+                                        ? "bg-red-100 border border-red-300 text-red-800"
+                                        : schedule.type === "טעינה לרכב חשמלי"
                                         ? "bg-green-100 border border-green-300 text-green-800"
                                         : "bg-blue-100 border border-blue-300 text-blue-800"
-                                      } ${isExpanded ? "shadow-lg z-10" : ""}`}
+                                    } ${isExpanded ? "shadow-lg z-10" : ""}`}
                                     style={{
                                       top: `${top}px`,
                                       height: `${Math.max(height, 20)}px`,
@@ -836,19 +866,26 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         )}
                                       </div>
                                       <div
-                                        className={`font-semibold ${isExpanded ? "text-base" : "text-xs"}`}
+                                        className={`font-semibold ${
+                                          isExpanded ? "text-base" : "text-xs"
+                                        }`}
                                       >
-                                        {schedule.start_time} - {schedule.end_time}
+                                        {schedule.start_time} -{" "}
+                                        {schedule.end_time}
                                       </div>
                                     </div>
                                     {isExpanded && (
                                       <div className="mt-2 text-sm">
                                         <div>
-                                          {schedule.type === "טעינה לרכב חשמלי" &&
-                                            `סוג טעינה: ${schedule.charger || "לא צוין"}`}
+                                          {schedule.type ===
+                                            "טעינה לרכב חשמלי" &&
+                                            `סוג טעינה: ${
+                                              schedule.charger || "לא צוין"
+                                            }`}
                                         </div>
                                         <div className="mt-1">
-                                          סטטוס: {isBooked ? "הוזמן" : "זמין להזמנה"}
+                                          סטטוס:{" "}
+                                          {isBooked ? "הוזמן" : "זמין להזמנה"}
                                         </div>
                                       </div>
                                     )}
@@ -879,9 +916,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     <input
                       type="date"
                       name="date"
-                      value={formData.date}
+                      value={quickAddData.date}
                       onChange={handleChange}
-                      min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+                      min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
@@ -972,7 +1009,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                 <div className="space-y-4">
                   {/* Price setting - editable */}
                   <div className="bg-blue-50 p-3 rounded-lg">
-                    <label className="font-semibold text-blue-800">מחיר לשעה (₪)</label>
+                    <label className="font-semibold text-blue-800">
+                      מחיר לשעה (₪)
+                    </label>
                     <input
                       type="number"
                       value={newPrice}
@@ -991,14 +1030,19 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                   {/* Address section - styled without dividing line */}
                   <div className="bg-gray-50 p-3 rounded-lg">
-                    <h4 className="font-semibold text-gray-700 mb-2">פרטי כתובת החנייה</h4>
+                    <h4 className="font-semibold text-gray-700 mb-2">
+                      פרטי כתובת החנייה
+                    </h4>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
                         <label className="text-sm text-gray-600">עיר</label>
                         <input
                           type="text"
-                          value={parkingSlots.find((s) => s.spot_type === "private")?.address?.city || ""}
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.city || ""
+                          }
                           disabled
                           className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
@@ -1008,17 +1052,25 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         <label className="text-sm text-gray-600">רחוב</label>
                         <input
                           type="text"
-                          value={parkingSlots.find((s) => s.spot_type === "private")?.address?.street || ""}
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.street || ""
+                          }
                           disabled
                           className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-gray-600">מספר בית</label>
+                        <label className="text-sm text-gray-600">
+                          מספר בית
+                        </label>
                         <input
                           type="text"
-                          value={parkingSlots.find((s) => s.spot_type === "private")?.address?.number || ""}
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.number || ""
+                          }
                           disabled
                           className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
@@ -1028,7 +1080,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         <label className="text-sm text-gray-600">מיקוד</label>
                         <input
                           type="text"
-                          value={parkingSlots.find((s) => s.spot_type === "private")?.address?.postal_code || ""}
+                          value={
+                            parkingSlots.find((s) => s.spot_type === "private")
+                              ?.address?.postal_code || ""
+                          }
                           disabled
                           className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
@@ -1036,19 +1091,37 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     </div>
 
                     <div className="text-xs text-gray-500 mt-2 flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 mr-1 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-gray-400 mr-1 mt-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
-                      <span>פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות לשירות לקוחות.</span>
+                      <span>
+                        פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות
+                        לשירות לקוחות.
+                      </span>
                     </div>
                   </div>
 
                   {priceError && (
-                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{priceError}</div>
+                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">
+                      {priceError}
+                    </div>
                   )}
 
                   {priceSuccess && (
-                    <div className="text-green-500 text-sm bg-green-50 p-2 rounded">{priceSuccess}</div>
+                    <div className="text-green-500 text-sm bg-green-50 p-2 rounded">
+                      {priceSuccess}
+                    </div>
                   )}
 
                   <div className="flex gap-3 mt-4">

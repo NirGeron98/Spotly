@@ -72,16 +72,31 @@ exports.getUser = factory.getOne(User);
 exports.updateUser = factory.updateOne(User);
 exports.deleteUser = factory.deleteOne(User);
 
+exports.getPreferences = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    return next(new AppError("No user found with this ID", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      preferences: user.preferences,
+    },
+  });
+});
+
 exports.updatePreferences = catchAsync(async (req, res, next) => {
   const updatedUser = await userService.updatePreferences(req.user.id, {
     distance_importance: req.body.distance_importance,
-    price_importance: req.body.price_importance
+    price_importance: req.body.price_importance,
   });
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
-      preferences: updatedUser.preferences
-    }
+      preferences: updatedUser.preferences,
+    },
   });
 });

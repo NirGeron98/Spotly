@@ -16,7 +16,7 @@ import SearchParking from "./components/pages/SearchParking";
 import UsageHistory from "./components/pages/UsageHistory";
 import ReleaseParking from "./components/pages/ReleaseParking";
 import ActiveParkingReservations from "./components/pages/ActiveParkingReservations";
-
+import PaymentConfirmationPopup from "./components/shared/PaymentConfirmationPopup";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -38,106 +38,117 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            loggedIn ? (
-              user?.role === "user" || user?.role === "private_prop_owner" ? (
-                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : user?.role === "building_resident" ? (
-                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+      <div className="App">
+        {/* Global Payment Popup - only shows when user is logged in */}
+        {loggedIn && <PaymentConfirmationPopup />}
+        
+        <Routes>
+          <Route
+            path="/"
+            element={
+              loggedIn ? (
+                user?.role === "user" || user?.role === "private_prop_owner" ? (
+                  <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+                ) : user?.role === "building_resident" ? (
+                  <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+                ) : (
+                  <Home />
+                )
               ) : (
                 <Home />
               )
-            ) : (
-              <Home />
-            )
-          }
-        />
-        <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
-        <Route
-          path="/forgot-password"
-          element={
-            <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-          }
-        />
-        <Route
-          path="/reset-password/:token"
-          element={
-            <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-          }
-        />
+            }
+          />
+          <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
+          <Route
+            path="/forgot-password"
+            element={
+              <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            }
+          />
+          <Route
+            path="/reset-password/:token"
+            element={
+              <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            }
+          />
 
-        <Route
-          path="/signup"
-          element={
-            <Signup
-              loggedIn={loggedIn}
-              setLoggedIn={setLoggedIn}
-              isRegistering={true}
-            />
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            loggedIn ? (
-              user?.role !== "user" && user?.role !== "private_prop_owner" ? (
-                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          <Route
+            path="/signup"
+            element={
+              <Signup
+                loggedIn={loggedIn}
+                setLoggedIn={setLoggedIn}
+                isRegistering={true}
+              />
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              loggedIn ? (
+                user?.role !== "user" && user?.role !== "private_prop_owner" ? (
+                  <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+                ) : (
+                  <Navigate to="/search-parking" />
+                )
               ) : (
-                <Navigate to="/search-parking" />
+                <Navigate to="/login" />
               )
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/active-reservations"
-          element={<ActiveParkingReservations loggedIn={loggedIn} setLoggedIn={setLoggedIn} />}
-        />
-        <Route
-          path="/profile"
-          element={
-            loggedIn ? (
-              <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/search-parking"
-          element={
-            loggedIn ? (
-              <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/release"
-          element={
-            loggedIn ? (
-              <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/usage-history"
-          element={
-            loggedIn ? (
-              <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-      </Routes>
+            }
+          />
+          <Route
+            path="/active-reservations"
+            element={
+              loggedIn ? (
+                <ActiveParkingReservations loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              loggedIn ? (
+                <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/search-parking"
+            element={
+              loggedIn ? (
+                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/release"
+            element={
+              loggedIn ? (
+                <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/usage-history"
+            element={
+              loggedIn ? (
+                <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+        </Routes>
+      </div>
     </Router>
   );
 }

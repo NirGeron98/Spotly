@@ -6,7 +6,20 @@ import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import AddressMapSelector from "../shared/AddressMapSelector";
 import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
-import { FaSearch, FaSync, FaParking, FaCalendarAlt, FaMapMarkerAlt, FaClock, FaMoneyBillWave, FaFilter, FaStar, FaArrowUp, FaArrowDown, FaBolt, FaCarSide, FaCog } from "react-icons/fa";
+import {
+  FaSearch,
+  FaSync,
+  FaParking,
+  FaCalendarAlt,
+  FaMapMarkerAlt,
+  FaClock,
+  FaFilter,
+  FaArrowUp,
+  FaArrowDown,
+  FaBolt,
+  FaCarSide,
+  FaCog,
+} from "react-icons/fa";
 
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה | Spotly";
@@ -27,19 +40,18 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   // Get user's current location
   const [userLocation, setUserLocation] = useState({
     latitude: 31.7683, // Default to Israel center
-    longitude: 35.2137
+    longitude: 35.2137,
   });
 
   // Address state for map selector
   const [address, setAddress] = useState({
     city: "",
     street: "",
-    number: ""
+    number: "",
   });
 
-  // Map selector feedback
-  const [mapFeedback, setMapFeedback] = useState("");
-  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const roundToQuarter = (date = new Date()) => {
     const minutes = date.getMinutes();
@@ -52,7 +64,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     }
     return {
       hours: date.getHours().toString().padStart(2, "0"),
-      minutes: rounded.toString().padStart(2, "0")
+      minutes: rounded.toString().padStart(2, "0"),
     };
   };
 
@@ -61,23 +73,24 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [h, m] = [parseInt(hours, 10), parseInt(minutes, 10)];
   const endDate = new Date();
   endDate.setHours(h + 1, m);
-  const initialEnd = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes().toString().padStart(2, "0")}`;
-  
-
+  const initialEnd = `${endDate
+    .getHours()
+    .toString()
+    .padStart(2, "0")}:${endDate.getMinutes().toString().padStart(2, "0")}`;
 
   // Search filters
   const [searchParams, setSearchParams] = useState({
     location: "",
     latitude: "",
     longitude: "",
-    date: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+    date: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
     startTime: initialStart,
-    endTime:   initialEnd,
+    endTime: initialEnd,
     maxPrice: "",
     is_charging_station: false,
     charger_type: "",
     sortBy: "distance",
-    sortOrder: "asc"
+    sortOrder: "asc",
   });
 
   // Filter panel state
@@ -89,10 +102,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     { id: "Type 2", label: "סוג 2" },
     { id: "CCS", label: "CCS" },
     { id: "CHAdeMO", label: "CHAdeMO" },
-    { id: "Other", label: "אחר" }
+    { id: "Other", label: "אחר" },
   ];
-
-  
 
   useEffect(() => {
     // Try to get user location when component mounts
@@ -101,7 +112,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         (position) => {
           setUserLocation({
             latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            longitude: position.coords.longitude,
           });
         },
         (error) => {
@@ -118,9 +129,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   useEffect(() => {
     if (address.city && address.street && address.number) {
       const locationString = `${address.street} ${address.number}, ${address.city}`;
-      setSearchParams(prev => ({
+      setSearchParams((prev) => ({
         ...prev,
-        location: locationString
+        location: locationString,
       }));
     }
   }, [address]);
@@ -130,11 +141,12 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get("/api/v1/users/preferences", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.data?.data?.preferences) {
-        const { distance_importance, price_importance } = response.data.data.preferences;
+        const { distance_importance, price_importance } =
+          response.data.data.preferences;
         if (distance_importance) setDistancePreference(distance_importance);
         if (price_importance) setPricePreference(price_importance);
       }
@@ -179,100 +191,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setSearchParams(prev => ({
+    setSearchParams((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
-  };
-
-  const lookupAddress = async () => {
-    // If we have a complete address, use that for geocoding
-    if (address.city && address.street && address.number) {
-      try {
-        setLoading(true);
-
-        // Use Nominatim for geocoding (same as in AddressMapSelector)
-        const query = `${address.street} ${address.number}, ${address.city}`;
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
-        );
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          const latitude = parseFloat(data[0].lat);
-          const longitude = parseFloat(data[0].lon);
-
-          setSearchParams(prev => ({
-            ...prev,
-            latitude,
-            longitude
-          }));
-
-          return true;
-        } else {
-          setPopupData({
-            title: "שגיאה בחיפוש",
-            description: "לא הצלחנו למצוא את הכתובת שהוזנה. אנא נסה שנית או בחר מיקום מהמפה.",
-            type: "error"
-          });
-          return false;
-        }
-      } catch (err) {
-        console.error("שגיאה בחיפוש כתובת:", err);
-        setPopupData({
-          title: "שגיאה בחיפוש",
-          description: "אירעה שגיאה בעת חיפוש הכתובת. אנא נסה שנית.",
-          type: "error"
-        });
-        return false;
-      } finally {
-        setLoading(false);
-      }
-    }
-    // Otherwise, if we have a general location string but not structured address
-    else if (searchParams.location.trim()) {
-      try {
-        setLoading(true);
-
-        // Call a geocoding service to convert address to coordinates
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchParams.location)}`
-        );
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          const latitude = parseFloat(data[0].lat);
-          const longitude = parseFloat(data[0].lon);
-
-          setSearchParams(prev => ({
-            ...prev,
-            latitude,
-            longitude
-          }));
-
-          return true;
-        } else {
-          setPopupData({
-            title: "שגיאה בחיפוש",
-            description: "לא הצלחנו למצוא את הכתובת שהוזנה. אנא נסה שנית עם כתובת מדויקת יותר.",
-            type: "error"
-          });
-          return false;
-        }
-      } catch (err) {
-        console.error("שגיאה בחיפוש כתובת:", err);
-        setPopupData({
-          title: "שגיאה בחיפוש",
-          description: "אירעה שגיאה בעת חיפוש הכתובת. אנא נסה שנית.",
-          type: "error"
-        });
-        return false;
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    return false;
   };
 
   const searchParkingSpots = async (e) => {
@@ -280,14 +202,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
     try {
       setLoading(true);
-
-      // If we have an address or location but no coordinates, try to lookup first
-      let coordinatesFound = false;
-      if ((!searchParams.latitude || !searchParams.longitude)) {
-        coordinatesFound = await lookupAddress();
-      } else {
-        coordinatesFound = true;
-      }
 
       // If coordinates weren't found through lookup, use user's current location
       const latitude = searchParams.latitude || userLocation.latitude;
@@ -297,15 +211,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         setPopupData({
           title: "מיקום חסר",
           description: "אנא הזן כתובת או אפשר גישה למיקום שלך",
-          type: "error"
+          type: "error",
         });
         setLoading(false);
         return;
       }
-
-      // Format dates and times correctly for your API
-      const startDateTime = `${searchParams.date}T${searchParams.startTime}:00`;
-      const endDateTime = `${searchParams.date}T${searchParams.endTime}:00`;
 
       // Create the search payload based on your API structure (from the controller code)
       const searchPayload = {
@@ -316,7 +226,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         endTime: searchParams.endTime,
         maxPrice: searchParams.maxPrice || 1000, // Default if not specified
         distance_importance: distancePreference,
-        price_importance: pricePreference
+        price_importance: pricePreference,
       };
 
       // Add filters for charging stations if selected
@@ -334,7 +244,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         "/api/v1/parking-spots/find-optimal", // Using your actual endpoint
         searchPayload,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -348,8 +258,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       if (spots.length === 0) {
         setPopupData({
           title: "לא נמצאו חניות",
-          description: "לא נמצאו חניות פנויות העונות על הקריטריונים שלך. אנא נסה לשנות את פרמטרי החיפוש.",
-          type: "info"
+          description:
+            "לא נמצאו חניות פנויות העונות על הקריטריונים שלך. אנא נסה לשנות את פרמטרי החיפוש.",
+          type: "info",
         });
       }
     } catch (err) {
@@ -357,7 +268,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       setPopupData({
         title: "שגיאה בחיפוש",
         description: "אירעה שגיאה בעת חיפוש חניות. אנא נסה שנית.",
-        type: "error"
+        type: "error",
       });
     } finally {
       setLoading(false);
@@ -384,14 +295,19 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           break;
       }
 
-      return searchParams.sortOrder === "asc" ? valueA - valueB : valueB - valueA;
+      return searchParams.sortOrder === "asc"
+        ? valueA - valueB
+        : valueB - valueA;
     });
   };
 
   const handleSortChange = (sortField) => {
-    setSearchParams(prev => {
+    setSearchParams((prev) => {
       if (prev.sortBy === sortField) {
-        return { ...prev, sortOrder: prev.sortOrder === "asc" ? "desc" : "asc" };
+        return {
+          ...prev,
+          sortOrder: prev.sortOrder === "asc" ? "desc" : "asc",
+        };
       } else {
         return { ...prev, sortBy: sortField, sortOrder: "asc" };
       }
@@ -403,7 +319,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       ...searchParams,
       maxPrice: "",
       is_charging_station: false,
-      charger_type: ""
+      charger_type: "",
     });
   };
 
@@ -418,7 +334,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         booking_type: searchParams.is_charging_station ? "charging" : "parking",
         start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
         end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
-        base_rate: parkingSpots.find(spot => spot._id === spotId)?.hourly_price || 0,
+        base_rate:
+          parkingSpots.find((spot) => spot._id === spotId)?.hourly_price || 0,
       };
 
       // Show confirmation popup
@@ -430,14 +347,15 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           try {
             // Create booking
             const response = await axios.post("/api/v1/bookings", bookingData, {
-              headers: { Authorization: `Bearer ${token}` }
+              headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.data?.status === "success") {
               setPopupData({
                 title: "הזמנה בוצעה בהצלחה",
-                description: "ההזמנה שלך בוצעה בהצלחה! פרטים נשלחו לאימייל שלך.",
-                type: "success"
+                description:
+                  "ההזמנה שלך בוצעה בהצלחה! פרטים נשלחו לאימייל שלך.",
+                type: "success",
               });
 
               // Refresh search results to reflect the new booking
@@ -448,26 +366,28 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             setPopupData({
               title: "שגיאה בהזמנה",
               description: "אירעה שגיאה בעת ביצוע ההזמנה. אנא נסה שנית.",
-              type: "error"
+              type: "error",
             });
           }
-        }
+        },
       });
     } catch (err) {
       console.error("שגיאה בהכנת ההזמנה:", err);
       setPopupData({
         title: "שגיאה בהזמנה",
         description: "אירעה שגיאה בעת הכנת ההזמנה. אנא נסה שנית.",
-        type: "error"
+        type: "error",
       });
     }
   };
 
   const getSortIcon = (field) => {
     if (searchParams.sortBy === field) {
-      return searchParams.sortOrder === "asc" ?
-        <FaArrowUp className="text-blue-600 ml-1" /> :
-        <FaArrowDown className="text-blue-600 ml-1" />;
+      return searchParams.sortOrder === "asc" ? (
+        <FaArrowUp className="text-blue-600 ml-1" />
+      ) : (
+        <FaArrowDown className="text-blue-600 ml-1" />
+      );
     }
     return null;
   };
@@ -475,23 +395,28 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   // Format address function
   const formatAddress = (address) => {
     if (!address) return "כתובת לא זמינה";
-    return `${address.street || ""} ${address.number || ""}, ${address.city || ""}`;
+    return `${address.street || ""} ${address.number || ""}, ${
+      address.city || ""
+    }`;
   };
 
   // Calculate time difference in hours (for price calculation)
   const calculateHours = () => {
     if (!searchParams.startTime || !searchParams.endTime) return 0;
 
-    const [startHour, startMinute] = searchParams.startTime.split(":").map(Number);
+    const [startHour, startMinute] = searchParams.startTime
+      .split(":")
+      .map(Number);
     const [endHour, endMinute] = searchParams.endTime.split(":").map(Number);
 
     const startTotalMinutes = startHour * 60 + startMinute;
     const endTotalMinutes = endHour * 60 + endMinute;
 
     // Handle case where end time is on the next day
-    const diffMinutes = endTotalMinutes >= startTotalMinutes
-      ? endTotalMinutes - startTotalMinutes
-      : (24 * 60) - startTotalMinutes + endTotalMinutes;
+    const diffMinutes =
+      endTotalMinutes >= startTotalMinutes
+        ? endTotalMinutes - startTotalMinutes
+        : 24 * 60 - startTotalMinutes + endTotalMinutes;
 
     return Math.max(Math.ceil(diffMinutes / 60), 1); // Minimum of 1 hour
   };
@@ -515,7 +440,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
           {/* Search Form */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8 max-w-6xl mx-auto">
-            <form onSubmit={searchParkingSpots} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form
+              onSubmit={searchParkingSpots}
+              className="grid grid-cols-1 md:grid-cols-4 gap-4"
+            >
               {/* Selected Location Display */}
               {searchParams.location && (
                 <div className="md:col-span-4 bg-blue-50 p-3 rounded-md mb-2 flex justify-between items-center">
@@ -525,7 +453,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   </div>
                   {searchParams.latitude && searchParams.longitude && (
                     <div className="text-xs text-gray-500">
-                      {searchParams.latitude.toFixed(6)}, {searchParams.longitude.toFixed(6)}
+                      {searchParams.latitude.toFixed(6)},{" "}
+                      {searchParams.longitude.toFixed(6)}
                     </div>
                   )}
                 </div>
@@ -538,10 +467,12 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 <AddressMapSelector
                   address={address}
                   setAddress={setAddress}
-                  feedback={mapFeedback}
-                  setFeedback={setMapFeedback}
-                  searching={searchingAddress}
-                  setSearching={setSearchingAddress}
+                  feedback={feedback}
+                  setFeedback={setFeedback}
+                  searching={searching}
+                  setSearching={setSearching}
+                  disableSearchButton={true}
+                  mode="search"
                 />
               </div>
 
@@ -555,7 +486,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   name="date"
                   value={searchParams.date}
                   onChange={handleInputChange}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date().toISOString().split("T")[0]}
                   className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
                 />
               </div>
@@ -574,7 +505,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   {Array.from({ length: 96 }).map((_, i) => {
                     const hours = Math.floor(i / 4);
                     const minutes = (i % 4) * 15;
-                    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    const timeString = `${hours
+                      .toString()
+                      .padStart(2, "0")}:${minutes
+                      .toString()
+                      .padStart(2, "0")}`;
                     return (
                       <option key={i} value={timeString}>
                         {timeString}
@@ -598,7 +533,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   {Array.from({ length: 96 }).map((_, i) => {
                     const hours = Math.floor(i / 4);
                     const minutes = (i % 4) * 15;
-                    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    const timeString = `${hours
+                      .toString()
+                      .padStart(2, "0")}:${minutes
+                      .toString()
+                      .padStart(2, "0")}`;
                     return (
                       <option key={i} value={timeString}>
                         {timeString}
@@ -649,10 +588,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 <button
                   type="submit"
                   disabled={!address.city || !address.street || !address.number}
-                  className={`px-6 py-2 rounded-md flex items-center gap-2 ${!address.city || !address.street || !address.number
-                    ? "bg-gray-400 text-white cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
+                  className={`px-6 py-2 rounded-md flex items-center gap-2 ${
+                    !address.city || !address.street || !address.number
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
                   <FaSearch /> חפש חניה
                 </button>
@@ -666,11 +606,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                     <h3 className="font-semibold mb-2">העדפות חניה</h3>
                     <div className="grid grid-cols-1 gap-2">
                       <label className="flex items-center text-sm">
-                        <input
-                          type="checkbox"
-                          name="indoor"
-                          className="mr-2"
-                        />
+                        <input type="checkbox" name="indoor" className="mr-2" />
                         חניה מקורה
                       </label>
 
@@ -683,24 +619,39 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                               <button
                                 key={star}
                                 type="button"
-                                onClick={() => setSearchParams(prev => ({ ...prev, minRating: star }))}
+                                onClick={() =>
+                                  setSearchParams((prev) => ({
+                                    ...prev,
+                                    minRating: star,
+                                  }))
+                                }
                                 className="text-xl focus:outline-none"
                               >
-                                <span className={`${star <= (searchParams.minRating || 0)
-                                  ? 'text-yellow-400'
-                                  : 'text-gray-300'
-                                  }`}>
+                                <span
+                                  className={`${
+                                    star <= (searchParams.minRating || 0)
+                                      ? "text-yellow-400"
+                                      : "text-gray-300"
+                                  }`}
+                                >
                                   ★
                                 </span>
                               </button>
                             ))}
                           </div>
                           <span className="text-sm text-gray-500 mr-2">
-                            {searchParams.minRating ? `${searchParams.minRating} כוכבים ומעלה` : 'כל הדירוגים'}
+                            {searchParams.minRating
+                              ? `${searchParams.minRating} כוכבים ומעלה`
+                              : "כל הדירוגים"}
                           </span>
                           {searchParams.minRating > 0 && (
                             <button
-                              onClick={() => setSearchParams(prev => ({ ...prev, minRating: 0 }))}
+                              onClick={() =>
+                                setSearchParams((prev) => ({
+                                  ...prev,
+                                  minRating: 0,
+                                }))
+                              }
                               className="text-xs text-gray-500 hover:text-gray-700"
                             >
                               (נקה)
@@ -713,7 +664,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
                   {/* Charging Station */}
                   <div>
-                    <h3 className="font-semibold mb-2">עמדת טעינה לרכב חשמלי</h3>
+                    <h3 className="font-semibold mb-2">
+                      עמדת טעינה לרכב חשמלי
+                    </h3>
                     <div className="flex items-center mb-2">
                       <input
                         type="checkbox"
@@ -740,7 +693,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                           className="w-full px-3 py-2 rounded-md border border-gray-300"
                         >
                           <option value="">כל סוגי המטענים</option>
-                          {chargerTypes.map(type => (
+                          {chargerTypes.map((type) => (
                             <option key={type.id} value={type.id}>
                               {type.label}
                             </option>
@@ -756,7 +709,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                       type="button"
                       onClick={() => {
                         resetFilters();
-                        setSearchParams(prev => ({ ...prev, minRating: 0 }));
+                        setSearchParams((prev) => ({ ...prev, minRating: 0 }));
                       }}
                       className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm flex items-center gap-2"
                     >
@@ -777,11 +730,19 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center">
                     <FaCog className="ml-1" />
                     <span>
-                      {distancePreference > 3 ? "מרחק חשוב מאוד" :
-                        distancePreference < 3 ? "מרחק פחות חשוב" : ""}
-                      {distancePreference !== 3 && pricePreference !== 3 ? " • " : ""}
-                      {pricePreference > 3 ? "מחיר חשוב מאוד" :
-                        pricePreference < 3 ? "מחיר פחות חשוב" : ""}
+                      {distancePreference > 3
+                        ? "מרחק חשוב מאוד"
+                        : distancePreference < 3
+                        ? "מרחק פחות חשוב"
+                        : ""}
+                      {distancePreference !== 3 && pricePreference !== 3
+                        ? " • "
+                        : ""}
+                      {pricePreference > 3
+                        ? "מחיר חשוב מאוד"
+                        : pricePreference < 3
+                        ? "מחיר פחות חשוב"
+                        : ""}
                     </span>
                   </div>
                 ) : null}
@@ -789,19 +750,31 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
               <div className="flex gap-4">
                 <button
                   onClick={() => handleSortChange("distance")}
-                  className={`flex items-center ${searchParams.sortBy === "distance" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                  className={`flex items-center ${
+                    searchParams.sortBy === "distance"
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-600"
+                  }`}
                 >
                   מרחק {getSortIcon("distance")}
                 </button>
                 <button
                   onClick={() => handleSortChange("price")}
-                  className={`flex items-center ${searchParams.sortBy === "price" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                  className={`flex items-center ${
+                    searchParams.sortBy === "price"
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-600"
+                  }`}
                 >
                   מחיר {getSortIcon("price")}
                 </button>
                 <button
                   onClick={() => handleSortChange("rating")}
-                  className={`flex items-center ${searchParams.sortBy === "rating" ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                  className={`flex items-center ${
+                    searchParams.sortBy === "rating"
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-600"
+                  }`}
                 >
                   דירוג {getSortIcon("rating")}
                 </button>
@@ -813,13 +786,16 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           {!loading && parkingSpots.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {parkingSpots.map((spot) => (
-                <div key={spot._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div
+                  key={spot._id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
                   {/* Parking Image or Placeholder */}
                   <div className="h-48 bg-gray-200 relative">
                     {spot.photos && spot.photos.length > 0 ? (
                       <img
                         src={spot.photos[0]}
-                        alt={`חניה ב-${spot.address?.city || ''}`}
+                        alt={`חניה ב-${spot.address?.city || ""}`}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -839,7 +815,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
                     {/* Total cost badge */}
                     <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm shadow-sm">
-                      סה״כ: ₪{(spot.hourly_price * calculateHours()).toFixed(0)} ל-{calculateHours()} שעות
+                      סה״כ: ₪{(spot.hourly_price * calculateHours()).toFixed(0)}{" "}
+                      ל-{calculateHours()} שעות
                     </div>
 
                     {/* Charging Station Badge */}
@@ -852,15 +829,21 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
                   {/* Content */}
                   <div className="p-4">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">{formatAddress(spot.address)}</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">
+                      {formatAddress(spot.address)}
+                    </h3>
 
                     {/* Distance */}
                     {spot.distance && (
                       <p className="text-sm text-gray-600 mb-2">
                         <FaMapMarkerAlt className="inline mr-1" />
-                        {typeof spot.distance === 'number' ?
-                          `${spot.distance < 1 ? (spot.distance * 1000).toFixed(0) + ' מטר' : spot.distance.toFixed(1) + ' ק"מ'}` :
-                          spot.distance}
+                        {typeof spot.distance === "number"
+                          ? `${
+                              spot.distance < 1
+                                ? (spot.distance * 1000).toFixed(0) + " מטר"
+                                : spot.distance.toFixed(1) + ' ק"מ'
+                            }`
+                          : spot.distance}
                       </p>
                     )}
 
@@ -874,8 +857,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
                     {/* Availability */}
                     <div className="flex items-center text-sm text-gray-600 mb-3">
-                      <FaCalendarAlt className="ml-2" /> זמין בתאריך {new Date(searchParams.date).toLocaleDateString('he-IL')}
-                      <FaClock className="mr-3 ml-2" /> {searchParams.startTime} - {searchParams.endTime}
+                      <FaCalendarAlt className="ml-2" /> זמין בתאריך{" "}
+                      {new Date(searchParams.date).toLocaleDateString("he-IL")}
+                      <FaClock className="mr-3 ml-2" /> {searchParams.startTime}{" "}
+                      - {searchParams.endTime}
                     </div>
 
                     {/* Book Button */}
@@ -892,7 +877,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           ) : !loading ? (
             <div className="text-center py-12 max-w-6xl mx-auto bg-white rounded-lg shadow-md">
               <FaSearch className="text-gray-300 text-6xl mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-700 mb-2">התחל לחפש חניה</h3>
+              <h3 className="text-xl font-bold text-gray-700 mb-2">
+                התחל לחפש חניה
+              </h3>
               <p className="text-gray-600">
                 הזן מיקום, תאריך ושעות כדי למצוא חניות פרטיות זמינות.
               </p>

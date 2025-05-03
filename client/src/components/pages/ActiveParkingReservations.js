@@ -21,6 +21,18 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   const [timeRemaining, setTimeRemaining] = useState({});
   const [now, setNow] = useState(new Date());
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const bookingsPerPage = 10;
+
+  const indexOfLastBooking = currentPage * bookingsPerPage;
+  const indexOfFirstBooking = indexOfLastBooking - bookingsPerPage;
+  const currentBookings = bookings.slice(
+    indexOfFirstBooking,
+    indexOfLastBooking
+  );
+
+  const totalPages = Math.ceil(bookings.length / bookingsPerPage);
+
   const user = JSON.parse(localStorage.getItem("user"));
   const role = user?.role || "user";
 
@@ -29,38 +41,39 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     const timer = setInterval(() => {
       setNow(new Date());
     }, 60000);
-    
+
     return () => clearInterval(timer);
   }, []);
 
   // Calculate time remaining for all active bookings
   useEffect(() => {
     const timers = {};
-    
-    bookings.forEach(booking => {
+
+    bookings.forEach((booking) => {
       const endTime = new Date(booking.end_datetime);
       const diffMs = endTime - now;
-      
+
       if (diffMs > 0) {
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         timers[booking._id] = {
           hours,
           minutes,
-          percentage: 100 - (diffMs / (endTime - new Date(booking.start_datetime)) * 100),
-          isActive: now >= new Date(booking.start_datetime) && now < endTime
+          percentage:
+            100 - (diffMs / (endTime - new Date(booking.start_datetime))) * 100,
+          isActive: now >= new Date(booking.start_datetime) && now < endTime,
         };
       } else {
         timers[booking._id] = {
           hours: 0,
           minutes: 0,
           percentage: 100,
-          isActive: false
+          isActive: false,
         };
       }
     });
-    
+
     setTimeRemaining(timers);
   }, [bookings, now]);
 
@@ -72,16 +85,16 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      
+
       const response = await axios.get("/api/v1/bookings/user/my-bookings", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       // The API already filters out cancelled bookings, so we just need the active ones
       const activeBookings = response.data.data.bookings.filter(
-        booking => booking.status === "active"
+        (booking) => booking.status === "active"
       );
-      
+
       setBookings(activeBookings);
       setError(null);
     } catch (err) {
@@ -94,26 +107,28 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
   const handleCancelBooking = async () => {
     if (!selectedBooking) return;
-    
+
     try {
       const token = localStorage.getItem("token");
-      
+
       await axios.patch(
         `/api/v1/bookings/${selectedBooking._id}`,
         { status: "cancelled" },
-        { headers: { Authorization: `Bearer ${token}` }}
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       // Remove the cancelled booking from the local state immediately
-      setBookings(bookings.filter(booking => booking._id !== selectedBooking._id));
+      setBookings(
+        bookings.filter((booking) => booking._id !== selectedBooking._id)
+      );
       setCancelSuccess(true);
-      
+
       // Refresh bookings after cancellation to ensure everything is up to date
       setTimeout(() => {
         fetchActiveBookings();
         setCancelSuccess(false);
       }, 2000);
-      
+
       setShowCancelModal(false);
       setSelectedBooking(null);
     } catch (err) {
@@ -127,31 +142,35 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     setShowEndParkingModal(true);
   };
 
+  // Update this function in ActiveParkingReservations component
+
   const confirmEndParking = async () => {
     if (!endingParkingBooking) return;
-    
+
     try {
       const token = localStorage.getItem("token");
-      
+
       // Update booking status to "completed"
       await axios.patch(
         `/api/v1/bookings/${endingParkingBooking._id}`,
-        { 
+        {
           status: "completed",
-          end_datetime: new Date().toISOString() // End time is now
+          end_datetime: new Date().toISOString(),
         },
-        { headers: { Authorization: `Bearer ${token}` }}
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Show payment summary
+
+      // Close the end parking modal
       setShowEndParkingModal(false);
-      setShowPaymentSummary(true);
-      
-      // After payment summary is closed, refresh the list
-      setTimeout(() => {
-        fetchActiveBookings();
-      }, 500);
-      
+
+      // Dispatch custom event to trigger payment popup
+      const parkingEndedEvent = new CustomEvent("parkingEnded", {
+        detail: { bookingId: endingParkingBooking._id },
+      });
+      window.dispatchEvent(parkingEndedEvent);
+
+      // Refresh the bookings list
+      fetchActiveBookings();
     } catch (err) {
       console.error("Error ending parking:", err);
       setError("אירעה שגיאה בסיום החניה. נסה שוב מאוחר יותר.");
@@ -159,18 +178,21 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
+  // Also remove the showPaymentSummary modal if it exists in your code
+  // since the payment popup will replace this functionality
+
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    
+
     // Format date
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
-    
+
     // Format time
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
@@ -179,17 +201,8 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     const now = new Date();
     const bookingStart = new Date(startDatetime);
     const hourDifference = (bookingStart - now) / (1000 * 60 * 60);
-    
-    return hourDifference > 1;
-  };
 
-  // Calculate if a booking is currently active (between start and end times)
-  const isBookingActive = (startDatetime, endDatetime) => {
-    const now = new Date();
-    const bookingStart = new Date(startDatetime);
-    const bookingEnd = new Date(endDatetime);
-    
-    return now >= bookingStart && now < bookingEnd;
+    return hourDifference > 1;
   };
 
   // Calculate the final amount based on the actual duration
@@ -197,21 +210,24 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     const startTime = new Date(booking.start_datetime);
     const endTime = new Date(); // Now
     const durationHours = (endTime - startTime) / (1000 * 60 * 60);
-    
+
     // Round up to the nearest quarter hour
     const roundedDuration = Math.ceil(durationHours * 4) / 4;
-    
+
     return (roundedDuration * booking.base_rate).toFixed(2);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
+    <div
+      className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
+      dir="rtl"
+    >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
-        <main className="flex-grow p-4 md:p-6 md:mr-5 mt-12">
+        <main className="flex-grow flex flex-col justify-between p-4 md:p-6 md:mr-5 mt-12 min-h-[75vh]">
           <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
             הזמנות חנייה פעילות
           </h1>
@@ -233,7 +249,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
           ) : error ? (
             <div className="bg-white rounded-lg shadow-md p-6 text-center text-red-500">
               <p>{error}</p>
-              <button 
+              <button
                 onClick={fetchActiveBookings}
                 className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
               >
@@ -246,79 +262,93 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto flex justify-center">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        מספר הזמנה
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         סוג הזמנה
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         כתובת החנייה
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         זמן התחלה
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         זמן סיום
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         תעריף
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         סטטוס תשלום
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         זמן נותר
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         פעולות
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {bookings.map((booking) => {
-                      const timer = timeRemaining[booking._id] || { hours: 0, minutes: 0, percentage: 0, isActive: false };
+                    {currentBookings.map((booking) => {
+                      const timer = timeRemaining[booking._id] || {
+                        hours: 0,
+                        minutes: 0,
+                        percentage: 0,
+                        isActive: false,
+                      };
                       return (
                         <tr key={booking._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {booking._id.substring(0, 8)}...
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                            {booking.booking_type === "parking"
+                              ? "חנייה"
+                              : "טעינה"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {booking.booking_type === "parking" ? "חנייה" : "טעינה"}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                            {booking.spot && booking.spot.address
+                              ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
+                              : "כתובת לא זמינה"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {booking.spot && booking.spot.address ? 
-                              `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}` : 
-                              "כתובת לא זמינה"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                             {formatDateTime(booking.start_datetime)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                             {formatDateTime(booking.end_datetime)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                             {booking.base_rate} ₪/שעה
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${booking.payment_status === "completed" ? "bg-green-100 text-green-800" : 
-                                booking.payment_status === "pending" ? "bg-yellow-100 text-yellow-800" : 
-                                "bg-red-100 text-red-800"}`}>
-                              {booking.payment_status === "completed" ? "שולם" : 
-                               booking.payment_status === "pending" ? "ממתין לתשלום" : 
-                               booking.payment_status === "refunded" ? "הוחזר" : "נכשל"}
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                              ${
+                                booking.payment_status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : booking.payment_status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {booking.payment_status === "completed"
+                                ? "שולם"
+                                : booking.payment_status === "pending"
+                                ? "ממתין לתשלום"
+                                : booking.payment_status === "refunded"
+                                ? "הוחזר"
+                                : "נכשל"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
                             {timer.isActive ? (
                               <div className="flex flex-col items-center">
                                 <div className="relative w-14 h-14">
-                                  <svg className="w-14 h-14" viewBox="0 0 36 36">
+                                  <svg
+                                    className="w-14 h-14"
+                                    viewBox="0 0 36 36"
+                                  >
                                     <path
                                       d="M18 2.0845
                                         a 15.9155 15.9155 0 0 1 0 31.831
@@ -343,16 +373,19 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                   </div>
                                 </div>
                                 <div className="text-sm font-medium mt-1">
-                                  {timer.hours}:{timer.minutes.toString().padStart(2, '0')}
+                                  {timer.hours}:
+                                  {timer.minutes.toString().padStart(2, "0")}
                                 </div>
                               </div>
                             ) : (
                               <div className="text-sm text-gray-500 text-center">
-                                {new Date(booking.start_datetime) > now ? "לא התחיל" : "הסתיים"}
+                                {new Date(booking.start_datetime) > now
+                                  ? "לא התחיל"
+                                  : "הסתיים"}
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                             <div className="flex flex-col space-y-2">
                               {timer.isActive && (
                                 <button
@@ -375,11 +408,12 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                 </button>
                               )}
 
-                              {!canBeCanceled(booking.start_datetime) && !timer.isActive && (
-                                <span className="text-gray-400">
-                                  לא ניתן לביטול
-                                </span>
-                              )}
+                              {!canBeCanceled(booking.start_datetime) &&
+                                !timer.isActive && (
+                                  <span className="text-gray-400">
+                                    לא ניתן לביטול
+                                  </span>
+                                )}
                             </div>
                           </td>
                         </tr>
@@ -390,6 +424,64 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               </div>
             </div>
           )}
+          <div className="flex-grow flex flex-col justify-between min-h-[500px]">
+            <div></div> {/* Placeholder for spacing if needed */}
+            {bookings.length > 0 && (
+              <div className="flex justify-center items-center mt-6 space-x-2 space-x-reverse">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 rounded-full transition ${
+                    currentPage === 1
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
+                  הקודם
+                </button>
+
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-4 py-2 rounded-full transition font-medium ${
+                        page === currentPage
+                          ? "bg-blue-700 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-blue-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 rounded-full transition ${
+                    currentPage === totalPages
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
+                  הבא
+                </button>
+                {bookings.length > 0 && (
+                  <div className="text-center text-sm text-gray-600 mt-2">
+                    מציג {indexOfFirstBooking + 1}-
+                    {Math.min(indexOfLastBooking, bookings.length)} מתוך{" "}
+                    {bookings.length}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
@@ -398,8 +490,13 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4 text-center" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">אישור ביטול הזמנה</h3>
+          <div
+            className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              אישור ביטול הזמנה
+            </h3>
             <p className="mb-6 text-gray-600">
               האם אתה בטוח שברצונך לבטל את ההזמנה?
             </p>
@@ -424,11 +521,14 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       {/* End Parking Confirmation Modal */}
       {showEndParkingModal && endingParkingBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4 text-center" onClick={e => e.stopPropagation()}>
+          <div
+            className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <FaCarSide className="mx-auto text-blue-600 text-4xl mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-4">סיום חניה</h3>
             <p className="mb-6 text-gray-600">
-              האם אתה בטוח שברצונך לסיים את החניה כעת? 
+              האם אתה בטוח שברצונך לסיים את החניה כעת?
               <br />
               זמן החניה שהוזמן יסתיים והחניה תסומן כמושלמת.
             </p>
@@ -453,38 +553,49 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       {/* Payment Summary Modal */}
       {showPaymentSummary && endingParkingBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-xl" onClick={e => e.stopPropagation()}>
+          <div
+            className="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <FaMoneyBillWave className="mx-auto text-green-600 text-4xl mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">סיכום חניה</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              סיכום חניה
+            </h3>
             <div className="border-t border-b border-gray-200 py-4 my-4">
               <div className="grid grid-cols-2 gap-4 text-right mb-3">
                 <div className="text-gray-500">כתובת:</div>
                 <div className="font-medium">
-                  {endingParkingBooking.spot?.address 
+                  {endingParkingBooking.spot?.address
                     ? `${endingParkingBooking.spot.address.street} ${endingParkingBooking.spot.address.number}, ${endingParkingBooking.spot.address.city}`
                     : "כתובת לא זמינה"}
                 </div>
-                
+
                 <div className="text-gray-500">זמן התחלה:</div>
-                <div className="font-medium">{formatDateTime(endingParkingBooking.start_datetime)}</div>
-                
+                <div className="font-medium">
+                  {formatDateTime(endingParkingBooking.start_datetime)}
+                </div>
+
                 <div className="text-gray-500">זמן סיום:</div>
                 <div className="font-medium">{formatDateTime(new Date())}</div>
-                
+
                 <div className="text-gray-500">תעריף:</div>
-                <div className="font-medium">{endingParkingBooking.base_rate} ₪/שעה</div>
+                <div className="font-medium">
+                  {endingParkingBooking.base_rate} ₪/שעה
+                </div>
               </div>
-              
+
               <div className="flex justify-between items-center text-lg font-bold border-t pt-4">
                 <div>סה"כ לתשלום:</div>
-                <div className="text-xl text-blue-700">{calculateFinalAmount(endingParkingBooking)} ₪</div>
+                <div className="text-xl text-blue-700">
+                  {calculateFinalAmount(endingParkingBooking)} ₪
+                </div>
               </div>
             </div>
-            
+
             <p className="text-gray-600 mb-6">
               החניה הסתיימה בהצלחה. התשלום יחויב בהתאם לשעות החניה בפועל.
             </p>
-            
+
             <button
               onClick={() => {
                 setShowPaymentSummary(false);

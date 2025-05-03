@@ -99,3 +99,57 @@ exports.getBookingForSchedule = catchAsync(async (req, res, next) => {
     data: { booking },
   });
 });
+
+exports.getUnpaidCompletedBookings = catchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+
+  // Find all completed bookings with pending or failed payment status
+  const unpaidBookings = await Booking.find({
+    user: userId,
+    status: 'completed',
+    payment_status: { $in: ['pending', 'failed'] }
+  })
+  .populate('spot')
+  .sort({ end_datetime: -1 });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      bookings: unpaidBookings
+    }
+  });
+});
+
+
+exports.confirmPayment = catchAsync(async (req, res, next) => {
+  const bookingId = req.params.bookingId;
+  const userId = req.user.id;
+
+  // Find the booking and verify it belongs to the user
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    user: userId,
+    status: 'completed',
+    payment_status: { $in: ['pending', 'failed'] }
+  });
+
+  if (!booking) {
+    return next(new AppError('Booking not found or already paid', 404));
+  }
+
+  // Update booking payment status to completed
+  booking.payment_status = 'completed';
+  booking.payment_date = new Date();
+  await booking.save();
+
+  // In a real application, you would process the payment here
+  // with your payment provider (Stripe, PayPal, etc.)
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Payment confirmed successfully',
+    data: {
+      booking: booking
+    }
+  });
+});

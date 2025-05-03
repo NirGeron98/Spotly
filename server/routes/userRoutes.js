@@ -27,7 +27,8 @@ router.get("/me", userController.getMe, userController.getUser);
 router.patch("/updateMe", userController.updateMe);
 router.delete("/deleteMe", userController.deleteMe);
 
-router.patch('/preferences', userController.updatePreferences); 
+router.patch("/preferences", userController.updatePreferences);
+router.get("/preferences", userController.getPreferences);
 
 // Admin routes
 router.use(authController.restrictTo("admin"));

@@ -36,6 +36,8 @@ const AddressMapSelector = ({
   setFeedback,
   searching,
   setSearching,
+  disableSearchButton = false,
+  mode = "default",
 }) => {
   const [selectedPosition, setSelectedPosition] = useState(defaultPosition);
   const [mapVisible, setMapVisible] = useState(false);
@@ -115,28 +117,29 @@ const AddressMapSelector = ({
           data.display_name?.split(",")[0].match(/\d+/)?.[0] || "";
         const numberFromAPI = data?.address?.house_number || fallbackNumber;
         const existingNumber = address.number;
-        
-        const city = data.address?.city ||
-            data.address?.town ||
-            data.address?.village || 
-            address.city;
-            
+
+        const city =
+          data.address?.city ||
+          data.address?.town ||
+          data.address?.village ||
+          address.city;
+
         const street = data.address?.road || address.street;
-        
-        const number = numberFromAPI || 
-            (existingNumber && !force ? existingNumber : "");
+
+        const number =
+          numberFromAPI || (existingNumber && !force ? existingNumber : "");
 
         if (updatePopupFields) {
           setPopupAddress({
             city,
             street,
-            number
+            number,
           });
         } else {
-          setAddress(prev => ({
+          setAddress((prev) => ({
             city,
             street,
-            number
+            number,
           }));
         }
 
@@ -171,7 +174,7 @@ const AddressMapSelector = ({
       setFeedback("❌ יש להזין מספר בית");
       return;
     }
-    
+
     const query = `${popupAddress.street}, ${popupAddress.city}`.trim();
     if (!query) {
       setFeedback("❌ יש להזין עיר ורחוב");
@@ -226,7 +229,9 @@ const AddressMapSelector = ({
 
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}`
       );
       const data = await res.json();
       if (data && data.length > 0) {
@@ -282,7 +287,7 @@ const AddressMapSelector = ({
       marker.setPosition(latlng);
       setSelectedPosition(latlng);
       setFeedback("✅ מיקום עודכן ידנית במפה");
-      
+
       // עדכון השדות בפופ-אפ בהתאם למיקום שנבחר על המפה
       await handleReverseGeocode(latlng, false, true);
     });
@@ -294,7 +299,7 @@ const AddressMapSelector = ({
       };
       setSelectedPosition(latlng);
       setFeedback("✅ מיקום נגרר ידנית");
-      
+
       // עדכון השדות בפופ-אפ בהתאם למיקום שנגרר על המפה
       await handleReverseGeocode(latlng, false, true);
     });
@@ -341,34 +346,49 @@ const AddressMapSelector = ({
             address.number ? "border border-gray-300" : "border border-red-400"
           }`}
         />
-        <button
-          onClick={handleMapSearch}
-          disabled={!address.number}
-          className={`text-white font-bold py-2 px-4 rounded-md transition w-full ${
-            address.number
-              ? "bg-blue-600 hover:bg-blue-700"
-              : "bg-gray-400 cursor-not-allowed"
-          }`}
-        >
-          חפש
-        </button>
+
+        {mode === "search" ? (
+          <button
+            type="button"
+            onClick={() => setMapVisible(true)}
+            className="bg-blue-600 text-white font-bold px-4 py-2 rounded-md hover:bg-blue-700 transition w-full"
+          >
+            בחר מיקום מהמפה
+          </button>
+        ) : (
+          !disableSearchButton && (
+            <button
+              onClick={handleMapSearch}
+              disabled={!address.number}
+              className={`text-white font-bold py-2 px-4 rounded-md transition w-full ${
+                !address.number
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              חפש
+            </button>
+          )
+        )}
       </div>
+
+      {mode !== "search" && (
+        <div className="text-center mt-2">
+          <button
+            type="button"
+            onClick={() => setMapVisible(true)}
+            className="bg-blue-600 text-white font-bold px-4 py-2 rounded-md hover:bg-blue-700 transition"
+          >
+            בחר מיקום מהמפה
+          </button>
+        </div>
+      )}
 
       {(feedback || searching) && (
         <div className="text-center mt-2">
           <span className="text-sm font-medium text-gray-700">{feedback}</span>
         </div>
       )}
-
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={() => setMapVisible(true)}
-          className="bg-blue-600 text-white font-bold px-4 py-2 rounded-md hover:bg-blue-700 transition"
-        >
-          בחר מיקום מהמפה
-        </button>
-      </div>
 
       {mapVisible && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -377,7 +397,6 @@ const AddressMapSelector = ({
               בחר מיקום על המפה או הזן כתובת מדויקת
             </h3>
 
-            {/* 🔵 שורת עיר / רחוב / מספר + חיפוש */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-3">
               <input
                 type="text"
@@ -403,24 +422,23 @@ const AddressMapSelector = ({
                 onChange={handlePopupInputChange}
                 className={`w-full px-3 py-2 rounded-md ${
                   popupAddress.number
-                    ? "border border-gray-300" 
+                    ? "border border-gray-300"
                     : "border border-red-400"
                 }`}
               />
               <button
                 onClick={handlePopupMapSearch}
-                disabled={!popupAddress.number}
+                disabled={!popupAddress.number || disableSearchButton}
                 className={`text-white font-bold px-4 py-2 rounded-md transition ${
-                  popupAddress.number
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-400 cursor-not-allowed"
+                  !popupAddress.number || disableSearchButton
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
                 חפש
               </button>
             </div>
 
-            {/* 🟢 שורת פידבק */}
             {(feedback || searching) && (
               <div className="text-center mb-3">
                 {searching ? (
@@ -447,7 +465,6 @@ const AddressMapSelector = ({
               </div>
             )}
 
-            {/* 🗺️ מפת Google */}
             <div
               id="map"
               style={{ height: "400px", width: "100%" }}
