@@ -16,7 +16,6 @@ import SearchParking from "./components/pages/SearchParking";
 import UsageHistory from "./components/pages/UsageHistory";
 import ReleaseParking from "./components/pages/ReleaseParking";
 import ActiveParkingReservations from "./components/pages/ActiveParkingReservations";
-import PaymentConfirmationPopup from "./components/shared/PaymentConfirmationPopup";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -38,10 +37,6 @@ function App() {
 
   return (
     <Router>
-      <div className="App">
-        {/* Global Payment Popup - only shows when user is logged in */}
-        {loggedIn && <PaymentConfirmationPopup />}
-        
         <Routes>
           <Route
             path="/"
@@ -148,7 +143,6 @@ function App() {
             }
           />
         </Routes>
-      </div>
     </Router>
   );
 }
