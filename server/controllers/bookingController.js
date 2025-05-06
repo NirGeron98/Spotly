@@ -1,56 +1,100 @@
+const mongoose = require("mongoose");
 const Booking = require("../models/bookingModel");
 const factory = require("./handlerFactory");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const ParkingManagementSystem = require("../utils/parkingManagementSystem");
 const ParkingSpot = require("../models/parkingSpotModel");
 
-// Simple CRUD operations using factory
+
+
 exports.getAllBookings = factory.getAll(Booking);
 exports.getBooking = factory.getOne(Booking);
 exports.deleteBooking = factory.deleteOne(Booking);
 
-// Create a new booking and mark the corresponding schedule as unavailable
 exports.createBooking = catchAsync(async (req, res, next) => {
-  if (!req.body.user) req.body.user = req.user.id;
+  const pms = req.pms;
+  const {
+    spot: spotId,
+    start_datetime,
+    end_datetime,
+    booking_type,
+    base_rate,
+  } = req.body;
+  const userId = req.user.id;
 
-  const bookingStart = new Date(req.body.start_datetime);
-  const bookingEnd = new Date(req.body.end_datetime);
-  const desiredDate = bookingStart.toISOString().split("T")[0];
-
-  const spot = await ParkingSpot.findById(req.body.spot);
-  if (!spot) throw new AppError("Parking spot not found", 404);
-
-  const matchedSchedule = spot.availability_schedule.find((schedule) => {
-    const scheduleDate = schedule.date.toISOString().split("T")[0];
-    if (scheduleDate !== desiredDate) return false;
-
-    const [startHour, startMin] = schedule.start_time.split(":").map(Number);
-    const [endHour, endMin] = schedule.end_time.split(":").map(Number);
-
-    const scheduleStart = new Date(schedule.date);
-    scheduleStart.setHours(startHour, startMin, 0);
-
-    const scheduleEnd = new Date(schedule.date);
-    scheduleEnd.setHours(endHour, endMin, 0);
-
-    return (
-      schedule.is_available === true &&
-      scheduleStart <= bookingStart &&
-      scheduleEnd >= bookingEnd
+  if (!spotId || !start_datetime || !end_datetime) {
+    return next(
+      new AppError(
+        "Spot ID, start datetime, and end datetime are required.",
+        400
+      )
     );
-  });
-
-  if (matchedSchedule) {
-    req.body.schedule = matchedSchedule._id;
-    matchedSchedule.is_available = false;
-    await spot.save();
   }
 
-  const booking = await Booking.create(req.body);
+  let bookingStart, bookingEnd;
+  try {
+    bookingStart = new Date(start_datetime);
+    bookingEnd = new Date(end_datetime);
+    if (isNaN(bookingStart.getTime()) || isNaN(bookingEnd.getTime())) {
+      throw new Error("Invalid date format");
+    }
+  } catch (e) {
+    return next(
+      new AppError(
+        "Invalid start or end datetime format. Please use ISO 8601 format.",
+        400
+      )
+    );
+  }
+
+  if (bookingEnd <= bookingStart) {
+    return next(
+      new AppError("End datetime must be after start datetime.", 400)
+    );
+  }
+
+  if (!pms.isLoaded) {
+    await pms.loadFromDatabase().catch((err) => {
+      console.error("Failed to load PMS data on demand:", err);
+      return next(
+        new AppError("System is initializing, please try again shortly.", 503)
+      );
+    });
+  }
+  if (!pms.isLoaded) {
+    return next(
+      new AppError("System is not ready, please try again later.", 503)
+    );
+  }
+
+  const bookingDetails = {
+    booking_type: booking_type || "parking",
+    base_rate: base_rate,
+  };
+
+  const newBooking = await pms.createBookingAndSplitAvailability(
+    spotId,
+    bookingStart,
+    bookingEnd,
+    userId,
+    bookingDetails
+  );
+
+  if (!newBooking) {
+    return next(
+      new AppError(
+        "Failed to create booking. The slot might no longer be available.",
+        400
+      )
+    );
+  }
 
   res.status(201).json({
     status: "success",
-    data: { booking },
+    data: {
+      booking: newBooking,
+    },
   });
 });
 
@@ -68,10 +112,9 @@ exports.updateBooking = catchAsync(async (req, res, next) => {
 
 exports.getUserBookings = catchAsync(async (req, res, next) => {
   const userId = req.params.userId || req.user.id;
-  
-  // Get ALL bookings for the user, including cancelled ones
+
   const bookings = await Booking.find({
-    user: userId
+    user: userId,
   }).populate("spot");
 
   res.status(200).json({
@@ -103,53 +146,46 @@ exports.getBookingForSchedule = catchAsync(async (req, res, next) => {
 exports.getUnpaidCompletedBookings = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
 
-  // Find all completed bookings with pending or failed payment status
   const unpaidBookings = await Booking.find({
     user: userId,
-    status: 'completed',
-    payment_status: { $in: ['pending', 'failed'] }
+    status: "completed",
+    payment_status: { $in: ["pending", "failed"] },
   })
-  .populate('spot')
-  .sort({ end_datetime: -1 });
+    .populate("spot")
+    .sort({ end_datetime: -1 });
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
-      bookings: unpaidBookings
-    }
+      bookings: unpaidBookings,
+    },
   });
 });
-
 
 exports.confirmPayment = catchAsync(async (req, res, next) => {
   const bookingId = req.params.bookingId;
   const userId = req.user.id;
 
-  // Find the booking and verify it belongs to the user
   const booking = await Booking.findOne({
     _id: bookingId,
     user: userId,
-    status: 'completed',
-    payment_status: { $in: ['pending', 'failed'] }
+    status: "completed",
+    payment_status: { $in: ["pending", "failed"] },
   });
 
   if (!booking) {
-    return next(new AppError('Booking not found or already paid', 404));
+    return next(new AppError("Booking not found or already paid", 404));
   }
 
-  // Update booking payment status to completed
-  booking.payment_status = 'completed';
+  booking.payment_status = "completed";
   booking.payment_date = new Date();
   await booking.save();
 
-  // In a real application, you would process the payment here
-  // with your payment provider (Stripe, PayPal, etc.)
-
   res.status(200).json({
-    status: 'success',
-    message: 'Payment confirmed successfully',
+    status: "success",
+    message: "Payment confirmed successfully",
     data: {
-      booking: booking
-    }
+      booking: booking,
+    },
   });
 });

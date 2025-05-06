@@ -5,15 +5,36 @@ const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const hpp = require("hpp");
 const cors = require("cors");
+const ParkingSpot = require("./models/parkingSpotModel");
+const Booking = require("./models/bookingModel");
+const ParkingManagementSystem = require("./utils/parkingManagementSystem");
 
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 const userRouter = require("./routes/userRoutes");
 const buildingRouter = require("./routes/buildingRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
-const requestRouter = require("./routes/requestRoutes");
 const parkingSpotRouter = require("./routes/parkingSpotRoutes");
 const app = express();
+
+// Instantiate and load ParkingManagementSystem
+const pmsInstance = new ParkingManagementSystem({ ParkingSpot, Booking });
+pmsInstance
+  .loadFromDatabase()
+  .then(() => console.log("ParkingManagementSystem loaded successfully."))
+  .catch((err) =>
+    console.error("Failed to load ParkingManagementSystem:", err)
+  );
+
+// You might want to make pmsInstance available to your controllers,
+// e.g., by attaching it to `req` via middleware, or by exporting it and importing where needed.
+// For simplicity in the controller example above, it was newed up, but a shared instance is better.
+app.use((req, res, next) => {
+  req.pms = pmsInstance; // Example: making it available on request object
+  console.log("PMS instance attached to request object.");
+  req.requestTime = new Date().toISOString();
+  next();
+});
 
 app.get("/api/v1/ping", (req, res) => {
   res.send("pong from server");
@@ -56,18 +77,10 @@ app.use(mongoSanitize());
 //   })
 // );
 
-// Test middleware
-app.use((req, res, next) => {
-  req.requestTime = new Date().toISOString();
-  //console.log(req.headers);
-  next();
-});
-
 // ROUTES
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/buildings", buildingRouter);
 app.use("/api/v1/bookings", bookingRouter);
-app.use("/api/v1/requests", requestRouter);
 app.use("/api/v1/parking-spots", parkingSpotRouter);
 
 app.all("*", (req, res, next) => {

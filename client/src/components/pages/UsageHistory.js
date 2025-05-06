@@ -16,8 +16,6 @@ import {
   FaMapMarkerAlt,
   FaMoneyBill,
   FaInfoCircle,
-  FaChevronRight,
-  FaChevronLeft,
 } from "react-icons/fa";
 
 const UsageHistory = ({ loggedIn, setLoggedIn }) => {

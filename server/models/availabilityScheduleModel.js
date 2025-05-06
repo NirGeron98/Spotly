@@ -26,6 +26,11 @@ const availabilityScheduleSchema = new mongoose.Schema(
       enum: ["השכרה רגילה", "טעינה לרכב חשמלי"],
       default: "השכרה רגילה",
     },
+    booking_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      default: null, // Null if the schedule (or part of it) is not booked
+    },
   },
   { _id: true }
 );
