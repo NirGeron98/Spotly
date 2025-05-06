@@ -5,7 +5,7 @@ const availabilityScheduleSchema = new mongoose.Schema(
     start_datetime: {
       type: Date,
       required: [true, "An availability slot must have a start date and time."],
-    },
+    },  
     end_datetime: {
       type: Date,
       required: [true, "An availability slot must have an end date and time."],

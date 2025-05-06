@@ -6,7 +6,6 @@ const parkingSpotService = require("../services/parkingSpotService");
 const parkingFinder = require("../services/spotFinderService");
 const Booking = require("../models/bookingModel");
 const mongoose = require("mongoose");
-const { fromZonedTime, format, toZonedTime } = require("date-fns-tz");
 const { parseISO, isValid, isBefore } = require("date-fns"); // Import necessary functions
 
 // Get & Create use factory
