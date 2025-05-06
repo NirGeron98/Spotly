@@ -646,6 +646,23 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     setStartOfWeekDate(getStartOfWeek(new Date()));
   };
 
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 6; hour < 24; hour++) {
+      for (let quarter = 0; quarter < 4; quarter++) {
+        const minutes = quarter * 15;
+        const time = `${hour.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}`;
+        options.push(time);
+      }
+    }
+    options.push("23:59");
+    return options;
+  };
+  
+  
+
   const handleMouseDown = (e, dayIndex) => {
     if (loadingSpots || isDayInPast(dayIndex)) return;
 
@@ -804,30 +821,39 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
-              <div className="flex gap-4">
-                <div className="w-1/2">
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1">
                   <label className="font-semibold">שעת התחלה</label>
-                  <input
-                    type="time"
+                  <select
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
-                    step="900"
                     className="w-full border rounded px-3 py-2"
-                  />
+                  >
+                    {generateTimeOptions().map((timeString) => (
+                      <option key={timeString} value={timeString}>
+                        {timeString}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="w-1/2">
+                <div className="flex-1">
                   <label className="font-semibold">שעת סיום</label>
-                  <input
-                    type="time"
+                  <select
                     name="endTime"
                     value={formData.endTime}
                     onChange={handleChange}
-                    step="900"
                     className="w-full border rounded px-3 py-2"
-                  />
+                  >
+                    {generateTimeOptions().map((timeString) => (
+                      <option key={timeString} value={timeString}>
+                        {timeString}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
               {!isBuildingMode && (
                 <>
                   <div>
@@ -1090,27 +1116,36 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <div className="flex gap-4">
                     <div className="w-1/2">
                       <label className="font-semibold">שעת התחלה</label>
-                      <input
-                        type="time"
+                      <select
                         name="startTime"
                         value={quickAddData.startTime}
                         onChange={handleQuickAddChange}
-                        step="900"
                         className="w-full border rounded px-3 py-2"
-                      />
+                      >
+                        {generateTimeOptions().map((timeString) => (
+                          <option key={timeString} value={timeString}>
+                            {timeString}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="w-1/2">
                       <label className="font-semibold">שעת סיום</label>
-                      <input
-                        type="time"
+                      <select
                         name="endTime"
                         value={quickAddData.endTime}
                         onChange={handleQuickAddChange}
-                        step="900"
                         className="w-full border rounded px-3 py-2"
-                      />
+                      >
+                        {generateTimeOptions().map((timeString) => (
+                          <option key={timeString} value={timeString}>
+                            {timeString}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
+
                   {!isBuildingMode && (
                     <>
                       <div>
