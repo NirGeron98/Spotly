@@ -1,136 +1,311 @@
-import React, { useEffect, useCallback, useState, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
-
-const chargerTypes = ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other"];
+import { FaCog, FaTrash, FaUser, FaInfoCircle } from "react-icons/fa";
+import { format, fromZonedTime, toZonedTime } from "date-fns-tz";
+import {
+  startOfDay,
+  addDays,
+  getDay,
+  parseISO,
+  isValid,
+  isBefore,
+} from "date-fns";
+import { USER_TIMEZONE } from "../utils/constants";
 
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
-  document.title = "פינוי החנייה שלי | Spotly";
+  document.title = "ניהול החנייה שלי | Spotly";
   const navigate = useNavigate();
-  const location = useLocation();
-  const isBuildingMode = location?.state?.mode === "building";
-
+  const [current, setCurrent] = useState("releaseParking");
   const [user, setUser] = useState(null);
-  const [, setLoadingUser] = useState(true);
-  const [loadingSpots, setLoadingSpots] = useState(true);
-  const [current, setCurrent] = useState("release");
+  const [loadingUser, setLoadingUser] = useState(true);
   const [parkingSlots, setParkingSlots] = useState([]);
-  const [popupData, setPopupData] = useState(null);
-
-  // Calendar interaction states
+  const [loadingSpots, setLoadingSpots] = useState(true);
+  const [popupData, setPopupData] = useState({
+    title: "",
+    description: "",
+    type: "info",
+    show: false,
+  });
+  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [showQuickAddPopup, setShowQuickAddPopup] = useState(false);
+  const [quickAddData, setQuickAddData] = useState({
+    date: format(new Date(), "yyyy-MM-dd"),
+    startTime: "",
+    endTime: "",
+    type: "השכרה רגילה",
+  });
+  const [newPrice, setNewPrice] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [isBuildingMode, setIsBuildingMode] = useState(false);
+  const [priceError, setPriceError] = useState("");
+  const [priceSuccess, setPriceSuccess] = useState("");
+  const [startOfWeekDate, setStartOfWeekDate] = useState(
+    startOfDay(new Date())
+  );
+  const [weekViewSchedules, setWeekViewSchedules] = useState([]);
+  const [expandedSchedule, setExpandedSchedule] = useState(null);
+  const timeGridRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [showQuickAddPopup, setShowQuickAddPopup] = useState(false);
-  const [quickAddData, setQuickAddData] = useState({
-    date: "",
-    startTime: "",
-    endTime: "",
-    type: "השכרה רגילה",
-    charger: "",
-  });
-  const timeGridRef = useRef(null);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [newPrice, setNewPrice] = useState("");
-  const [priceError, setPriceError] = useState("");
-  const [priceSuccess, setPriceSuccess] = useState("");
-
-  // Week view states
-  const [startOfWeek, setStartOfWeek] = useState(getStartOfWeek(new Date()));
-  const [weekViewSchedules, setWeekViewSchedules] = useState([]);
-  const [expandedSchedule, setExpandedSchedule] = useState(null);
+  console.log(
+    "ReleaseParking Component: USER_TIMEZONE defined as:",
+    USER_TIMEZONE
+  );
 
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: format(new Date(), "yyyy-MM-dd"),
     startTime: "",
     endTime: "",
     type: "השכרה רגילה",
-    charger: "",
   });
 
-  const generateWeekViewData = useCallback(() => {
-    const schedules = [];
-    parkingSlots.forEach((slot) => {
-      if (slot.availability_schedule) {
-        slot.availability_schedule.forEach((schedule) => {
-          const scheduleDate = new Date(schedule.date);
-          const endOfWeek = new Date(startOfWeek);
-          endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const getStartOfWeek = (date) => {
+    const zonedDate = toZonedTime(date, USER_TIMEZONE);
+    const day = getDay(zonedDate);
+    const diff = zonedDate.getDate() - day;
+    const startOfWeekDay = new Date(zonedDate.setDate(diff));
+    return startOfDay(startOfWeekDay);
+  };
 
-          const scheduleDay = new Date(schedule.date);
-          scheduleDay.setHours(0, 0, 0, 0);
+  useEffect(() => {
+    setStartOfWeekDate(getStartOfWeek(new Date()));
+  }, []);
 
-          const start = new Date(startOfWeek);
-          start.setHours(0, 0, 0, 0);
+  const isDateInPast = (dateInput) => {
+    try {
+      const todayUtcStart = startOfDay(new Date());
 
-          const end = new Date(start);
-          end.setDate(start.getDate() + 6);
-          end.setHours(23, 59, 59, 999);
+      let inputDateStartUtc;
 
-          if (scheduleDay >= start && scheduleDay <= end) {
-            schedules.push({
-              ...schedule,
-              slot,
-              dayOfWeek: scheduleDate.getDay(),
-            });
-          }
-        });
+      if (typeof dateInput === "string") {
+        const localDateAtStartOfDay = `${dateInput}T00:00:00`;
+        inputDateStartUtc = fromZonedTime(localDateAtStartOfDay, USER_TIMEZONE);
+      } else if (dateInput instanceof Date) {
+        const zonedInputDate = toZonedTime(dateInput, USER_TIMEZONE);
+        const localStartOfInputDay = startOfDay(zonedInputDate);
+        inputDateStartUtc = fromZonedTime(localStartOfInputDay, USER_TIMEZONE);
+      } else {
+        console.warn("isDateInPast: Invalid dateInput type", dateInput);
+        return false;
       }
-    });
-    setWeekViewSchedules(schedules);
-  }, [parkingSlots, startOfWeek]);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setUser(parsed);
-      setLoadingUser(false);
-    } else {
-      navigate("/login");
+      return isBefore(inputDateStartUtc, todayUtcStart);
+    } catch (e) {
+      console.error("Error in isDateInPast:", e, "Input:", dateInput);
+      return false;
     }
-  }, [navigate]);
+  };
 
-  useEffect(() => {
-    if (user && user._id) fetchMySpots();
-  }, [user]);
+  const isDayInPast = (dayIndex) => {
+    const dayDate = addDays(startOfWeekDate, dayIndex);
+    return isDateInPast(dayDate);
+  };
 
-  useEffect(() => {
-    if (parkingSlots.length > 0) {
-      generateWeekViewData();
+  const formatDateForDisplay = (date) => {
+    try {
+      const zonedDate = toZonedTime(date, USER_TIMEZONE);
+      return format(zonedDate, "dd/MM", { timeZone: USER_TIMEZONE });
+    } catch (e) {
+      return "Invalid Date";
     }
-  }, [parkingSlots, startOfWeek, generateWeekViewData]);
+  };
 
-  function getStartOfWeek(date) {
-    const newDate = new Date(date);
-    const day = newDate.getDay(); // 0 (Sunday) to 6 (Saturday)
-    const diff = newDate.getDate() - day; // Go back to Sunday
-    newDate.setDate(diff);
-    newDate.setHours(0, 0, 0, 0);
-    return newDate;
-  }
+  const getDayName = (dayOfWeek) => {
+    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    return days[dayOfWeek];
+  };
 
-  const fetchMySpots = async () => {
+  const getWeekDates = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      dates.push(addDays(startOfWeekDate, i));
+    }
+    return dates;
+  };
+
+  const pixelToTime = (pixel) => {
+    const startHour = 6;
+    const heightPerHour = 60;
+    const totalMinutes = Math.round((pixel / heightPerHour) * 60);
+    let hour = Math.floor(totalMinutes / 60) + startHour;
+    let minute = totalMinutes % 60;
+    minute = Math.round(minute / 15) * 15;
+    if (minute === 60) {
+      hour += 1;
+      minute = 0;
+    }
+    if (hour >= 24) {
+      hour = 23;
+      minute = 59;
+    }
+    return `${hour.toString().padStart(2, "0")}:${minute
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const getTimePosition = (time) => {
+    try {
+      if (!time || typeof time !== "string" || !time.includes(":")) return 0;
+      const [hours, minutes] = time.split(":").map(Number);
+      const startHour = 6;
+      const heightPerHour = 60;
+      const position = (hours - startHour + minutes / 60) * heightPerHour;
+      return Math.max(0, position);
+    } catch (e) {
+      console.error("Error calculating time position:", time, e);
+      return 0;
+    }
+  };
+
+  const getTimeSlotHeight = (startTime, endTime) => {
+    try {
+      if (
+        !startTime ||
+        !endTime ||
+        typeof startTime !== "string" ||
+        typeof endTime !== "string" ||
+        !startTime.includes(":") ||
+        !endTime.includes(":")
+      )
+        return 20;
+      const [startH, startM] = startTime.split(":").map(Number);
+      const [endH, endM] = endTime.split(":").map(Number);
+      const startTotalMinutes = startH * 60 + startM;
+      const endTotalMinutes = endH * 60 + endM;
+      const durationMinutes = endTotalMinutes - startTotalMinutes;
+      const heightPerHour = 60;
+      const height = (durationMinutes / 60) * heightPerHour;
+      return Math.max(height, 15);
+    } catch (e) {
+      console.error("Error calculating slot height:", startTime, endTime, e);
+      return 20;
+    }
+  };
+
+  const fetchMySpots = useCallback(async () => {
     setLoadingSpots(true);
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("/api/v1/parking-spots/my-spots", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setParkingSlots(res.data?.data?.parkingSpots || []);
-    } catch (error) {
-      console.error("Error loading spots:", error);
+      const spots = res.data?.data?.parkingSpots || [];
+      const processedSpots = spots.map((spot) => ({
+        ...spot,
+        availability_schedule: (spot.availability_schedule || [])
+          .map((schedule) => {
+            try {
+              const startUtc = parseISO(schedule.start_datetime);
+              const endUtc = parseISO(schedule.end_datetime);
+              const zonedStart = toZonedTime(startUtc, USER_TIMEZONE);
+              const zonedEnd = toZonedTime(endUtc, USER_TIMEZONE);
+              return {
+                ...schedule,
+                display_date: format(zonedStart, "yyyy-MM-dd", {
+                  timeZone: USER_TIMEZONE,
+                }),
+                display_start_time: format(zonedStart, "HH:mm", {
+                  timeZone: USER_TIMEZONE,
+                }),
+                display_end_time: format(zonedEnd, "HH:mm", {
+                  timeZone: USER_TIMEZONE,
+                }),
+              };
+            } catch (e) {
+              console.error("Error processing schedule dates:", schedule, e);
+              return {
+                ...schedule,
+                display_date: "Invalid",
+                display_start_time: "Invalid",
+                display_end_time: "Invalid",
+              };
+            }
+          })
+          .sort((a, b) => {
+            try {
+              return parseISO(a.start_datetime) - parseISO(b.start_datetime);
+            } catch {
+              return 0;
+            }
+          }),
+      }));
+      setParkingSlots(processedSpots);
+      const hasPrivate = processedSpots.some((s) => s.spot_type === "private");
+      const hasBuilding = processedSpots.some(
+        (s) => s.spot_type === "building"
+      );
+      if (hasBuilding && !hasPrivate) {
+        setIsBuildingMode(true);
+      } else {
+        setIsBuildingMode(false);
+      }
+    } catch (err) {
+      console.error("Error fetching parking spots:", err);
+      setPopupData({
+        title: "שגיאה",
+        description: "לא ניתן לטעון את החניות שלך",
+        type: "error",
+        show: true,
+      });
     } finally {
       setLoadingSpots(false);
     }
-  };
+  }, [USER_TIMEZONE]);
+
+  useEffect(() => {
+    fetchMySpots();
+  }, [fetchMySpots]);
+
+  const generateWeekViewData = useCallback(() => {
+    const schedules = [];
+    const weekStart = startOfWeekDate;
+    const weekEnd = addDays(weekStart, 6);
+    parkingSlots.forEach((slot) => {
+      if (slot.availability_schedule) {
+        slot.availability_schedule.forEach((schedule) => {
+          try {
+            const scheduleStartUtc = parseISO(schedule.start_datetime);
+            if (!isValid(scheduleStartUtc)) return;
+            const scheduleStartLocal = toZonedTime(
+              scheduleStartUtc,
+              USER_TIMEZONE
+            );
+            const scheduleDayStart = startOfDay(scheduleStartLocal);
+            if (
+              !isBefore(scheduleDayStart, weekStart) &&
+              !isBefore(addDays(weekEnd, 1), scheduleDayStart)
+            ) {
+              const dayOfWeek = getDay(scheduleStartLocal);
+              schedules.push({
+                ...schedule,
+                slot,
+                dayOfWeek: dayOfWeek,
+              });
+            }
+          } catch (e) {
+            console.error(
+              "Error processing schedule for week view:",
+              schedule,
+              e
+            );
+          }
+        });
+      }
+    });
+    setWeekViewSchedules(schedules);
+  }, [parkingSlots, startOfWeekDate, USER_TIMEZONE]);
+
+  useEffect(() => {
+    generateWeekViewData();
+  }, [generateWeekViewData]);
 
   const fetchBookingDetails = async (spotId, scheduleId) => {
     try {
@@ -140,26 +315,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const booking = res.data?.data?.booking;
-
       if (!booking || !booking.user) {
         setPopupData({
           title: "אין הזמנה",
           description: "לא נמצאה הזמנה תואמת לפינוי הזה",
           type: "info",
+          show: true,
         });
         return;
       }
-
       const user = booking.user;
-      const start = new Date(booking.start_datetime).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+      const startLocal = toZonedTime(
+        parseISO(booking.start_datetime),
+        USER_TIMEZONE
+      );
+      const endLocal = toZonedTime(
+        parseISO(booking.end_datetime),
+        USER_TIMEZONE
+      );
+      const start = format(startLocal, "HH:mm", { timeZone: USER_TIMEZONE });
+      const end = format(endLocal, "HH:mm", { timeZone: USER_TIMEZONE });
+      const date = format(startLocal, "dd/MM/yyyy", {
+        timeZone: USER_TIMEZONE,
       });
-      const end = new Date(booking.end_datetime).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
       const content = (
         <div className="text-right text-gray-800 space-y-2 leading-relaxed">
           <p>
@@ -172,39 +350,56 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
             <strong>טלפון:</strong> {user.phone_number}
           </p>
           <p>
+            <strong>תאריך:</strong> {date}
+          </p>
+          <p>
             <strong>שעות ההזמנה:</strong> {start} - {end}
           </p>
         </div>
       );
-
       setPopupData({
         title: "פרטי המזמין",
         description: content,
         type: "info",
+        show: true,
       });
     } catch (err) {
       setPopupData({
         title: "שגיאה",
         description: "לא ניתן לשלוף את פרטי המזמין",
         type: "error",
+        show: true,
       });
     }
   };
 
-  const isOverlap = (existing, date, newStart, newEnd) => {
-    const [newStartH, newStartM] = newStart.split(":").map(Number);
-    const [newEndH, newEndM] = newEnd.split(":").map(Number);
-    const newStartMin = newStartH * 60 + newStartM;
-    const newEndMin = newEndH * 60 + newEndM;
-
-    return existing.some(({ date: d, start_time, end_time }) => {
-      if (new Date(d).toISOString().split("T")[0] !== date) return false;
-      const [startH, startM] = start_time.split(":").map(Number);
-      const [endH, endM] = end_time.split(":").map(Number);
-      const startMin = startH * 60 + startM;
-      const endMin = endH * 60 + endM;
-      return newStartMin < endMin && newEndMin > startMin;
-    });
+  const isOverlap = (existingSchedules, date, newStartTime, newEndTime) => {
+    try {
+      const newStartLocalString = `${date}T${newStartTime}:00`;
+      const newEndLocalString = `${date}T${newEndTime}:00`;
+      const newStartUtc = fromZonedTime(newStartLocalString, USER_TIMEZONE);
+      const newEndUtc = fromZonedTime(newEndLocalString, USER_TIMEZONE);
+      return existingSchedules.some((existing) => {
+        try {
+          const existingStartUtc = parseISO(existing.start_datetime);
+          const existingEndUtc = parseISO(existing.end_datetime);
+          return (
+            isBefore(newStartUtc, existingEndUtc) &&
+            isBefore(existingStartUtc, newEndUtc)
+          );
+        } catch (e) {
+          console.error(
+            "Error comparing overlap with existing schedule:",
+            existing,
+            e
+          );
+          return false;
+        }
+      });
+    } catch (e) {
+      console.error("Error creating new date range for overlap check:", e);
+      return true;
+    }
   };
 
   const handleChange = (e) => {
@@ -218,175 +413,198 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   };
 
   const handleAddSlot = async (dataToAdd = formData) => {
-    const { date, startTime, endTime, type, charger } = dataToAdd;
-    if (!date || !startTime || !endTime) return;
-
-    if (isDateInPast(date)) {
+    const { date, startTime, endTime, type } = dataToAdd;
+    if (!date || !startTime || !endTime) {
+      console.log("handleAddSlot: Validation failed - Missing date/time");
       setPopupData({
         title: "שגיאה",
-        description: "לא ניתן להוסיף זמינות לתאריכים שכבר עברו",
+        description: "יש למלא תאריך, שעת התחלה ושעת סיום",
         type: "error",
+        show: true,
       });
       return;
     }
 
-    if (type === "טעינה לרכב חשמלי" && !charger) {
-      setPopupData({ title: "שגיאה", description: "יש לבחור סוג טעינה" });
+    console.log("handleAddSlot: Checking if date is in past:", date);
+    if (isDateInPast(date)) {
+      console.log("handleAddSlot: Validation failed - Date is in past");
+      setPopupData({
+        title: "שגיאה",
+        description: "לא ניתן להוסיף זמינות לתאריכים שכבר עברו",
+        type: "error",
+        show: true,
+      });
       return;
     }
 
-    const [startH, startM] = startTime.split(":").map(Number);
-    const [endH, endM] = endTime.split(":").map(Number);
-    const startMin = startH * 60 + startM;
-    const endMin = endH * 60 + endM;
+    let startUtc, endUtc;
+    try {
+      const localStartString = `${date}T${startTime}:00`;
+      const localEndString = `${date}T${endTime}:00`;
+      startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
+      endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
+      console.log(
+        `handleAddSlot: Converted UTC times. Start: ${startUtc.toISOString()}, End: ${endUtc.toISOString()}`
+      );
 
-    if (startMin >= endMin) {
+      if (!isBefore(startUtc, endUtc)) {
+        console.log(
+          "handleAddSlot: Validation failed - End time is not after start time"
+        );
+        setPopupData({
+          title: "שגיאה",
+          description: "שעת סיום חייבת להיות אחרי שעת התחלה",
+          type: "error",
+          show: true,
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("handleAddSlot: Error parsing date/time:", e);
       setPopupData({
         title: "שגיאה",
-        description: "שעת התחלה חייבת להיות לפני שעת סיום",
+        description: "פורמט תאריך או שעה שגוי",
+        type: "error",
+        show: true,
       });
       return;
     }
 
     const token = localStorage.getItem("token");
+    let targetSpot = null;
+
+    console.log(
+      "handleAddSlot: Determining target spot. isBuildingMode:",
+      isBuildingMode
+    );
+    console.log("handleAddSlot: Available parkingSlots:", parkingSlots);
 
     if (isBuildingMode) {
-      try {
-        const buildingSpot = parkingSlots.find(
-          (s) => s.spot_type === "building"
+      targetSpot = parkingSlots.find((s) => s.spot_type === "building");
+      if (!targetSpot) {
+        console.log(
+          "handleAddSlot: Validation failed - No building spot found"
         );
-        if (!buildingSpot) {
-          setPopupData({
-            title: "שגיאה",
-            description: "לא נמצאה חנייה משויכת בבניין שלך",
-          });
-          return;
-        }
-
-        const hasOverlap = isOverlap(
-          buildingSpot.availability_schedule || [],
-          date,
-          startTime,
-          endTime
-        );
-
-        if (hasOverlap) {
-          setPopupData({
-            title: "שגיאה",
-            description: `יש חפיפה עם פינוי קיים בתאריך ${date}`,
-          });
-          return;
-        }
-
-        const scheduleData = {
-          date,
-          start_time: startTime,
-          end_time: endTime,
-          is_available: true,
-          type,
-          ...(type === "טעינה לרכב חשמלי" ? { charger } : {}),
-        };
-
-        await axios.post(
-          `/api/v1/parking-spots/${buildingSpot._id}/availability-schedule`,
-          scheduleData,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        await fetchMySpots();
-        setPopupData({ title: "הצלחה", description: "החנייה נוספה בהצלחה ✅" });
-        setFormData({
-          date: new Date().toISOString().split("T")[0],
-          startTime: "",
-          endTime: "",
-          type: "השכרה רגילה",
-          charger: "",
-        });
-        setShowQuickAddPopup(false);
-      } catch (err) {
-        console.error("שגיאה:", err);
         setPopupData({
           title: "שגיאה",
-          description: err?.response?.data?.message || "לא ניתן להוסיף חנייה",
+          description: "לא נמצאה חנייה משויכת בבניין שלך",
+          type: "error",
+          show: true,
         });
+        return;
       }
-      return;
+    } else {
+      targetSpot = parkingSlots.find((s) => s.spot_type === "private");
+      if (!targetSpot) {
+        console.log("handleAddSlot: Validation failed - No private spot found");
+        setPopupData({
+          title: "שגיאה",
+          description: "לא נמצאה חנייה פרטית עבור המשתמש",
+          type: "error",
+          show: true,
+        });
+        return;
+      }
+      if (
+        targetSpot.hourly_price === undefined ||
+        targetSpot.hourly_price === null
+      ) {
+        console.log(
+          "handleAddSlot: Validation failed - Private spot price not set"
+        );
+        setPopupData({
+          title: "שגיאה",
+          description: "יש להגדיר מחיר לשעה בהגדרות החנייה לפני הוספת זמינות.",
+          type: "error",
+          show: true,
+        });
+        return;
+      }
     }
+    console.log("handleAddSlot: Target spot found:", targetSpot?._id);
 
-    const privateSpot = parkingSlots.find((s) => s.spot_type === "private");
-    if (!privateSpot) {
-      setPopupData({
-        title: "שגיאה",
-        description: "לא נמצאה חנייה פרטית עבור המשתמש",
-        type: "error",
-      });
-      return;
-    }
-
-    if (!privateSpot.hourly_price && privateSpot.hourly_price !== 0) {
-      setPopupData({
-        title: "שגיאה",
-        description: "לא הוגדר מחיר קבוע לשעת חנייה בפרופיל שלך",
-        type: "error",
-      });
-      return;
-    }
-
-    if (privateSpot.hourly_price === 0) {
-      setPopupData({
-        title: "שים לב",
-        description: "מחיר השעה הוא 0₪ – יש לעדכן את המחיר בהגדרות החנייה.",
-        type: "warning",
-      });
-      return;
-    }
-
+    console.log(
+      "handleAddSlot: Checking for overlap with existing schedules:",
+      targetSpot.availability_schedule || []
+    );
     const hasOverlap = isOverlap(
-      privateSpot.availability_schedule || [],
+      targetSpot.availability_schedule || [],
       date,
       startTime,
       endTime
     );
+
     if (hasOverlap) {
+      console.log("handleAddSlot: Validation failed - Overlap detected");
       setPopupData({
         title: "שגיאה",
-        description: "יש חפיפה עם פינוי קיים",
+        description: `יש חפיפה עם פינוי קיים בתאריך ${date}`,
         type: "error",
+        show: true,
       });
       return;
     }
 
     try {
-      const releaseData = {
-        date,
-        startTime,
-        endTime,
-        price: privateSpot.hourly_price,
+      const scheduleData = {
+        start_datetime: startUtc.toISOString(),
+        end_datetime: endUtc.toISOString(),
+        is_available: true,
         type,
-        ...(type === "טעינה לרכב חשמלי" && charger ? { charger } : {}),
+        timezone: USER_TIMEZONE,
       };
 
-      await axios.post("/api/v1/parking-spots/release", releaseData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      console.log(
+        "handleAddSlot: Making API call to add schedule:",
+        scheduleData
+      );
+
+      await axios.post(
+        `/api/v1/parking-spots/${targetSpot._id}/availability-schedule`,
+        scheduleData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log(
+        "handleAddSlot: API call successful. Fetching spots and showing success popup."
+      );
 
       await fetchMySpots();
       setPopupData({
         title: "הצלחה",
         description: "החנייה נוספה בהצלחה ✅",
         type: "success",
+        show: true,
+      });
+      const resetDate = format(new Date(), "yyyy-MM-dd");
+      setFormData({
+        date: resetDate,
+        startTime: "",
+        endTime: "",
+        type: "השכרה רגילה",
+      });
+      setQuickAddData({
+        date: resetDate,
+        startTime: "",
+        endTime: "",
+        type: "השכרה רגילה",
       });
       setShowQuickAddPopup(false);
     } catch (err) {
+      console.error("handleAddSlot: Error during API call:", err);
+      console.error("handleAddSlot: Error response data:", err?.response?.data);
       setPopupData({
         title: "שגיאה",
-        description: "פעולת ההוספה נכשלה בשרת",
+        description: err?.response?.data?.message || "לא ניתן להוסיף חנייה",
         type: "error",
+        show: true,
       });
     }
   };
 
-  const handleDelete = async (spotId, scheduleId) => {
+  const handleDeleteSlot = async () => {
+    if (!confirmDeleteId) return;
+    const { spotId, scheduleId } = confirmDeleteId;
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
@@ -394,178 +612,116 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       await fetchMySpots();
+      setPopupData({
+        title: "הצלחה",
+        description: "הפינוי נמחק בהצלחה",
+        type: "success",
+        show: true,
+      });
     } catch (err) {
+      console.error("Error deleting schedule:", err);
       setPopupData({
         title: "שגיאה",
-        description: "שגיאה במחיקת הפינוי",
+        description: err?.response?.data?.message || "שגיאה במחיקת הפינוי",
         type: "error",
+        show: true,
       });
     } finally {
       setConfirmDeleteId(null);
     }
   };
 
-  // Helper to get the position of a time slot
-  const getTimePosition = (time) => {
-    // Assuming times are in 24 hour format like "14:30"
-    const [hours, minutes] = time.split(":").map(Number);
-    // Assuming the grid starts at 6:00 AM (6 hours)
-    const startHour = 6;
-    const heightPerHour = 60; // pixels per hour
-    return (hours - startHour + minutes / 60) * heightPerHour;
-  };
-
-  // Helper to calculate the height of a time slot
-  const getTimeSlotHeight = (startTime, endTime) => {
-    const [startH, startM] = startTime.split(":").map(Number);
-    const [endH, endM] = endTime.split(":").map(Number);
-    const durationHours = endH - startH + (endM - startM) / 60;
-    return durationHours * 60; // 60px per hour
-  };
-
-  // Navigation to previous week
   const goToPrevWeek = () => {
-    const newStart = new Date(startOfWeek);
-    newStart.setDate(newStart.getDate() - 7);
-    setStartOfWeek(newStart);
+    setStartOfWeekDate((prev) => addDays(prev, -7));
   };
 
-  // Navigation to next week
   const goToNextWeek = () => {
-    const newStart = new Date(startOfWeek);
-    newStart.setDate(newStart.getDate() + 7);
-    setStartOfWeek(newStart);
+    setStartOfWeekDate((prev) => addDays(prev, 7));
   };
 
-  // Go to current week
   const goToCurrentWeek = () => {
-    setStartOfWeek(getStartOfWeek(new Date()));
+    setStartOfWeekDate(getStartOfWeek(new Date()));
   };
 
-  // Format date for display
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("he-IL", {
-      day: "numeric",
-      month: "numeric",
-    });
-  };
-
-  // Get day names in Hebrew
-  const getDayName = (dayOfWeek) => {
-    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-    return days[dayOfWeek];
-  };
-
-  // Generate dates for the week
-  const getWeekDates = () => {
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(date.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  };
-
-  // Convert pixel position to time
-  const pixelToTime = (pixel) => {
-    const startHour = 6;
-    const heightPerHour = 60;
-    const totalMinutes = Math.round((pixel / heightPerHour) * 60);
-    let hour = Math.floor(totalMinutes / 60) + startHour;
-    let minute = totalMinutes % 60;
-
-    if (hour >= 24) {
-      hour = 23;
-      minute = 59;
-    }
-
-    return `${hour.toString().padStart(2, "0")}:${minute
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  // Handle mouse down on time grid
   const handleMouseDown = (e, dayIndex) => {
-    if (loadingSpots) return;
-
-    if (isDayInPast(dayIndex)) return;
-
+    if (loadingSpots || isDayInPast(dayIndex)) return;
     const gridRect = timeGridRef.current.getBoundingClientRect();
-    const headerHeight = 60;
-    const relativeY =
-      e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
-
-    // תקן כאן - תעדכן את selectedDay לפני שאתה מחשב את התאריך
+    const relativeY = e.clientY - gridRect.top + timeGridRef.current.scrollTop;
+    const boundedY = Math.max(0, Math.min(relativeY, 18 * 60));
     setSelectedDay(dayIndex);
-    setDragStart(relativeY);
-    setDragEnd(relativeY);
+    setDragStart(boundedY);
+    setDragEnd(boundedY);
     setIsDragging(true);
   };
 
-  // Handle mouse move during drag
   const handleMouseMove = (e) => {
     if (!isDragging) return;
-
     const gridRect = timeGridRef.current.getBoundingClientRect();
     const relativeY = e.clientY - gridRect.top + timeGridRef.current.scrollTop;
-
-    // Keep within grid bounds
     const boundedY = Math.max(0, Math.min(relativeY, 18 * 60));
-
     setDragEnd(boundedY);
   };
 
-  // Handle mouse up after drag
   const handleMouseUp = () => {
     if (isDragging) {
       const startY = Math.min(dragStart, dragEnd);
       const endY = Math.max(dragStart, dragEnd);
-
       if (Math.abs(dragEnd - dragStart) >= 15) {
-        const selectedDate = new Date(startOfWeek);
-        selectedDate.setDate(startOfWeek.getDate() + selectedDay);
-
-        const date = new Date(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate()
-        );
-        date.setHours(0, 0, 0, 0);
-
+        const selectedDate = addDays(startOfWeekDate, selectedDay);
         const startTime = pixelToTime(startY);
         const endTime = pixelToTime(endY);
-
-        setQuickAddData({
-          date: selectedDate.toLocaleDateString("sv-SE"),
-          startTime,
-          endTime,
-          type: "השכרה רגילה",
-          charger: "",
-        });
-
-        setShowQuickAddPopup(true);
+        if (startTime && endTime && startTime < endTime) {
+          setQuickAddData({
+            date: format(selectedDate, "yyyy-MM-dd"),
+            startTime,
+            endTime,
+            type: "השכרה רגילה",
+          });
+          setShowQuickAddPopup(true);
+        } else {
+          console.warn(
+            "Drag resulted in invalid time range:",
+            startTime,
+            endTime
+          );
+        }
       }
     }
-
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
     setSelectedDay(null);
   };
 
-  const isDateInPast = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const compareDate = new Date(date);
-    compareDate.setHours(0, 0, 0, 0);
-    return compareDate < today;
-  };
-
-  const isDayInPast = (dayIndex) => {
-    const dayDate = new Date(startOfWeek);
-    dayDate.setDate(dayDate.getDate() + dayIndex);
-    return isDateInPast(dayDate);
+  const handlePriceUpdate = async () => {
+    const privateSpot = parkingSlots.find((s) => s.spot_type === "private");
+    if (!privateSpot) {
+      setPriceError("לא נמצאה חנייה פרטית.");
+      return;
+    }
+    if (
+      newPrice === "" ||
+      isNaN(parseFloat(newPrice)) ||
+      parseFloat(newPrice) < 0
+    ) {
+      setPriceError("אנא הזן מחיר חוקי (מספר חיובי).");
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        `/api/v1/parking-spots/${privateSpot._id}`,
+        { hourly_price: parseFloat(newPrice) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPriceSuccess("המחיר עודכן בהצלחה!");
+      setPriceError("");
+      await fetchMySpots();
+    } catch (err) {
+      console.error("Error updating price:", err);
+      setPriceError(err?.response?.data?.message || "שגיאה בעדכון המחיר.");
+      setPriceSuccess("");
+    }
   };
 
   return (
@@ -580,38 +736,42 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           setCurrent={setCurrent}
           role={user?.role || "user"}
         />
-        <main className="flex-1 p-10 mt-16 max-w-[1600px] mx-auto">
+        <main className="flex-1 p-4 md:p-10 mt-16 max-w-[1800px] mx-auto w-full">
           <div className="relative mb-6 flex flex-col items-center">
             <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
               ניהול החנייה שלי
             </h1>
-
             {!isBuildingMode && (
-              <div className="mt-4 flex items-center justify-center">
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition shadow sm:w-auto sm:flex sm:gap-2 sm:px-4 sm:py-2 w-auto justify-center"
-                >
-                  <i className="fas fa-cog text-lg"></i>
-                  <span className="inline">הגדרות חנייה</span>
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  const privateSpot = parkingSlots.find(
+                    (s) => s.spot_type === "private"
+                  );
+                  setNewPrice(privateSpot?.hourly_price?.toString() || "");
+                  setPriceError("");
+                  setPriceSuccess("");
+                  setShowSettingsPopup(true);
+                }}
+                className="absolute top-0 left-0 mt-1 ml-1 bg-gray-200 text-gray-700 p-2 rounded-full hover:bg-gray-300 transition"
+                title="הגדרות חנייה"
+              >
+                <FaCog />
+              </button>
             )}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] gap-8">
-            <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
-              <h2 className="text-xl font-bold text-center">
-                הוסף זמינות חדשה
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md space-y-4 h-fit">
+              <h2 className="text-xl font-bold text-center mb-4">
+                הוסף פינוי חנייה
               </h2>
               <div>
                 <label className="font-semibold">תאריך</label>
                 <input
                   type="date"
                   name="date"
-                  value={quickAddData.date}
-                  onChange={handleQuickAddChange}
-                  min={new Date().toISOString().split("T")[0]}
+                  value={formData.date}
+                  onChange={handleChange}
+                  min={format(new Date(), "yyyy-MM-dd")}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
@@ -623,6 +783,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
+                    step="900"
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
@@ -633,11 +794,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     name="endTime"
                     value={formData.endTime}
                     onChange={handleChange}
+                    step="900"
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
               </div>
-
               {!isBuildingMode && (
                 <>
                   <div>
@@ -652,28 +813,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       <option>טעינה לרכב חשמלי</option>
                     </select>
                   </div>
-
-                  {formData.type === "טעינה לרכב חשמלי" && (
-                    <div>
-                      <label className="font-semibold">סוג טעינה</label>
-                      <select
-                        name="charger"
-                        value={formData.charger}
-                        onChange={handleChange}
-                        className="w-full border rounded px-3 py-2"
-                      >
-                        <option value="">בחר סוג</option>
-                        {chargerTypes.map((type) => (
-                          <option key={type}>{type}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                 </>
               )}
-
               <div className="mt-4"></div>
-
               <button
                 onClick={() => handleAddSlot()}
                 className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
@@ -681,20 +823,14 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                 הוסף פינוי
               </button>
             </div>
-
-            {/* לוח פינוי חניות  */}
-            <div className="bg-white p-6 rounded-xl shadow-md flex flex-col h-[650px]">
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-md flex flex-col h-[700px]">
               <h2 className="text-xl font-bold text-center mb-4">
                 לוח פינויי החניות
               </h2>
-
-              {/* Help text */}
               <div className="mb-4 p-2 bg-blue-50 text-blue-700 rounded text-sm text-center">
                 <strong>טיפ:</strong> לחץ וגרור על הלוח כדי ליצור פינוי חנייה
                 חדש
               </div>
-
-              {/* Calendar Navigation */}
               <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={goToPrevWeek}
@@ -717,35 +853,35 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <i className="fas fa-chevron-left mr-1"></i>
                 </button>
               </div>
-
               {loadingSpots ? (
                 <div className="flex-grow flex items-center justify-center">
-                  <p className="text-gray-500">טוען...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
                 </div>
               ) : (
-                <div className="flex-grow overflow-auto" ref={timeGridRef}>
-                  {/* Days Header */}
-                  <div className="flex border-b border-gray-200 min-w-[1000px]">
-                    <div className="w-16 shrink-0 border-r border-gray-200 bg-gray-50"></div>
+                <div
+                  className="flex-grow overflow-auto relative"
+                  ref={timeGridRef}
+                >
+                  <div className="flex sticky top-0 bg-white z-20 border-b border-gray-200 min-w-[1000px]">
+                    <div className="w-16 shrink-0 border-l border-gray-200 bg-gray-50"></div>
                     {getWeekDates().map((date, i) => (
                       <div
                         key={i}
-                        className="flex-1 text-center py-2 px-1 border-r border-gray-200 bg-gray-50"
+                        className={`flex-1 text-center py-2 px-1 border-l border-gray-200 ${
+                          isDayInPast(i) ? "bg-gray-100" : "bg-gray-50"
+                        }`}
                       >
                         <div className="font-bold text-blue-800">
-                          {getDayName(i)}
+                          {getDayName(getDay(date))}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {formatDate(date)}
+                          {formatDateForDisplay(date)}
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Time Grid */}
                   <div className="relative min-w-[1000px]">
-                    {/* Time Labels */}
-                    <div className="absolute top-0 right-0 h-full w-16 border-r border-gray-200">
+                    <div className="absolute top-0 right-0 h-full w-16 border-l border-gray-200 bg-white z-10">
                       {Array.from({ length: 18 }).map((_, i) => (
                         <div
                           key={i}
@@ -755,37 +891,36 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         </div>
                       ))}
                     </div>
-
-                    {/* Days Grid with Events */}
                     <div className="mr-16 flex">
                       {Array.from({ length: 7 }).map((_, dayIndex) => {
-                        const isPastDay = isDayInPast(dayIndex);
+                        const isPast = isDayInPast(dayIndex);
                         return (
                           <div
                             key={dayIndex}
-                            className={`flex-1 relative border-r border-gray-200 min-h-[1080px] ${
-                              isPastDay ? "bg-gray-100 cursor-not-allowed" : ""
+                            className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${
+                              isPast
+                                ? "bg-gray-100 cursor-not-allowed"
+                                : "bg-white"
                             }`}
-                            onMouseDown={(e) => handleMouseDown(e, dayIndex)}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
+                            onMouseDown={(e) =>
+                              !isPast && handleMouseDown(e, dayIndex)
+                            }
+                            onMouseMove={!isPast ? handleMouseMove : undefined}
+                            onMouseUp={!isPast ? handleMouseUp : undefined}
+                            onMouseLeave={!isPast ? handleMouseUp : undefined}
                           >
-                            {/* Horizontal hour lines */}
                             {Array.from({ length: 18 }).map((_, i) => (
                               <div
                                 key={i}
                                 className={`absolute w-full h-[1px] ${
-                                  isPastDay ? "bg-gray-200" : "bg-gray-100"
+                                  isPast ? "bg-gray-200" : "bg-gray-100"
                                 }`}
                                 style={{ top: i * 60 }}
                               ></div>
                             ))}
-
-                            {/* Drag selection display */}
                             {isDragging && selectedDay === dayIndex && (
                               <div
-                                className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70"
+                                className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70 z-10"
                                 style={{
                                   top: `${Math.min(dragStart, dragEnd)}px`,
                                   height: `${Math.abs(dragEnd - dragStart)}px`,
@@ -793,25 +928,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 }}
                               ></div>
                             )}
-
-                            {/* Parking Schedule Blocks */}
                             {weekViewSchedules
                               .filter(
                                 (schedule) => schedule.dayOfWeek === dayIndex
                               )
                               .map((schedule, idx) => {
                                 const top = getTimePosition(
-                                  schedule.start_time
+                                  schedule.display_start_time
                                 );
                                 const height = getTimeSlotHeight(
-                                  schedule.start_time,
-                                  schedule.end_time
+                                  schedule.display_start_time,
+                                  schedule.display_end_time
                                 );
                                 const isBooked = !schedule.is_available;
                                 const isExpanded =
                                   expandedSchedule &&
                                   expandedSchedule._id === schedule._id;
-
                                 return (
                                   <div
                                     key={idx}
@@ -826,15 +958,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         : schedule.type === "טעינה לרכב חשמלי"
                                         ? "bg-green-100 border border-green-300 text-green-800"
                                         : "bg-blue-100 border border-blue-300 text-blue-800"
-                                    } ${isExpanded ? "shadow-lg z-10" : ""}`}
+                                    } ${
+                                      isExpanded ? "shadow-lg z-20" : "z-10"
+                                    }`}
                                     style={{
                                       top: `${top}px`,
-                                      height: `${Math.max(height, 20)}px`,
+                                      height: `${
+                                        isExpanded
+                                          ? "auto"
+                                          : Math.max(height, 20)
+                                      }px`,
+                                      minHeight: `${Math.max(height, 20)}px`,
                                     }}
                                   >
                                     <div className="flex justify-between items-start">
-                                      <div className="flex gap-2">
-                                        {!isBooked && !isPastDay && (
+                                      <div className="flex gap-2 flex-shrink-0">
+                                        {!isBooked && !isPast && (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -846,7 +985,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                             className="text-red-500 hover:text-red-700 text-sm"
                                             title="מחק פינוי"
                                           >
-                                            <i className="fas fa-trash"></i>
+                                            <FaTrash />
                                           </button>
                                         )}
                                         {isBooked && (
@@ -861,7 +1000,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                             className="text-blue-500 hover:text-blue-700 text-sm"
                                             title="פרטי המזמין"
                                           >
-                                            <i className="fas fa-user"></i>
+                                            <FaUser />
                                           </button>
                                         )}
                                       </div>
@@ -870,22 +1009,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                           isExpanded ? "text-base" : "text-xs"
                                         }`}
                                       >
-                                        {schedule.start_time} -{" "}
-                                        {schedule.end_time}
+                                        {schedule.display_start_time} -{" "}
+                                        {schedule.display_end_time}
                                       </div>
                                     </div>
                                     {isExpanded && (
-                                      <div className="mt-2 text-sm">
+                                      <div className="mt-2 text-sm space-y-1">
                                         <div>
-                                          {schedule.type ===
-                                            "טעינה לרכב חשמלי" &&
-                                            `סוג טעינה: ${
-                                              schedule.charger || "לא צוין"
-                                            }`}
-                                        </div>
-                                        <div className="mt-1">
                                           סטטוס:{" "}
                                           {isBooked ? "הוזמן" : "זמין להזמנה"}
+                                        </div>
+                                        <div>
+                                          חנייה:{" "}
+                                          {schedule.slot?.spot_number
+                                            ? `מספר ${schedule.slot.spot_number}`
+                                            : schedule.slot?.address?.street ||
+                                              "פרטית"}
                                         </div>
                                       </div>
                                     )}
@@ -901,15 +1040,12 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               )}
             </div>
           </div>
-
-          {/* Quick Add Popup */}
           {showQuickAddPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4 text-center">
                   הוסף פינוי חנייה מהיר
                 </h3>
-
                 <div className="space-y-4">
                   <div>
                     <label className="font-semibold">תאריך</label>
@@ -917,8 +1053,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       type="date"
                       name="date"
                       value={quickAddData.date}
-                      onChange={handleChange}
-                      min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
+                      onChange={handleQuickAddChange}
+                      min={format(new Date(), "yyyy-MM-dd")}
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
@@ -930,6 +1066,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         name="startTime"
                         value={quickAddData.startTime}
                         onChange={handleQuickAddChange}
+                        step="900"
                         className="w-full border rounded px-3 py-2"
                       />
                     </div>
@@ -940,11 +1077,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         name="endTime"
                         value={quickAddData.endTime}
                         onChange={handleQuickAddChange}
+                        step="900"
                         className="w-full border rounded px-3 py-2"
                       />
                     </div>
                   </div>
-
                   {!isBuildingMode && (
                     <>
                       <div>
@@ -959,55 +1096,33 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                           <option>טעינה לרכב חשמלי</option>
                         </select>
                       </div>
-
-                      {quickAddData.type === "טעינה לרכב חשמלי" && (
-                        <div>
-                          <label className="font-semibold">סוג טעינה</label>
-                          <select
-                            name="charger"
-                            value={quickAddData.charger}
-                            onChange={handleQuickAddChange}
-                            className="w-full border rounded px-3 py-2"
-                          >
-                            <option value="">בחר סוג</option>
-                            {chargerTypes.map((type) => (
-                              <option key={type}>{type}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                     </>
                   )}
-
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={() => handleAddSlot(quickAddData)}
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-                    >
-                      הוסף
-                    </button>
+                  <div className="flex justify-end gap-3 mt-6">
                     <button
                       onClick={() => setShowQuickAddPopup(false)}
-                      className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
                     >
                       ביטול
+                    </button>
+                    <button
+                      onClick={() => handleAddSlot(quickAddData)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      הוסף
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Settings Popup */}
-          {showSettings && (
+          {showSettingsPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
+              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
                 <h3 className="text-xl font-bold mb-5 text-center">
                   הגדרות חנייה
                 </h3>
-
                 <div className="space-y-4">
-                  {/* Price setting - editable */}
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <label className="font-semibold text-blue-800">
                       מחיר לשעה (₪)
@@ -1021,19 +1136,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         setNewPrice(e.target.value);
                       }}
                       placeholder={
-                        parkingSlots.find((s) => s.spot_type === "private")
-                          ?.hourly_price || "לא הוגדר מחיר"
+                        parkingSlots
+                          .find((s) => s.spot_type === "private")
+                          ?.hourly_price?.toString() || "לא הוגדר מחיר"
                       }
                       className="w-full border border-blue-200 rounded px-3 py-2 mt-1 bg-white"
+                      min="0"
+                      step="0.5"
                     />
+                    {priceError && (
+                      <div className="text-red-500 text-sm mt-1 bg-red-50 p-1 rounded">
+                        {priceError}
+                      </div>
+                    )}
+                    {priceSuccess && (
+                      <div className="text-green-500 text-sm mt-1 bg-green-50 p-1 rounded">
+                        {priceSuccess}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Address section - styled without dividing line */}
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <h4 className="font-semibold text-gray-700 mb-2">
                       פרטי כתובת החנייה
                     </h4>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
                         <label className="text-sm text-gray-600">עיר</label>
@@ -1044,10 +1169,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                               ?.address?.city || ""
                           }
                           disabled
-                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                          className="input-disabled-display"
                         />
                       </div>
-
                       <div className="col-span-2">
                         <label className="text-sm text-gray-600">רחוב</label>
                         <input
@@ -1057,10 +1181,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                               ?.address?.street || ""
                           }
                           disabled
-                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                          className="input-disabled-display"
                         />
                       </div>
-
                       <div>
                         <label className="text-sm text-gray-600">
                           מספר בית
@@ -1072,10 +1195,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                               ?.address?.number || ""
                           }
                           disabled
-                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                          className="input-disabled-display"
                         />
                       </div>
-
                       <div>
                         <label className="text-sm text-gray-600">מיקוד</label>
                         <input
@@ -1085,141 +1207,105 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                               ?.address?.postal_code || ""
                           }
                           disabled
-                          className="w-full border border-gray-200 rounded px-3 py-2 mt-1 bg-gray-100 text-gray-600 cursor-not-allowed"
+                          className="input-disabled-display"
                         />
                       </div>
+                      {parkingSlots.find((s) => s.spot_type === "private")
+                        ?.spot_number && (
+                        <div>
+                          <label className="text-sm text-gray-600">
+                            מספר חנייה
+                          </label>
+                          <input
+                            type="text"
+                            value={
+                              parkingSlots.find(
+                                (s) => s.spot_type === "private"
+                              )?.spot_number || ""
+                            }
+                            disabled
+                            className="input-disabled-display"
+                          />
+                        </div>
+                      )}
+                      {parkingSlots.find((s) => s.spot_type === "private")
+                        ?.floor && (
+                        <div>
+                          <label className="text-sm text-gray-600">קומה</label>
+                          <input
+                            type="text"
+                            value={
+                              parkingSlots.find(
+                                (s) => s.spot_type === "private"
+                              )?.floor || ""
+                            }
+                            disabled
+                            className="input-disabled-display"
+                          />
+                        </div>
+                      )}
                     </div>
-
-                    <div className="text-xs text-gray-500 mt-2 flex items-start">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-gray-400 mr-1 mt-0.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
+                    <div className="mt-3 text-xs text-gray-500 bg-gray-100 p-2 rounded flex items-center gap-1">
+                      <FaInfoCircle />
                       <span>
                         פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות
                         לשירות לקוחות.
                       </span>
                     </div>
                   </div>
-
-                  {priceError && (
-                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">
-                      {priceError}
-                    </div>
-                  )}
-
-                  {priceSuccess && (
-                    <div className="text-green-500 text-sm bg-green-50 p-2 rounded">
-                      {priceSuccess}
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 mt-4">
+                  <div className="flex justify-end gap-3 mt-6">
                     <button
-                      onClick={async () => {
-                        if (!newPrice) {
-                          setPriceError("יש להזין מחיר");
-                          return;
-                        }
-
-                        if (isNaN(newPrice) || Number(newPrice) < 0) {
-                          setPriceError("יש להזין מחיר תקין");
-                          return;
-                        }
-
-                        try {
-                          const token = localStorage.getItem("token");
-                          const privateSpot = parkingSlots.find(
-                            (s) => s.spot_type === "private"
-                          );
-
-                          if (!privateSpot) {
-                            setPriceError("לא נמצאה חניה פרטית");
-                            return;
-                          }
-
-                          await axios.patch(
-                            `/api/v1/parking-spots/${privateSpot._id}`,
-                            { hourly_price: Number(newPrice) },
-                            { headers: { Authorization: `Bearer ${token}` } }
-                          );
-
-                          setPriceSuccess("המחיר עודכן בהצלחה");
-                          await fetchMySpots();
-                        } catch (err) {
-                          setPriceError("שגיאה בעדכון המחיר");
-                        }
-                      }}
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      שמור שינויים
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSettings(false);
-                        setNewPrice("");
-                        setPriceError("");
-                        setPriceSuccess("");
-                      }}
-                      className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                      onClick={() => setShowSettingsPopup(false)}
+                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
                     >
                       סגור
+                    </button>
+                    <button
+                      onClick={handlePriceUpdate}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      שמור שינויים
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Confirmation Dialog */}
           {confirmDeleteId && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-                <h3 className="text-xl font-bold mb-4 text-center">
-                  אישור מחיקה
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+              <div
+                className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                  אישור מחיקת פינוי
                 </h3>
-                <p className="text-center mb-6">
-                  האם אתה בטוח שברצונך למחוק את פינוי החנייה הזה?
+                <p className="mb-6 text-gray-600">
+                  האם אתה בטוח שברצונך למחוק את הפינוי? לא ניתן לשחזר פעולה זו.
                 </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() =>
-                      handleDelete(
-                        confirmDeleteId.spotId,
-                        confirmDeleteId.scheduleId
-                      )
-                    }
-                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
-                  >
-                    מחק
-                  </button>
+                <div className="flex justify-center space-x-4 space-x-reverse">
                   <button
                     onClick={() => setConfirmDeleteId(null)}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded"
                   >
                     ביטול
+                  </button>
+                  <button
+                    onClick={handleDeleteSlot}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
+                  >
+                    מחק פינוי
                   </button>
                 </div>
               </div>
             </div>
           )}
-
-          {popupData && (
+          {popupData.show && (
             <Popup
               title={popupData.title}
               description={popupData.description}
-              type={popupData.type || "info"}
-              onClose={() => setPopupData(null)}
+              type={popupData.type}
+              onClose={() => setPopupData({ ...popupData, show: false })}
             />
           )}
         </main>

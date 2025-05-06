@@ -1,5 +1,7 @@
 import api from "./api";
 
+const userTimezone = "Asia/Jerusalem";
+
 export const parkingSpotService = {
   // Basic CRUD operations
   getAllParkingSpots: () => api.get("/parking-spots"),
@@ -43,12 +45,12 @@ export const parkingSpotService = {
 
   // Release parking endpoints
   releaseParkingSpot: (spotData) =>
-    api.post("/parking-spots/release", spotData),
+    api.post("/parking-spots/private/", spotData),
   getMyReleasedSpots: () => api.get("/parking-spots/my-released"),
 
   // New optimized parking spot finder using Mahalanobis distance
   findOptimalParkingSpots: (searchParams) =>
-    api.post("/parking-spots/find-optimal", searchParams),
+    api.post("/parking-spots/private/find-optimal", searchParams),
 };
 
 export default parkingSpotService;

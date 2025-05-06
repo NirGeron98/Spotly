@@ -6,6 +6,9 @@ import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import AddressMapSelector from "../shared/AddressMapSelector";
 import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
+import { USER_TIMEZONE } from "../utils/constants";
+import { format, parseISO, isValid } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import {
   FaSearch,
   FaSync,
@@ -20,6 +23,7 @@ import {
   FaCarSide,
   FaCog,
 } from "react-icons/fa";
+
 
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה | Spotly";
@@ -53,44 +57,16 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [feedback, setFeedback] = useState("");
   const [searching, setSearching] = useState(false);
 
-  const roundToQuarter = (date = new Date()) => {
-    const minutes = date.getMinutes();
-    const mod = minutes % 15;
-    // round to nearest: if mod ≥ 8, go up; else go down
-    let rounded = minutes - mod + (mod >= 8 ? 15 : 0);
-    if (rounded === 60) {
-      date.setHours(date.getHours() + 1);
-      rounded = 0;
-    }
-    return {
-      hours: date.getHours().toString().padStart(2, "0"),
-      minutes: rounded.toString().padStart(2, "0"),
-    };
-  };
-
-  const { hours, minutes } = roundToQuarter();
-  const initialStart = `${hours}:${minutes}`;
-  const [h, m] = [parseInt(hours, 10), parseInt(minutes, 10)];
-  const endDate = new Date();
-  endDate.setHours(h + 1, m);
-  const initialEnd = `${endDate
-    .getHours()
-    .toString()
-    .padStart(2, "0")}:${endDate.getMinutes().toString().padStart(2, "0")}`;
-
-  // Search filters
   const [searchParams, setSearchParams] = useState({
-    location: "",
-    latitude: "",
-    longitude: "",
-    date: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
-    startTime: initialStart,
-    endTime: initialEnd,
-    maxPrice: "",
+    address: "",
+    latitude: null,
+    longitude: null,
+    date: format(new Date(), "yyyy-MM-dd"), // Initialize date to current local date using format
+    startTime: "08:00",
+    endTime: "10:00",
+    maxPrice: 50,
     is_charging_station: false,
     charger_type: "",
-    sortBy: "distance",
-    sortOrder: "asc",
   });
 
   // Filter panel state
@@ -203,7 +179,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     try {
       setLoading(true);
 
-      // If coordinates weren't found through lookup, use user's current location
       const latitude = searchParams.latitude || userLocation.latitude;
       const longitude = searchParams.longitude || userLocation.longitude;
 
@@ -212,24 +187,22 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           title: "מיקום חסר",
           description: "אנא הזן כתובת או אפשר גישה למיקום שלך",
           type: "error",
+          show: true, // Ensure popup shows
         });
         setLoading(false);
         return;
       }
 
-      // Create the search payload based on your API structure (from the controller code)
       const searchPayload = {
         latitude,
         longitude,
         date: searchParams.date,
         startTime: searchParams.startTime,
         endTime: searchParams.endTime,
-        maxPrice: searchParams.maxPrice || 1000, // Default if not specified
-        distance_importance: distancePreference,
-        price_importance: pricePreference,
+        maxPrice: searchParams.maxPrice || 1000,
+        timezone: USER_TIMEZONE, // Add USER_TIMEZONE to the payload
       };
 
-      // Add filters for charging stations if selected
       if (searchParams.is_charging_station) {
         searchPayload.is_charging_station = true;
         if (searchParams.charger_type) {
@@ -238,10 +211,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       }
 
       const token = localStorage.getItem("token");
-
-      // Call your API endpoint for finding private spots (adjusted to match your controller)
       const response = await axios.post(
-        "/api/v1/parking-spots/find-optimal", // Using your actual endpoint
+        "/api/v1/parking-spots/private/find-optimal",
         searchPayload,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -249,10 +220,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       );
 
       let spots = response.data?.data?.parkingSpots || [];
-
-      // Sort results
       spots = sortParkingSpots(spots);
-
       setParkingSpots(spots);
 
       if (spots.length === 0) {
@@ -261,14 +229,18 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           description:
             "לא נמצאו חניות פנויות העונות על הקריטריונים שלך. אנא נסה לשנות את פרמטרי החיפוש.",
           type: "info",
+          show: true, // Ensure popup shows
         });
       }
     } catch (err) {
       console.error("שגיאה בחיפוש חניות:", err);
       setPopupData({
         title: "שגיאה בחיפוש",
-        description: "אירעה שגיאה בעת חיפוש חניות. אנא נסה שנית.",
+        description:
+          err?.response?.data?.message ||
+          "אירעה שגיאה בעת חיפוש חניות. אנא נסה שנית.",
         type: "error",
+        show: true, // Ensure popup shows
       });
     } finally {
       setLoading(false);
@@ -338,7 +310,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           parkingSpots.find((spot) => spot._id === spotId)?.hourly_price || 0,
       };
 
-      // Show confirmation popup
+      // Show confirmation popup  
       setPopupData({
         title: "אישור הזמנה",
         description: "האם אתה בטוח שברצונך להזמין חניה זו?",

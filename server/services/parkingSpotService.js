@@ -1,8 +1,14 @@
 const ParkingSpot = require("../models/parkingSpotModel");
-const Building = require("../models/buildingModel");
+const Building = require("../models/buildingModel"); 
 const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const Booking = require("../models/bookingModel");
+const mongoose = require("mongoose"); // Required for ObjectId generation
+
+// Helper function (consider moving to a utils file)
+const combineDateTime = (dateString, timeString) => {
+  return new Date(`${dateString}T${timeString}`);
+};
 
 exports.createParkingSpot = async (parkingSpotData) => {
   // Validate based on spot_type
@@ -217,14 +223,6 @@ exports.unassignUser = async (spotId) => {
   return parkingSpot;
 };
 
-exports.getAvailablePrivateSpots = async () => {
-  return await ParkingSpot.find({
-    spot_type: "private",
-    is_available: true,
-    user: { $exists: false },
-  }).populate("owner");
-};
-
 exports.getOwnerParkingSpots = async (ownerId) => {
   return await ParkingSpot.find({
     owner: ownerId,
@@ -234,7 +232,6 @@ exports.getOwnerParkingSpots = async (ownerId) => {
 exports.getChargingStations = async () => {
   return await ParkingSpot.find({
     is_charging_station: true,
-    is_available: true,
   }).populate("owner");
 };
 
@@ -257,101 +254,63 @@ exports.getAvailableParkingSpots = async (startTime, endTime, filters = {}) => {
 
 // Managing availability schedules
 exports.addAvailabilitySchedule = async (spotId, scheduleData, userId) => {
+  const { start_datetime, end_datetime } = scheduleData;
+
+  if (
+    !start_datetime ||
+    !(start_datetime instanceof Date) ||
+    isNaN(start_datetime.getTime())
+  ) {
+    throw new AppError("Invalid start datetime provided.", 400);
+  }
+  if (
+    !end_datetime ||
+    !(end_datetime instanceof Date) ||
+    isNaN(end_datetime.getTime())
+  ) {
+    throw new AppError("Invalid end datetime provided.", 400);
+  }
+  if (end_datetime <= start_datetime) {
+    throw new AppError("End datetime must be after start datetime.", 400);
+  }
+
   const parkingSpot = await ParkingSpot.findById(spotId);
   if (!parkingSpot) {
     throw new AppError("Parking spot not found", 404);
   }
 
-  // Check if user is owner of the parking spot
-  if (parkingSpot.owner.toString() !== userId) {
+  if (parkingSpot.owner?.toString() !== userId) {
     throw new AppError(
       "You do not have permission to update this parking spot's availability",
       403
     );
   }
 
-  // Validate time format
-  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  if (
-    !timeRegex.test(scheduleData.start_time) ||
-    !timeRegex.test(scheduleData.end_time)
-  ) {
+  const existingSchedules = parkingSpot.availability_schedule || [];
+  const hasOverlap = existingSchedules.some((existing) => {
+    const existingStart = existing.start_datetime;
+    const existingEnd = existing.end_datetime;
+    return start_datetime < existingEnd && end_datetime > existingStart;
+  });
+
+  if (hasOverlap) {
     throw new AppError(
-      "Invalid time format. Use HH:MM in 24-hour format.",
+      "The provided time slot overlaps with an existing availability schedule.",
       400
     );
   }
 
-  // Validate date format
-  if (!scheduleData.date) {
-    throw new AppError("Date is required", 400);
-  }
+  const newScheduleEntry = {
+    _id: new mongoose.Types.ObjectId(),
+    start_datetime,
+    end_datetime,
+    is_available: true,
+  };
 
-  // Ensure date is a valid Date object
-  const scheduleDate = new Date(scheduleData.date);
-  if (isNaN(scheduleDate.getTime())) {
-    throw new AppError("Invalid date format", 400);
-  }
-
-  // Validate that end time is after start time
-  const [startHour, startMinute] = scheduleData.start_time
-    .split(":")
-    .map(Number);
-  const [endHour, endMinute] = scheduleData.end_time.split(":").map(Number);
-
-  if (
-    endHour < startHour ||
-    (endHour === startHour && endMinute <= startMinute)
-  ) {
-    throw new AppError("End time must be after start time", 400);
-  }
-
-  // Initialize availability_schedule if it doesn't exist
-  if (!parkingSpot.availability_schedule) {
-    parkingSpot.availability_schedule = [];
-  }
-
-  // Check for overlapping schedules on the same date
-  const sameDate = parkingSpot.availability_schedule.filter((schedule) => {
-    // Compare dates by converting to ISO string date parts
-    const existingDate = new Date(schedule.date);
-    const newDate = new Date(scheduleData.date);
-    return (
-      existingDate.getFullYear() === newDate.getFullYear() &&
-      existingDate.getMonth() === newDate.getMonth() &&
-      existingDate.getDate() === newDate.getDate()
-    );
-  });
-
-  for (const existing of sameDate) {
-    const existingStart = existing.start_time.split(":").map(Number);
-    const existingEnd = existing.end_time.split(":").map(Number);
-
-    const existingStartMinutes = existingStart[0] * 60 + existingStart[1];
-    const existingEndMinutes = existingEnd[0] * 60 + existingEnd[1];
-    const newStartMinutes = startHour * 60 + startMinute;
-    const newEndMinutes = endHour * 60 + endMinute;
-
-    // Check for overlap
-    if (
-      (newStartMinutes < existingEndMinutes &&
-        newEndMinutes > existingStartMinutes) ||
-      (existingStartMinutes < newEndMinutes &&
-        existingEndMinutes > newStartMinutes)
-    ) {
-      const formattedDate = new Date(scheduleData.date).toLocaleDateString();
-      throw new AppError(
-        `This schedule overlaps with existing availability on ${formattedDate}`,
-        400
-      );
-    }
-  }
-
-  // Add the new schedule
-  parkingSpot.availability_schedule.push(scheduleData);
+  parkingSpot.availability_schedule.push(newScheduleEntry);
   await parkingSpot.save();
 
-  return parkingSpot;
+  return newScheduleEntry;
 };
 
 exports.updateAvailabilitySchedule = async (
@@ -365,7 +324,6 @@ exports.updateAvailabilitySchedule = async (
     throw new AppError("Parking spot not found", 404);
   }
 
-  // Check if user is owner of the parking spot
   if (parkingSpot.owner.toString() !== userId) {
     throw new AppError(
       "You do not have permission to update this parking spot's availability",
@@ -373,7 +331,6 @@ exports.updateAvailabilitySchedule = async (
     );
   }
 
-  // Find the schedule to update
   const scheduleIndex = parkingSpot.availability_schedule.findIndex(
     (schedule) => schedule._id.toString() === scheduleId
   );
@@ -382,52 +339,33 @@ exports.updateAvailabilitySchedule = async (
     throw new AppError("Schedule not found", 404);
   }
 
-  // Validate time format if provided
-  if (scheduleData.start_time || scheduleData.end_time) {
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-
-    if (scheduleData.start_time && !timeRegex.test(scheduleData.start_time)) {
-      throw new AppError(
-        "Invalid start time format. Use HH:MM in 24-hour format.",
-        400
-      );
+  if (scheduleData.start_datetime || scheduleData.end_datetime) {
+    if (
+      scheduleData.start_datetime &&
+      !(scheduleData.start_datetime instanceof Date)
+    ) {
+      throw new AppError("Invalid start datetime format.", 400);
     }
-
-    if (scheduleData.end_time && !timeRegex.test(scheduleData.end_time)) {
-      throw new AppError(
-        "Invalid end time format. Use HH:MM in 24-hour format.",
-        400
-      );
-    }
-
-    // Validate date if provided
-    if (scheduleData.date) {
-      const scheduleDate = new Date(scheduleData.date);
-      if (isNaN(scheduleDate.getTime())) {
-        throw new AppError("Invalid date format", 400);
-      }
-    }
-
-    // Use either new values or existing values for validation
-    const startTime =
-      scheduleData.start_time ||
-      parkingSpot.availability_schedule[scheduleIndex].start_time;
-    const endTime =
-      scheduleData.end_time ||
-      parkingSpot.availability_schedule[scheduleIndex].end_time;
-
-    const [startHour, startMinute] = startTime.split(":").map(Number);
-    const [endHour, endMinute] = endTime.split(":").map(Number);
 
     if (
-      endHour < startHour ||
-      (endHour === startHour && endMinute <= startMinute)
+      scheduleData.end_datetime &&
+      !(scheduleData.end_datetime instanceof Date)
     ) {
-      throw new AppError("End time must be after start time", 400);
+      throw new AppError("Invalid end datetime format.", 400);
+    }
+
+    const startTime =
+      scheduleData.start_datetime ||
+      parkingSpot.availability_schedule[scheduleIndex].start_datetime;
+    const endTime =
+      scheduleData.end_datetime ||
+      parkingSpot.availability_schedule[scheduleIndex].end_datetime;
+
+    if (endTime <= startTime) {
+      throw new AppError("End datetime must be after start datetime", 400);
     }
   }
 
-  // Update the schedule
   Object.keys(scheduleData).forEach((key) => {
     parkingSpot.availability_schedule[scheduleIndex][key] = scheduleData[key];
   });
@@ -442,7 +380,6 @@ exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
     throw new AppError("Parking spot not found", 404);
   }
 
-  // Check if user is owner of the parking spot
   if (parkingSpot.owner.toString() !== userId) {
     throw new AppError(
       "You do not have permission to update this parking spot's availability",
@@ -450,7 +387,6 @@ exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
     );
   }
 
-  // Find and remove the schedule
   const scheduleIndex = parkingSpot.availability_schedule.findIndex(
     (schedule) => schedule._id.toString() === scheduleId
   );
@@ -470,175 +406,96 @@ exports.removeAvailabilitySchedule = async (spotId, scheduleId, userId) => {
   return parkingSpot;
 };
 
-exports.isSpotAvailableForBooking = async (spotId, startTime, endTime) => {
-  const parkingSpot = await ParkingSpot.findById(spotId);
-  if (!parkingSpot) {
-    throw new AppError("Parking spot not found", 404);
-  }
-
-  // If it's not a private spot, just check if it's available and not occupied
-  if (parkingSpot.spot_type !== "private") {
-    return !parkingSpot.user; // Not occupied
-  }
-
-  // For private spots, if no availability schedules are defined,
-  // consider the spot as generally available in all time periods
+exports.isSpotAvailableForBooking = async (
+  spotId,
+  requestedStartTime,
+  requestedEndTime
+) => {
   if (
-    !parkingSpot.availability_schedule ||
-    parkingSpot.availability_schedule.length === 0
+    !(requestedStartTime instanceof Date) ||
+    !(requestedEndTime instanceof Date) ||
+    requestedEndTime <= requestedStartTime
   ) {
-    // Check only for conflicting bookings when no schedules are defined
-    const existingBookings = await Booking.find({
-      spot: spotId,
-      status: { $ne: "cancelled" },
-      $or: [
-        { start_datetime: { $lt: bookingEnd, $gte: bookingStart } },
-        { end_datetime: { $gt: bookingStart, $lte: bookingEnd } },
-        {
-          start_datetime: { $lte: bookingStart },
-          end_datetime: { $gte: bookingEnd },
-        },
-      ],
-    });
-
-    return existingBookings.length === 0;
+    throw new AppError("Invalid requested booking time range.", 400);
   }
 
-  // Convert booking times to Date objects if they're strings
-  const bookingStart =
-    startTime instanceof Date ? startTime : new Date(startTime);
-  const bookingEnd = endTime instanceof Date ? endTime : new Date(endTime);
-
-  // Check each day in the booking period
-  const oneDayMillis = 24 * 60 * 60 * 1000;
-
-  // Loop through each day in the booking period
-  for (
-    let currentDate = new Date(bookingStart);
-    currentDate <= bookingEnd;
-    currentDate = new Date(currentDate.getTime() + oneDayMillis)
-  ) {
-    // Format the current date to year-month-day for comparison
-    const currentDateString = currentDate.toISOString().split("T")[0];
-
-    // Find schedules for this date
-    const dateSchedules = parkingSpot.availability_schedule.filter((s) => {
-      const scheduleDate = new Date(s.date);
-      return (
-        scheduleDate.toISOString().split("T")[0] === currentDateString &&
-        s.is_available
-      );
-    });
-
-    if (dateSchedules.length === 0) {
-      return false; // No availability for this date
-    }
-
-    // Check each schedule for this date
-    let dateAvailable = false;
-    for (const schedule of dateSchedules) {
-      const [startHour, startMinute] = schedule.start_time
-        .split(":")
-        .map(Number);
-      const [endHour, endMinute] = schedule.end_time.split(":").map(Number);
-
-      // Create Date objects for the schedule times on this day
-      const scheduleStart = new Date(currentDate);
-      scheduleStart.setHours(startHour, startMinute, 0);
-
-      const scheduleEnd = new Date(currentDate);
-      scheduleEnd.setHours(endHour, endMinute, 0);
-
-      // Check if booking time is within this schedule
-      // For first day, check only bookingStart
-      // For last day, check only bookingEnd
-      // For days in between, the whole day should be available
-      if (currentDate.toDateString() === bookingStart.toDateString()) {
-        if (bookingStart >= scheduleStart && bookingStart < scheduleEnd) {
-          dateAvailable = true;
-          break;
-        }
-      } else if (currentDate.toDateString() === bookingEnd.toDateString()) {
-        if (bookingEnd > scheduleStart && bookingEnd <= scheduleEnd) {
-          dateAvailable = true;
-          break;
-        }
-      } else {
-        // Days in between should be fully covered by the schedule
-        if (
-          scheduleStart.getHours() <= 0 &&
-          scheduleStart.getMinutes() <= 0 &&
-          scheduleEnd.getHours() >= 23 &&
-          scheduleEnd.getMinutes() >= 59
-        ) {
-          dateAvailable = true;
-          break;
-        }
-      }
-    }
-
-    if (!dateAvailable) {
-      return false;
-    }
+  const spot = await ParkingSpot.findById(spotId).select(
+    "+availability_schedule"
+  );
+  if (!spot) {
+    throw new AppError("Parking spot not found.", 404);
   }
 
-  // Check if there are any overlapping bookings
-  const existingBookings = await Booking.find({
-    spot: spotId,
-    status: { $ne: "cancelled" },
-    $or: [
-      { start_datetime: { $lt: bookingEnd, $gte: bookingStart } },
-      { end_datetime: { $gt: bookingStart, $lte: bookingEnd } },
-      {
-        start_datetime: { $lte: bookingStart },
-        end_datetime: { $gte: bookingEnd },
-      },
-    ],
+  const matchingSchedule = spot.availability_schedule?.find(
+    (slot) =>
+      slot.is_available &&
+      requestedStartTime >= slot.start_datetime &&
+      requestedEndTime <= slot.end_datetime
+  );
+
+  if (!matchingSchedule) {
+    return {
+      available: false,
+      reason: "Time slot not within any available schedule.",
+    };
+  }
+
+  const conflictingBooking = await Booking.findOne({
+    parkingSpot: spotId,
+    schedule: matchingSchedule._id,
+    status: { $in: ["confirmed", "active", "pending"] },
   });
 
-  return existingBookings.length === 0;
+  if (conflictingBooking) {
+    return {
+      available: false,
+      reason: "Slot is already booked.",
+      scheduleId: matchingSchedule._id,
+    };
+  }
+
+  return { available: true, scheduleId: matchingSchedule._id };
 };
 
-exports.releaseParkingSpot = async (spotData) => {
-  const { date, startTime, endTime, price, type, charger, userId } = spotData;
+// exports.releaseParkingSpot = async (spotData) => {
+//   const { date, startTime, endTime, price, type, charger, userId } = spotData;
 
-  if (!date || !startTime || !endTime || price === undefined || !userId) {
-    throw new AppError("Missing required fields", 400);
-  }
+//   if (!date || !startTime || !endTime || price === undefined || !userId) {
+//     throw new AppError("Missing required fields", 400);
+//   }
 
-  const parkingSpot = await ParkingSpot.findOne({
-    owner: userId,
-    spot_type: "private",
-  });
+//   const parkingSpot = await ParkingSpot.findOne({
+//     owner: userId,
+//     spot_type: "private",
+//   });
 
-  if (!parkingSpot) {
-    throw new AppError("No private parking spot found for this user", 404);
-  }
+//   if (!parkingSpot) {
+//     throw new AppError("No private parking spot found for this user", 404);
+//   }
 
-  const scheduleData = {
-    date,
-    start_time: startTime,
-    end_time: endTime,
-    is_available: true,
-  };
+//   const scheduleData = {
+//     start_datetime: combineDateTime(date, startTime),
+//     end_datetime: combineDateTime(date, endTime),
+//     is_available: true,
+//   };
 
-  if (type) scheduleData.type = type;
-  if (charger) scheduleData.charger = charger;
+//   if (type) scheduleData.type = type;
+//   if (charger) scheduleData.charger = charger;
 
-  if (!parkingSpot.availability_schedule) {
-    parkingSpot.availability_schedule = [];
-  }
+//   if (!parkingSpot.availability_schedule) {
+//     parkingSpot.availability_schedule = [];
+//   }
 
-  parkingSpot.availability_schedule.push(scheduleData);
+//   parkingSpot.availability_schedule.push(scheduleData);
 
-  parkingSpot.hourly_price = price;
+//   parkingSpot.hourly_price = price;
 
-  if (type === "טעינה לרכב חשמלי") {
-    parkingSpot.is_charging_station = true;
-    parkingSpot.charger_type = charger;
-  }
+//   if (type === "טעינה לרכב חשמלי") {
+//     parkingSpot.is_charging_station = true;
+//     parkingSpot.charger_type = charger;
+//   }
 
-  await parkingSpot.save();
+//   await parkingSpot.save();
 
-  return parkingSpot;
-};
+//   return parkingSpot;
+// };

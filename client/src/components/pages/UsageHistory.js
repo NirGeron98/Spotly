@@ -4,6 +4,9 @@ import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
+import { USER_TIMEZONE } from "../utils/constants";
+import { parseISO } from "date-fns";
+import { format, toZonedTime } from "date-fns-tz";
 import {
   FaSearch,
   FaSync,
@@ -44,6 +47,41 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   const [sortField, setSortField] = useState("actionDate");
   const [sortOrder, setSortOrder] = useState("desc");
 
+  // Consolidated formatter for date and time
+  const formatDisplayDateTime = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString); // Assuming dateTimeString is UTC ISO from backend
+      const zonedDate = toZonedTime(date, USER_TIMEZONE);
+      return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: USER_TIMEZONE });
+    } catch (e) {
+      console.error("Error formatting display date-time:", e, dateTimeString);
+      return "Invalid Date";
+    }
+  };
+
+  const formatDisplayDate = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString);
+      const zonedDate = toZonedTime(date, USER_TIMEZONE);
+      return format(zonedDate, "dd/MM/yyyy", { timeZone: USER_TIMEZONE });
+    } catch (e) {
+      return "Invalid Date";
+    }
+  };
+
+  const formatDisplayTime = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString);
+      const zonedDate = toZonedTime(date, USER_TIMEZONE);
+      return format(zonedDate, "HH:mm", { timeZone: USER_TIMEZONE });
+    } catch (e) {
+      return "Invalid Date";
+    }
+  };
+
   useEffect(() => {
     fetchAllUserActivity();
   }, []);
@@ -52,24 +90,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters]);
-
-  const formatTimeTo24Hour = (dateString) => {
-    const date = new Date(dateString);
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
-  };
-
-  const formatActionDateTime = (date) => {
-    if (!date) return "-";
-    const d = new Date(date);
-    const formattedDate = d.toLocaleDateString("he-IL");
-    const formattedTime = d.toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    return `${formattedDate} ${formattedTime}`;
-  };
 
   const fetchAllUserActivity = async () => {
     try {
@@ -96,9 +116,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       // Transform bookings into history items
       const bookingHistory = bookings.map((b) => ({
         id: b._id,
-        date: new Date(b.start_datetime).toLocaleDateString(),
-        startTime: formatTimeTo24Hour(b.start_datetime),
-        endTime: formatTimeTo24Hour(b.end_datetime),
+        date: formatDisplayDate(b.start_datetime),
+        startTime: formatDisplayTime(b.start_datetime),
+        endTime: formatDisplayTime(b.end_datetime),
         actionDate: b.created_at,
         address: b.spot?.address
           ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
@@ -111,8 +131,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         status: b.status || "active",
         paymentStatus: b.payment_status || "pending",
         bookingType: b.booking_type || "parking",
-        rawDate: new Date(b.start_datetime),
-        rawActionDate: new Date(b.created_at),
+        rawDate: parseISO(b.start_datetime),
+        rawActionDate: parseISO(b.created_at),
         activityType:
           b.spot?.owner?.toString() === user._id ? "rental" : "booking",
         icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
@@ -125,8 +145,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const spotHistory = spots.flatMap((spot) => {
         const spotEntry = {
           id: spot._id,
-          date: new Date(spot.created_at).toLocaleDateString(),
-          startTime: formatTimeTo24Hour(spot.created_at),
+          date: formatDisplayDate(spot.created_at),
+          startTime: formatDisplayTime(spot.created_at),
           endTime: "-",
           actionDate: spot.created_at,
           address: spot.address
@@ -139,8 +159,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           type: "פרסום חניה",
           status: "active",
           paymentStatus: "n/a",
-          rawDate: new Date(spot.created_at),
-          rawActionDate: new Date(spot.created_at),
+          rawDate: parseISO(spot.created_at),
+          rawActionDate: parseISO(spot.created_at),
           activityType: "publication",
           icon: "FaMapMarkerAlt",
           showPaymentIcon: false,
@@ -149,7 +169,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         const scheduleEntries = (spot.availability_schedule || []).map(
           (schedule) => {
-            const scheduleDate = new Date(schedule.date);
+            const scheduleDate = parseISO(schedule.date);
 
             const formatTime = (timeStr) => {
               if (!timeStr || timeStr === "-") return "-";
@@ -163,7 +183,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
             return {
               id: `${spot._id}-${schedule._id}`,
-              date: scheduleDate.toLocaleDateString(),
+              date: formatDisplayDate(schedule.date),
               startTime: formatTime(schedule.start_time),
               endTime: formatTime(schedule.end_time),
               address: spot.address
@@ -177,7 +197,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               status: schedule.is_available ? "available" : "booked",
               paymentStatus: "n/a",
               rawDate: scheduleDate,
-              rawActionDate: new Date(schedule.created_at || spot.created_at),
+              rawActionDate: parseISO(schedule.created_at || spot.created_at),
               activityType: "availability",
               icon: "FaCalendarAlt",
               showPaymentIcon: false,
@@ -314,14 +334,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       }
 
       const user = booking.user;
-      const start = new Date(booking.start_datetime).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      const end = new Date(booking.end_datetime).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const start = formatDisplayTime(booking.start_datetime);
+      const end = formatDisplayTime(booking.end_datetime);
 
       const content = (
         <div className="text-right text-gray-800 space-y-2 leading-relaxed">
@@ -370,7 +384,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       ${getStatusDisplay(item.status).text || ""}
       ${getPaymentStatusDisplay(item.paymentStatus).text || ""}
       ${
-        formatActionDateTime(
+        formatDisplayDateTime(
           item.originalBooking?.created_at ||
             item.originalSpot?.created_at ||
             item.actionDate
@@ -626,21 +640,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                     item.paymentStatus
                   );
 
-                  const formatActionDate = (date) => {
-                    if (!date) return "-";
-                    const d = new Date(date);
-                    return d.toLocaleDateString("he-IL");
-                  };
-
-                  const formatActionTime = (date) => {
-                    if (!date) return "-";
-                    const d = new Date(date);
-                    return d.toLocaleTimeString("he-IL", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                  };
-
                   const actionDateTime =
                     item.originalBooking?.created_at ||
                     item.originalSpot?.created_at ||
@@ -652,10 +651,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                       className="flex hover:bg-indigo-50 transition-colors duration-150"
                     >
                       <div className="px-3 py-3 w-[10%] text-center">
-                        {formatActionDate(actionDateTime)}
+                        {formatDisplayDate(actionDateTime)}
                       </div>
                       <div className="px-3 py-3 w-[10%] text-center">
-                        {formatActionTime(actionDateTime)}
+                        {formatDisplayTime(actionDateTime)}
                       </div>
                       <div className="px-3 py-3 w-[35%] text-center">
                         {item.activityType !== "publication" ? (

@@ -4,6 +4,8 @@ import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
+import { parseISO } from "date-fns";
+import { format, toZonedTime } from "date-fns-tz";
 
 const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   document.title = "הזמנות חנייה פעילות | Spotly";
@@ -181,19 +183,18 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   // Also remove the showPaymentSummary modal if it exists in your code
   // since the payment popup will replace this functionality
 
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
+  const userTimezone = "Asia/Jerusalem"; // Define userTimezone
 
-    // Format date
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-
-    // Format time
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString); // Assuming dateTimeString is UTC ISO from backend
+      const zonedDate = toZonedTime(date, userTimezone);
+      return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: userTimezone });
+    } catch (e) {
+      console.error("Error formatting date-time:", e, dateTimeString);
+      return "Invalid Date";
+    }
   };
 
   // Calculate if a booking can be canceled (more than 1 hour before start time)

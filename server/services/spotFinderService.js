@@ -1,6 +1,7 @@
 const ParkingSpot = require("../models/parkingSpotModel");
 const User = require("../models/userModel");
 const AppError = require("../utils/appError");
+const { fromZonedTime } = require("date-fns-tz"); // Import fromZonedTime
 
 /**
  * ParkingSpotFinder class for finding and ranking parking spots using Mahalanobis distance
@@ -22,6 +23,7 @@ class ParkingSpotFinder {
    * @param {string} desiredEndTime - End time for parking (string in format "YYYY-MM-DD HH:MM")
    * @param {Object} additionalFilters - Additional filters like charger type, etc.
    * @param {number} maxResults - Maximum number of results to return
+   * @param {string} timezone - Timezone for accurate parking spot search
    * @param {string} excludeOwnerId - User ID to exclude from results
    * @returns {Array} - Ranked parking spots
    */
@@ -33,47 +35,110 @@ class ParkingSpotFinder {
     desiredEndTime,
     additionalFilters = {},
     maxResults = 10,
+    timezone = "UTC",
     excludeOwnerId = null
   ) {
     // Get user preferences
     let userPreferences;
     if (!excludeOwnerId) {
-      throw new AppError('User ID is required for optimal parking spot search', 400);
+      throw new AppError(
+        "User ID is required for optimal parking spot search",
+        400
+      );
     }
 
     const user = await User.findById(excludeOwnerId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError("User not found", 404);
     }
     userPreferences = user.preferences;
 
-    // Convert string times to Date objects
-    const desiredStart = new Date(desiredStartTime);
-    const desiredEnd = new Date(desiredEndTime);
+    // Enhanced logging
+    console.log("====== PARKING FINDER ALGORITHM EXECUTION ======");
+    console.log(
+      `Search parameters: lat=${desiredLat}, lon=${desiredLon}, maxPrice=${maxPrice}`
+    );
+    console.log(`Time range: ${desiredStartTime} to ${desiredEndTime}`);
+    console.log(
+      `User preferences: distance=${userPreferences.distance_importance}, price=${userPreferences.price_importance}`
+    );
+
+    // Validate timezone
+    if (!timezone) {
+      throw new AppError(
+        "Timezone is required for accurate parking spot search.",
+        400
+      );
+    }
+
+    // Convert string times (assumed to be in the user's local timezone) to UTC Date objects
+    let desiredStart, desiredEnd;
+    try {
+      desiredStart = fromZonedTime(desiredStartTime, timezone);
+      desiredEnd = fromZonedTime(desiredEndTime, timezone);
+    } catch (error) {
+      console.error("Error converting zoned time to UTC:", error);
+      throw new AppError(
+        "Invalid desiredStartTime, desiredEndTime, or timezone format.",
+        400
+      );
+    }
+
+    console.log(
+      `Desired start (UTC): ${desiredStart.toISOString()}, Desired end (UTC): ${desiredEnd.toISOString()}`
+    );
 
     // Fetch all parking spots from database with additional filters
     const allSpots = await this._fetchAllSpots(additionalFilters);
+    console.log(`1. Spots fetched initially: ${allSpots.length}`); // LOG 1
 
     let filteredSpots = allSpots;
 
     if (excludeOwnerId) {
+      const countBeforeOwnerFilter = filteredSpots.length;
       filteredSpots = filteredSpots.filter(
         (spot) => spot.original?.owner?._id?.toString() !== excludeOwnerId
+      );
+      console.log(
+        `2. Spots after owner exclusion (excluded ID: ${excludeOwnerId}): ${filteredSpots.length} (was ${countBeforeOwnerFilter})`
+      ); // LOG 2
+    } else {
+      console.log(
+        `2. Owner exclusion not applied as excludeOwnerId is null/undefined.`
       );
     }
 
     // If no spots are available, return empty array
     if (!filteredSpots || filteredSpots.length === 0) {
+      console.log("No spots after initial fetch or owner filter.");
       return [];
     }
 
     // Filter spots by availability
-    const availableSpots = filteredSpots.filter((spot) =>
-      this._checkAvailability(spot.availability, desiredStart, desiredEnd)
+    console.log(
+      `Attempting to filter ${filteredSpots.length} spots by availability...`
     );
+    console.log(
+      `Desired Start (UTC): ${desiredStart.toISOString()}, Desired End (UTC): ${desiredEnd.toISOString()}`
+    );
+
+    const availableSpots = filteredSpots.filter((spot) => {
+      const isAvailable = this._checkAvailability(
+        spot.availability,
+        desiredStart,
+        desiredEnd
+      );
+      // Optional: Log details for specific spots if needed for deeper debugging
+      // if (spot._id.toString() === 'SOME_SPECIFIC_SPOT_ID_TO_DEBUG') {
+      //   console.log(`Checking availability for spot ${spot._id}:`, spot.availability, `Result: ${isAvailable}`);
+      // }
+      return isAvailable;
+    });
+    console.log(`3. Spots after availability filter: ${availableSpots.length}`); // LOG 3
 
     // If no spots are available, return empty array
     if (availableSpots.length === 0) {
+      console.log("No spots available for the desired time range.");
       return [];
     }
 
@@ -81,9 +146,13 @@ class ParkingSpotFinder {
     const priceFilteredSpots = availableSpots.filter(
       (spot) => spot.price_per_hour <= maxPrice
     );
+    console.log(
+      `4. Spots after price filter (maxPrice: ${maxPrice}): ${priceFilteredSpots.length}`
+    ); // LOG 4
 
     // If no spots match price criteria, return empty array
     if (priceFilteredSpots.length === 0) {
+      console.log("No spots match the price criteria.");
       return [];
     }
 
@@ -98,7 +167,8 @@ class ParkingSpotFinder {
       const priceRatio = spot.price_per_hour / maxPrice;
 
       // Apply user preference weights
-      const weightedDistance = distance * (userPreferences.distance_importance / 3);
+      const weightedDistance =
+        distance * (userPreferences.distance_importance / 3);
       const weightedPrice = priceRatio * (userPreferences.price_importance / 3);
 
       return {
@@ -120,10 +190,10 @@ class ParkingSpotFinder {
       const simpleRankedSpots = spotsWithFeatures.sort((a, b) => {
         const distanceWeight = userPreferences.distance_importance / 5;
         const priceWeight = userPreferences.price_importance / 5;
-        
-        const aScore = (a.distance * distanceWeight) + (a.priceRatio * priceWeight);
-        const bScore = (b.distance * distanceWeight) + (b.priceRatio * priceWeight);
-        
+
+        const aScore = a.distance * distanceWeight + a.priceRatio * priceWeight;
+        const bScore = b.distance * distanceWeight + b.priceRatio * priceWeight;
+
         return aScore - bScore;
       });
 
@@ -153,9 +223,12 @@ class ParkingSpotFinder {
       );
 
       // Apply preference weights to final distance
-      const weightedDistance = mahalanobisDistance * 
-        ((userPreferences.distance_importance + userPreferences.price_importance) / 6);
-      
+      const weightedDistance =
+        mahalanobisDistance *
+        ((userPreferences.distance_importance +
+          userPreferences.price_importance) /
+          6);
+
       spotsWithFeatures[i].mahalanobisDistance = weightedDistance;
     }
 
@@ -171,46 +244,38 @@ class ParkingSpotFinder {
   /**
    * Check if a parking spot is available during the desired time slot
    * @param {Array} spotAvailability - List of availability slots for the spot
-   * @param {Date} desiredStart - Desired start time
-   * @param {Date} desiredEnd - Desired end time
+   * @param {Date} desiredStartUtc - Desired start time (UTC)
+   * @param {Date} desiredEndUtc - Desired end time (UTC)
    * @returns {boolean} - True if spot is available, False otherwise
    */
-  _checkAvailability(spotAvailability, desiredStart, desiredEnd) {
+  _checkAvailability(spotAvailability, desiredStartUtc, desiredEndUtc) {
     if (
       !spotAvailability ||
       !Array.isArray(spotAvailability) ||
       spotAvailability.length === 0
     ) {
+      // console.log(`Spot has no availability schedules or invalid format.`);
       return false;
     }
 
-    const desiredDate = desiredStart.toISOString().split("T")[0];
+    // console.log(`_checkAvailability: Desired UTC Start: ${desiredStartUtc.toISOString()}, Desired UTC End: ${desiredEndUtc.toISOString()}`);
 
     return spotAvailability.some((schedule) => {
-      // Check if dates match first
-      const scheduleDate = new Date(schedule.date);
-      const scheduleDateStr = scheduleDate.toISOString().split("T")[0];
+      if (!schedule.start_datetime || !schedule.end_datetime) {
+        // console.warn(`Schedule object missing start_datetime or end_datetime: ${JSON.stringify(schedule)}`);
+        return false;
+      }
 
-      if (scheduleDateStr !== desiredDate) return false;
+      const scheduleStart = new Date(schedule.start_datetime);
+      const scheduleEnd = new Date(schedule.end_datetime);
 
-      // Parse start and end times
-      const [startHour, startMinute] = schedule.start_time
-        .split(":")
-        .map(Number);
-      const [endHour, endMinute] = schedule.end_time.split(":").map(Number);
+      const isMatch =
+        schedule.is_available === true &&
+        scheduleStart <= desiredStartUtc &&
+        scheduleEnd >= desiredEndUtc;
 
-      const scheduleStartDate = new Date(scheduleDate);
-      scheduleStartDate.setHours(startHour, startMinute, 0);
-
-      const scheduleEndDate = new Date(scheduleDate);
-      scheduleEndDate.setHours(endHour, endMinute, 0);
-
-      // Check if desired time slot is completely within an available slot
-      return (
-        scheduleStartDate <= desiredStart &&
-        scheduleEndDate >= desiredEnd &&
-        schedule.is_available === true
-      );
+      // console.log(`  Checking schedule: Start: ${scheduleStart.toISOString()}, End: ${scheduleEnd.toISOString()}, Available: ${schedule.is_available}. Match: ${isMatch}`);
+      return isMatch;
     });
   }
 
@@ -446,7 +511,6 @@ class ParkingSpotFinder {
     try {
       const query = {
         spot_type: "private",
-        is_available: true,
       };
 
       if (filters.is_charging_station) {
@@ -473,7 +537,7 @@ class ParkingSpotFinder {
         )
         .map((spot) => ({
           spot_id: spot._id,
-          latitude: spot.address.latitude,
+          latitude: spot.address.latitude,  
           longitude: spot.address.longitude,
           price_per_hour: spot.hourly_price || 0,
           availability: spot.availability_schedule,

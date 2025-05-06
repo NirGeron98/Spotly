@@ -6,17 +6,21 @@ const parkingSpotService = require("../services/parkingSpotService");
 const parkingFinder = require("../services/spotFinderService");
 const Booking = require("../models/bookingModel");
 const mongoose = require("mongoose");
+const { fromZonedTime, format, toZonedTime } = require("date-fns-tz");
+const { parseISO, isValid, isBefore } = require("date-fns"); // Import necessary functions
 
 // Get & Create use factory
 exports.getAllParkingSpots = factory.getAll(ParkingSpot);
+exports.getPrivateSpots = factory.getAll(ParkingSpot, { spot_type: "private" });
+exports.getChargingStations = factory.getAll(ParkingSpot, {
+  is_charging_station: true,
+  spot_type: "private",
+});
 exports.getParkingSpot = factory.getOne(ParkingSpot);
-exports.createParkingSpot = factory.createOne(ParkingSpot);
 exports.deleteParkingSpot = factory.deleteOne(ParkingSpot);
 
 // ✅ Updated version – custom handler instead of factory
 exports.updateParkingSpot = catchAsync(async (req, res, next) => {
-  console.log("Update Parking Spot Request Body:", req.body); // Debugging line
-  console.log("Update Parking Spot Request Params:", req.params); // Debugging line
   const updatedSpot = await parkingSpotService.updateParkingSpot(
     req.params.spotId,
     req.body,
@@ -45,8 +49,7 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
     owner: req.user._id,
     is_available: true,
   };
-  console.log(parkingSpotData.floor);
-  console.log(parkingSpotData.spot_number);
+
   if (req.user.role === "private_prop_owner") {
     parkingSpotData.spot_type = "private";
     parkingSpotData.address = req.user.address;
@@ -100,9 +103,8 @@ exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
 
 exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   const ownerId = req.params.ownerId || req.user.id;
-  console.log("Owner ID:", ownerId); // Debugging line
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(ownerId);
-
+  console.log("My Parking Spots:", parkingSpots);
   res.status(200).json({
     status: "success",
     results: parkingSpots.length,
@@ -150,30 +152,70 @@ exports.getAvailableParkingSpots = catchAsync(async (req, res, next) => {
 });
 
 exports.addAvailabilitySchedule = catchAsync(async (req, res, next) => {
-  const updatedSpot = await parkingSpotService.addAvailabilitySchedule(
-    req.params.id,
-    req.body,
-    req.user.id
+  const { spotId } = req.params;
+  const userId = req.user.id;
+
+  // --- Input Parsing and Validation ---
+  // Expecting body like: { "start_datetime": "ISO_STRING", "end_datetime": "ISO_STRING", "timezone": "...", "type": "..." }
+  const { start_datetime, end_datetime, timezone, type } = req.body;
+
+  // Validate presence of required fields
+  if (!start_datetime || !end_datetime || !timezone || !type) {
+    return next(
+      new AppError(
+        "Please provide start_datetime, end_datetime, timezone, and type.",
+        400
+      )
+    );
+  }
+
+  // ISO validation and time order validation
+  let startUtc, endUtc;
+  try {
+    startUtc = parseISO(start_datetime);
+    endUtc = parseISO(end_datetime);
+
+    if (!isValid(startUtc) || !isValid(endUtc)) {
+      throw new Error("Invalid ISO date format");
+    }
+  } catch (error) {
+    return next(
+      new AppError(
+        "Invalid start_datetime or end_datetime format. Please provide valid ISO 8601 strings.",
+        400
+      )
+    );
+  }
+
+  if (!isBefore(startUtc, endUtc)) {
+    return next(new AppError("End time must be after start time.", 400));
+  }
+
+  // Prepare data for the service
+  const scheduleData = {
+    start_datetime: startUtc, // Pass Date object
+    end_datetime: endUtc, // Pass Date object
+    type: type,
+  };
+
+  // Call the service layer
+  const newSchedule = await parkingSpotService.addAvailabilitySchedule(
+    spotId,
+    scheduleData, // Pass the prepared data
+    userId
   );
 
-  // Store the updated spot for potential middleware use
-  req.updatedSpot = updatedSpot;
-
-  // If no next middleware, send the response
-  if (!next.called) {
-    res.status(200).json({
-      status: "success",
-      data: {
-        parkingSpot: updatedSpot,
-      },
-    });
-  } else {
-    next();
-  }
+  // Response
+  res.status(201).json({
+    status: "success",
+    data: {
+      schedule: newSchedule,
+    },
+  });
 });
 
 exports.getAvailabilitySchedules = catchAsync(async (req, res, next) => {
-  const parkingSpot = await ParkingSpot.findById(req.params.id);
+  const parkingSpot = await ParkingSpot.findById(req.params.spotId);
 
   if (!parkingSpot) {
     return next(new AppError("No parking spot found with that ID", 404));
@@ -281,17 +323,17 @@ exports.getMyReleasedSpots = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.releaseParkingSpot = catchAsync(async (req, res, next) => {
-  const parkingSpot = await parkingSpotService.releaseParkingSpot({
-    ...req.body,
-    userId: req.user.id,
-  });
+// exports.releaseParkingSpot = catchAsync(async (req, res, next) => {
+//   const parkingSpot = await parkingSpotService.releaseParkingSpot({
+//     ...req.body,
+//     userId: req.user.id,
+//   });
 
-  res.status(200).json({
-    status: "success",
-    data: { parkingSpot },
-  });
-});
+//   res.status(200).json({
+//     status: "success",
+//     data: { parkingSpot },
+//   });
+// });
 
 /**
  * Find optimal parking spots based on user criteria
@@ -308,6 +350,7 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
     maxPrice = 1000,
     is_charging_station,
     charger_type,
+    timezone = "UTC",
   } = req.body;
 
   // Validate required parameters
@@ -350,7 +393,8 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
       startTimeStr,
       endTimeStr,
       additionalFilters,
-      20,
+      20, // maxResults
+      timezone,
       excludeOwnerId
     );
 
@@ -382,5 +426,3 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
     );
   }
 });
-
-// ADDED NOW

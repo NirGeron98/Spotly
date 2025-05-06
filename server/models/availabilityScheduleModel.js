@@ -2,31 +2,20 @@ const mongoose = require("mongoose");
 
 const availabilityScheduleSchema = new mongoose.Schema(
   {
-    date: {
+    start_datetime: {
       type: Date,
-      required: true,
+      required: [true, "An availability slot must have a start date and time."],
     },
-    start_time: {
-      type: String, // Format: "HH:MM"
-      required: true,
-      validate: {
-        validator: function (v) {
-          return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+    end_datetime: {
+      type: Date,
+      required: [true, "An availability slot must have an end date and time."],
+      validate: [
+        function (val) {
+          // 'this' points to the current document being validated
+          return val > this.start_datetime;
         },
-        message: (props) =>
-          `${props.value} is not a valid time format. Use HH:MM in 24-hour format.`,
-      },
-    },
-    end_time: {
-      type: String, // Format: "HH:MM"
-      required: true,
-      validate: {
-        validator: function (v) {
-          return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
-        },
-        message: (props) =>
-          `${props.value} is not a valid time format. Use HH:MM in 24-hour format.`,
-      },
+        "End time must be after start time.",
+      ],
     },
     is_available: {
       type: Boolean,
@@ -36,10 +25,6 @@ const availabilityScheduleSchema = new mongoose.Schema(
       type: String,
       enum: ["השכרה רגילה", "טעינה לרכב חשמלי"],
       default: "השכרה רגילה",
-    },
-    charger: {
-      type: String,
-      enum: ["Type 1", "Type 2", "CCS", "CHAdeMO", "Tesla", "Other"],
     },
   },
   { _id: true }

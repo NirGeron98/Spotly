@@ -7,16 +7,12 @@ const router = express.Router();
 // Protect all routes after this middleware
 router.use(authController.protect);
 
-//=============================================================================
-// COMMON ROUTES
-//=============================================================================
-
 router.get("/my-spots", parkingSpotController.getMyParkingSpots);
-router.get("/charging-stations", parkingSpotController.getChargingStations);
-router.get(
-  "/private-available",
-  parkingSpotController.getAvailablePrivateSpots
-);
+
+router
+  .post("/private/find-optimal", parkingSpotController.findOptimalParkingSpots)
+  .get("/private/charging-stations", parkingSpotController.getChargingStations)
+  .get("/private", parkingSpotController.getPrivateSpots);
 
 router
   .route("/:spotId")
@@ -28,53 +24,39 @@ router
   );
 
 router
-  .route("/:spotId/availability")
-  .get(parkingSpotController.getAvailabilitySchedules);
+  .route("/:spotId/availability-schedule/:scheduleId")
+  .delete(
+    authController.restrictTo("private_prop_owner", "building_resident"),
+    parkingSpotController.removeAvailabilitySchedule
+  )
+  .patch(
+    authController.restrictTo("private_prop_owner", "building_resident"),
+    parkingSpotController.updateAvailabilitySchedule
+  );
 
 router
-  .route("/:spotId/availability/:scheduleId")
-  .delete(parkingSpotController.removeAvailabilitySchedule);
-
-router.post("/find-optimal", parkingSpotController.findOptimalParkingSpots);
-
-router.post(
-  "/:spotId/availability-schedule",
-  authController.restrictTo("private_prop_owner", "building_resident"),
-  parkingSpotController.addAvailabilitySchedule
-);
-router.patch(
-  "/:spotId/availability-schedule/:scheduleId",
-  authController.restrictTo("private_prop_owner", "building_resident"),
-  parkingSpotController.updateAvailabilitySchedule
-);
-router.delete(
-  "/:spotId/availability-schedule/:scheduleId",
-  authController.restrictTo("private_prop_owner", "building_resident"),
-  parkingSpotController.removeAvailabilitySchedule
-);
+  .route("/:spotId/availability-schedule")
+  .get(parkingSpotController.getAvailabilitySchedules)
+  .post(
+    authController.restrictTo("private_prop_owner", "building_resident"),
+    parkingSpotController.addAvailabilitySchedule
+  );
 
 // Release parking routes (restricted to private property owners)
-router.post(
-  "/release",
-  authController.restrictTo("private_prop_owner"),
-  parkingSpotController.releaseParkingSpot
-);
-router.get(
-  "/my-released",
-  authController.restrictTo("private_prop_owner"),
-  parkingSpotController.getMyReleasedSpots
-);
-
-// Admin and building manager restricted routes
-router.post(
-  "/",
-  authController.restrictTo("admin", "building_manager"),
-  parkingSpotController.createParkingSpot
-);
+// router.post(
+//   "/release",
+//   authController.restrictTo("private_prop_owner"),
+//   parkingSpotController.add
+// );
+// router.get(
+//   "/my-released",
+//   authController.restrictTo("private_prop_owner"),
+//   parkingSpotController.getMyReleasedSpots
+// );
 
 router
   .route("/")
   .get(parkingSpotController.getAllParkingSpots)
-  .post(parkingSpotController.createParkingSpot);
+  .post(parkingSpotController.createUserParkingSpot);
 
 module.exports = router;
