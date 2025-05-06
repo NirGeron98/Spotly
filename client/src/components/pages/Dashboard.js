@@ -18,6 +18,8 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
     if (role === "user" || role === "private_prop_owner") {
       localStorage.removeItem("mode");
       navigate("/search-parking", { state: { fromDashboard: true } });
+    } else if (!role) {
+      navigate("/search-parking");
     }
   }, [role, navigate]);
 

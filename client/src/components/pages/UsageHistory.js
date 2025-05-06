@@ -5,7 +5,7 @@ import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import { USER_TIMEZONE } from "../utils/constants";
-import { parseISO } from "date-fns";
+import { parseISO, isValid } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import {
   FaSearch,
@@ -50,6 +50,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     if (!dateTimeString) return "N/A";
     try {
       const date = parseISO(dateTimeString); // Assuming dateTimeString is UTC ISO from backend
+      if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: USER_TIMEZONE });
     } catch (e) {
@@ -62,9 +63,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     if (!dateTimeString) return "N/A";
     try {
       const date = parseISO(dateTimeString);
+      if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "dd/MM/yyyy", { timeZone: USER_TIMEZONE });
     } catch (e) {
+      console.error("Error formatting display date:", e, dateTimeString);
       return "Invalid Date";
     }
   };
@@ -73,9 +76,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     if (!dateTimeString) return "N/A";
     try {
       const date = parseISO(dateTimeString);
+      if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "HH:mm", { timeZone: USER_TIMEZONE });
     } catch (e) {
+      console.error("Error formatting display time:", e, dateTimeString);
       return "Invalid Date";
     }
   };
@@ -112,35 +117,45 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const spots = spotsResponse.data?.data?.parkingSpots || [];
 
       // Transform bookings into history items
-      const bookingHistory = bookings.map((b) => ({
-        id: b._id,
-        date: formatDisplayDate(b.start_datetime),
-        startTime: formatDisplayTime(b.start_datetime),
-        endTime: formatDisplayTime(b.end_datetime),
-        actionDate: b.created_at,
-        address: b.spot?.address
-          ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
-              b.spot.address.city || ""
-            }`
-          : "כתובת לא זמינה",
-        city: b.spot?.address?.city || "",
-        price: b.final_amount || b.base_rate || 0,
-        type: b.spot?.owner?.toString() === user._id ? "השכרה" : "הזמנה",
-        status: b.status || "active",
-        paymentStatus: b.payment_status || "pending",
-        bookingType: b.booking_type || "parking",
-        rawDate: parseISO(b.start_datetime),
-        rawActionDate: parseISO(b.created_at),
-        activityType:
-          b.spot?.owner?.toString() === user._id ? "rental" : "booking",
-        icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
-        showPaymentIcon:
-          b.payment_status === "completed" && b.status === "completed",
-        originalBooking: b,
-      }));
+      const bookingHistory = bookings.map((b) => {
+        // Safely parse dates with validation
+        const startDate = b.start_datetime ? parseISO(b.start_datetime) : null;
+        const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
+        const actionDate = b.created_at ? parseISO(b.created_at) : null;
+
+        return {
+          id: b._id,
+          date: formatDisplayDate(b.start_datetime),
+          startTime: formatDisplayTime(b.start_datetime),
+          endTime: formatDisplayTime(b.end_datetime),
+          actionDate: b.created_at,
+          address: b.spot?.address
+            ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
+                b.spot.address.city || ""
+              }`
+            : "כתובת לא זמינה",
+          city: b.spot?.address?.city || "",
+          price: b.final_amount || b.base_rate || 0,
+          type: b.spot?.owner?.toString() === user._id ? "השכרה" : "הזמנה",
+          status: b.status || "active",
+          paymentStatus: b.payment_status || "pending",
+          bookingType: b.booking_type || "parking",
+          rawDate: isValid(startDate) ? startDate : null,
+          rawActionDate: isValid(actionDate) ? actionDate : null,
+          activityType:
+            b.spot?.owner?.toString() === user._id ? "rental" : "booking",
+          icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
+          showPaymentIcon:
+            b.payment_status === "completed" && b.status === "completed",
+          originalBooking: b,
+        };
+      });
 
       // Transform published spots into history items
       const spotHistory = spots.flatMap((spot) => {
+        // Safely parse spot creation date
+        const spotDate = spot.created_at ? parseISO(spot.created_at) : null;
+
         const spotEntry = {
           id: spot._id,
           date: formatDisplayDate(spot.created_at),
@@ -157,8 +172,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           type: "פרסום חניה",
           status: "active",
           paymentStatus: "n/a",
-          rawDate: parseISO(spot.created_at),
-          rawActionDate: parseISO(spot.created_at),
+          rawDate: isValid(spotDate) ? spotDate : null,
+          rawActionDate: isValid(spotDate) ? spotDate : null,
           activityType: "publication",
           icon: "FaMapMarkerAlt",
           showPaymentIcon: false,
@@ -167,7 +182,16 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         const scheduleEntries = (spot.availability_schedule || []).map(
           (schedule) => {
-            const scheduleDate = parseISO(schedule.date);
+            // Add safety checks for date parsing
+            let scheduleDate = null;
+            try {
+              if (schedule.date) {
+                scheduleDate = parseISO(schedule.date);
+                if (!isValid(scheduleDate)) scheduleDate = null;
+              }
+            } catch (err) {
+              console.error("Error parsing schedule date:", err);
+            }
 
             const formatTime = (timeStr) => {
               if (!timeStr || timeStr === "-") return "-";
@@ -179,9 +203,25 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 .padStart(2, "0")}`;
             };
 
+            // Safety check for schedule.created_at
+            let scheduleActionDate = null;
+            try {
+              if (schedule.created_at) {
+                scheduleActionDate = parseISO(schedule.created_at);
+                if (!isValid(scheduleActionDate)) {
+                  scheduleActionDate = spotDate; // Fall back to spot creation date
+                }
+              } else {
+                scheduleActionDate = spotDate;
+              }
+            } catch (err) {
+              console.error("Error parsing schedule action date:", err);
+              scheduleActionDate = spotDate;
+            }
+
             return {
               id: `${spot._id}-${schedule._id}`,
-              date: formatDisplayDate(schedule.date),
+              date: schedule.date ? formatDisplayDate(schedule.date) : "N/A",
               startTime: formatTime(schedule.start_time),
               endTime: formatTime(schedule.end_time),
               address: spot.address
@@ -195,7 +235,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               status: schedule.is_available ? "available" : "booked",
               paymentStatus: "n/a",
               rawDate: scheduleDate,
-              rawActionDate: parseISO(schedule.created_at || spot.created_at),
+              rawActionDate: scheduleActionDate,
               activityType: "availability",
               icon: "FaCalendarAlt",
               showPaymentIcon: false,
@@ -416,20 +456,24 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     })
     .sort((a, b) => {
       if (sortField === "actionDate" || sortField === "actionTime") {
-        const dateA = new Date(a.rawActionDate || a.actionDate);
-        const dateB = new Date(b.rawActionDate || b.actionDate);
+        // Use safe date comparison that handles null values
+        const dateA = a.rawActionDate ? new Date(a.rawActionDate) : new Date(0);
+        const dateB = b.rawActionDate ? new Date(b.rawActionDate) : new Date(0);
 
         return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
       }
 
       if (sortField === "date") {
-        return sortOrder === "asc"
-          ? a.rawDate - b.rawDate
-          : b.rawDate - a.rawDate;
+        // Use safe date comparison that handles null values
+        const dateA = a.rawDate ? new Date(a.rawDate) : new Date(0);
+        const dateB = b.rawDate ? new Date(b.rawDate) : new Date(0);
+
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
       }
 
-      const valA = a[sortField];
-      const valB = b[sortField];
+      // Handle other fields with null-safe comparison
+      const valA = a[sortField] || "";
+      const valB = b[sortField] || "";
 
       return sortOrder === "asc"
         ? valA.toString().localeCompare(valB.toString())

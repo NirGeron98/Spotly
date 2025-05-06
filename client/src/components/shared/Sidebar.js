@@ -43,12 +43,13 @@ const Sidebar = ({ current, setCurrent, role }) => {
     },
   ];
 
+  // Modified releaseOption to always be visible regardless of role or mode
   const releaseOption = {
-    key: "release",
+    key: "releaseParking", // Changed from "release" to match the state in ReleaseParking component
     label: "ניהול החנייה שלי",
     icon: <FaRegWindowClose className="text-lg" />,
     path: "/release",
-    visible: role === "private_prop_owner" || isBuildingMode,
+    visible: true, // Always visible now
   };
 
   return (

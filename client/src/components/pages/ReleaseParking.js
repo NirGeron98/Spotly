@@ -134,18 +134,17 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const pixelToTime = (pixel) => {
     const startHour = 6;
     const heightPerHour = 60;
-    const totalMinutes = Math.round((pixel / heightPerHour) * 60);
-    let hour = Math.floor(totalMinutes / 60) + startHour;
-    let minute = totalMinutes % 60;
-    minute = Math.round(minute / 15) * 15;
-    if (minute === 60) {
-      hour += 1;
-      minute = 0;
-    }
+    const totalMinutes = (pixel / heightPerHour) * 60;
+
+    const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+    let hour = Math.floor(roundedMinutes / 60) + startHour;
+    let minute = roundedMinutes % 60;
+
     if (hour >= 24) {
       hour = 23;
       minute = 59;
     }
+
     return `${hour.toString().padStart(2, "0")}:${minute
       .toString()
       .padStart(2, "0")}`;
@@ -154,11 +153,15 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const getTimePosition = (time) => {
     try {
       if (!time || typeof time !== "string" || !time.includes(":")) return 0;
+
       const [hours, minutes] = time.split(":").map(Number);
       const startHour = 6;
       const heightPerHour = 60;
-      const position = (hours - startHour + minutes / 60) * heightPerHour;
-      return Math.max(0, position);
+
+      const totalMinutesFromStart = (hours - startHour) * 60 + minutes;
+      const position = (totalMinutesFromStart / 60) * heightPerHour;
+
+      return Math.max(0, Math.min(position, 18 * heightPerHour));
     } catch (e) {
       console.error("Error calculating time position:", time, e);
       return 0;
@@ -643,23 +646,66 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     setStartOfWeekDate(getStartOfWeek(new Date()));
   };
 
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 6; hour < 24; hour++) {
+      for (let quarter = 0; quarter < 4; quarter++) {
+        const minutes = quarter * 15;
+        const time = `${hour.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}`;
+        options.push(time);
+      }
+    }
+    options.push("23:59");
+    return options;
+  };
+  
+  
+
   const handleMouseDown = (e, dayIndex) => {
     if (loadingSpots || isDayInPast(dayIndex)) return;
+
     const gridRect = timeGridRef.current.getBoundingClientRect();
-    const relativeY = e.clientY - gridRect.top + timeGridRef.current.scrollTop;
-    const boundedY = Math.max(0, Math.min(relativeY, 18 * 60));
+
+    const headerHeight =
+      document.querySelector(".your-header-class")?.offsetHeight || 60;
+    const relativeY =
+      e.clientY - gridRect.top - headerHeight + timeGridRef.current.scrollTop;
+
+    const exactHour = 6 + relativeY / 60;
+
+    const roundedHour = Math.floor(exactHour * 4) / 4;
+
+    const snappedPosition = (roundedHour - 6) * 60;
+
+    const boundedY = Math.max(0, Math.min(snappedPosition, 18 * 60));
+
     setSelectedDay(dayIndex);
     setDragStart(boundedY);
     setDragEnd(boundedY);
     setIsDragging(true);
+
+    e.preventDefault();
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
+
     const gridRect = timeGridRef.current.getBoundingClientRect();
+
     const relativeY = e.clientY - gridRect.top + timeGridRef.current.scrollTop;
-    const boundedY = Math.max(0, Math.min(relativeY, 18 * 60));
+
+    const exactHour = 6 + relativeY / 60;
+
+    const roundedHour = Math.floor(exactHour * 4) / 4;
+
+    const snappedPosition = (roundedHour - 6) * 60;
+
+    const boundedY = Math.max(0, Math.min(snappedPosition, 18 * 60));
+
     setDragEnd(boundedY);
+    e.preventDefault();
   };
 
   const handleMouseUp = () => {
@@ -738,7 +784,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         />
         <main className="flex-1 p-4 md:p-10 mt-16 max-w-[1800px] mx-auto w-full">
           <div className="relative mb-6 flex flex-col items-center">
-            <h1 className="text-3xl font-extrabold text-blue-700 text-center w-full">
+            <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 text-center w-full">
               ניהול החנייה שלי
             </h1>
             {!isBuildingMode && (
@@ -775,30 +821,39 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
-              <div className="flex gap-4">
-                <div className="w-1/2">
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1">
                   <label className="font-semibold">שעת התחלה</label>
-                  <input
-                    type="time"
+                  <select
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
-                    step="900"
                     className="w-full border rounded px-3 py-2"
-                  />
+                  >
+                    {generateTimeOptions().map((timeString) => (
+                      <option key={timeString} value={timeString}>
+                        {timeString}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="w-1/2">
+                <div className="flex-1">
                   <label className="font-semibold">שעת סיום</label>
-                  <input
-                    type="time"
+                  <select
                     name="endTime"
                     value={formData.endTime}
                     onChange={handleChange}
-                    step="900"
                     className="w-full border rounded px-3 py-2"
-                  />
+                  >
+                    {generateTimeOptions().map((timeString) => (
+                      <option key={timeString} value={timeString}>
+                        {timeString}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
               {!isBuildingMode && (
                 <>
                   <div>
@@ -1061,27 +1116,36 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <div className="flex gap-4">
                     <div className="w-1/2">
                       <label className="font-semibold">שעת התחלה</label>
-                      <input
-                        type="time"
+                      <select
                         name="startTime"
                         value={quickAddData.startTime}
                         onChange={handleQuickAddChange}
-                        step="900"
                         className="w-full border rounded px-3 py-2"
-                      />
+                      >
+                        {generateTimeOptions().map((timeString) => (
+                          <option key={timeString} value={timeString}>
+                            {timeString}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="w-1/2">
                       <label className="font-semibold">שעת סיום</label>
-                      <input
-                        type="time"
+                      <select
                         name="endTime"
                         value={quickAddData.endTime}
                         onChange={handleQuickAddChange}
-                        step="900"
                         className="w-full border rounded px-3 py-2"
-                      />
+                      >
+                        {generateTimeOptions().map((timeString) => (
+                          <option key={timeString} value={timeString}>
+                            {timeString}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
+
                   {!isBuildingMode && (
                     <>
                       <div>
