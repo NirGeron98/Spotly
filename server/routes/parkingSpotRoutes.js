@@ -14,6 +14,15 @@ router
   .get("/private/charging-stations", parkingSpotController.getChargingStations)
   .get("/private", parkingSpotController.getPrivateSpots);
 
+router.get("/building/:buildingId", parkingSpotController.getBuildingSpots)
+router.post(
+  '/building/find-available',
+  authController.protect,
+  authController.restrictTo('building_resident', "admin"),  
+  parkingSpotController.findBuildingSpotForResident
+);
+
+
 router
   .route("/:spotId")
   .get(parkingSpotController.getParkingSpot)

@@ -1,5 +1,5 @@
 const ParkingSpot = require("../models/parkingSpotModel");
-const Building = require("../models/buildingModel"); 
+const Building = require("../models/buildingModel");
 const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const Booking = require("../models/bookingModel");
@@ -59,17 +59,17 @@ exports.getAllParkingSpots = async (filters = {}) => {
   return await ParkingSpot.find(filters);
 };
 
-exports.getParkingSpotsByBuilding = async (buildingId) => {
-  const building = await Building.findById(buildingId);
-  if (!building) {
-    throw new AppError("Building not found", 404);
-  }
+// exports.getParkingSpotsByBuilding = async (buildingId) => {
+//   const building = await Building.findById(buildingId);
+//   if (!building) {
+//     throw new AppError("Building not found", 404);
+//   }
 
-  return await ParkingSpot.find({
-    building: buildingId,
-    spot_type: "building",
-  }).populate("user");
-};
+//   return await ParkingSpot.find({
+//     building: buildingId,
+//     spot_type: "building",
+//   }).populate("user");
+// };
 
 exports.updateParkingSpot = async (id, updateData, userId, userRole) => {
   const parkingSpot = await ParkingSpot.findById(id);
@@ -455,6 +455,193 @@ exports.isSpotAvailableForBooking = async (
   }
 
   return { available: true, scheduleId: matchingSchedule._id };
+};
+
+exports.findAvailableBuildingSpot = async (
+  buildingId,
+  startTime,
+  endTime,
+  userId
+) => {
+  // Find a user's assigned spot first
+  const userAssignedSpot = await ParkingSpot.findOne({
+    building: buildingId,
+    spot_type: "building",
+    user: userId,
+  });
+
+  // find any available spot in the building
+  const buildingSpots = await ParkingSpot.find({
+    building: buildingId,
+    spot_type: "building",
+  });
+
+  // Check each spot for availability
+  for (const spot of buildingSpots) {
+    const isAvailable = await exports.isSpotAvailableForBooking(
+      spot._id,
+      startTime,
+      endTime
+    );
+
+    if (isAvailable.available) {
+      return spot;
+    }
+  }
+
+  // No available spots found
+  return null;
+};
+
+/**
+ * Mark an availability schedule as booked but keep it in the database
+ */
+exports.markScheduleAsBooked = async (
+  spotId,
+  scheduleId,
+  bookingId,
+  options = {}
+) => {
+  const { session } = options;
+
+  // Find the spot and get the schedule
+  const spot = await ParkingSpot.findById(spotId).session(session || null);
+  if (!spot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Find the specific schedule
+  const scheduleIndex = spot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === scheduleId
+  );
+
+  if (scheduleIndex === -1) {
+    throw new AppError("Availability schedule not found", 404);
+  }
+
+  // Mark it as unavailable and reference the booking
+  spot.availability_schedule[scheduleIndex].is_available = false;
+  spot.availability_schedule[scheduleIndex].booking_id = bookingId;
+
+  // Save the spot
+  await spot.save({ session: session || null });
+
+  return spot.availability_schedule[scheduleIndex];
+};
+
+/**
+ * Restore an availability schedule when a booking is canceled
+ */
+exports.restoreSchedule = async (spotId, scheduleId, options = {}) => {
+  const { session } = options;
+
+  // Find the spot and schedule
+  const spot = await ParkingSpot.findById(spotId).session(session || null);
+  if (!spot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  // Find the schedule to restore
+  const scheduleIndex = spot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === scheduleId
+  );
+
+  if (scheduleIndex === -1) {
+    throw new AppError("Availability schedule not found", 404);
+  }
+
+  const scheduleToRestore = spot.availability_schedule[scheduleIndex];
+
+  // Mark it as available and remove booking reference
+  scheduleToRestore.is_available = true;
+  scheduleToRestore.booking_id = null;
+
+  // Find adjacent schedules to merge
+  const schedulesToMerge = [];
+  spot.availability_schedule.forEach((schedule, index) => {
+    if (index !== scheduleIndex && schedule.is_available) {
+      if (
+        schedule.end_datetime.getTime() ===
+          scheduleToRestore.start_datetime.getTime() ||
+        schedule.start_datetime.getTime() ===
+          scheduleToRestore.end_datetime.getTime()
+      ) {
+        schedulesToMerge.push({ index, schedule });
+      }
+    }
+  });
+
+  // Merge adjacent schedules if found
+  if (schedulesToMerge.length > 0) {
+    let mergedStart = scheduleToRestore.start_datetime;
+    let mergedEnd = scheduleToRestore.end_datetime;
+
+    schedulesToMerge.forEach(({ schedule }) => {
+      if (schedule.start_datetime < mergedStart) {
+        mergedStart = schedule.start_datetime;
+      }
+      if (schedule.end_datetime > mergedEnd) {
+        mergedEnd = schedule.end_datetime;
+      }
+    });
+
+    scheduleToRestore.start_datetime = mergedStart;
+    scheduleToRestore.end_datetime = mergedEnd;
+
+    // Remove merged schedules (in reverse order to avoid index issues)
+    schedulesToMerge
+      .sort((a, b) => b.index - a.index)
+      .forEach(({ index }) => {
+        spot.availability_schedule.splice(index, 1);
+      });
+  }
+
+  await spot.save({ session: session || null });
+  return scheduleToRestore;
+};
+
+exports.optimizeAvailabilitySchedules = async (spotId, options = {}) => {
+  const { session } = options;
+
+  const spot = await ParkingSpot.findById(spotId).session(session || null);
+  if (!spot) {
+    throw new AppError("Parking spot not found", 404);
+  }
+
+  if (!spot.availability_schedule || spot.availability_schedule.length <= 1) {
+    return spot;
+  }
+
+  // Sort schedules by start time
+  spot.availability_schedule.sort(
+    (a, b) => a.start_datetime.getTime() - b.start_datetime.getTime()
+  );
+
+  // Find and merge adjacent available schedules
+  let i = 0;
+  while (i < spot.availability_schedule.length - 1) {
+    const current = spot.availability_schedule[i];
+    const next = spot.availability_schedule[i + 1];
+
+    if (
+      current.is_available &&
+      next.is_available &&
+      current.end_datetime.getTime() === next.start_datetime.getTime()
+    ) {
+      // Merge the schedules
+      current.end_datetime = next.end_datetime;
+
+      // Remove the next schedule
+      spot.availability_schedule.splice(i + 1, 1);
+
+      // Don't increment i, check the next pair
+    } else {
+      i++;
+    }
+  }
+
+  await spot.save({ session: session || null });
+  return spot;
 };
 
 // exports.releaseParkingSpot = async (spotData) => {

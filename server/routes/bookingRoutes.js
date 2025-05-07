@@ -21,10 +21,7 @@ router.get(
   bookingController.getUnpaidCompletedBookings
 );
 
-router.post(
-  "/:bookingId/confirm-payment",
-  bookingController.confirmPayment
-);
+router.post("/:bookingId/confirm-payment", bookingController.confirmPayment);
 
 // Get booking for specific schedule
 router.get(
@@ -37,6 +34,6 @@ router
   .route("/:id")
   .get(bookingController.getBooking)
   .patch(bookingController.updateBooking)
-  .delete(bookingController.deleteBooking);
+  .delete(bookingController.cancelBooking);
 
 module.exports = router;

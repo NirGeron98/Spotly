@@ -24,7 +24,6 @@ import {
   FaCog,
 } from "react-icons/fa";
 
-
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה | Spotly";
 
@@ -306,11 +305,12 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         booking_type: searchParams.is_charging_station ? "charging" : "parking",
         start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
         end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
+        booking_source: "private_spot_rental",
         base_rate:
           parkingSpots.find((spot) => spot._id === spotId)?.hourly_price || 0,
       };
 
-      // Show confirmation popup  
+      // Show confirmation popup
       setPopupData({
         title: "אישור הזמנה",
         description: "האם אתה בטוח שברצונך להזמין חניה זו?",

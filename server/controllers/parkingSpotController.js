@@ -76,19 +76,43 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
   next();
 });
 
-exports.getParkingSpotsByBuilding = catchAsync(async (req, res, next) => {
-  const parkingSpots = await parkingSpotService.getParkingSpotsByBuilding(
-    req.params.buildingId
-  );
-
+exports.getBuildingSpots = catchAsync(async (req, res, next) => {
+  const { buildingId } = req.params;
+  
+  // Validate buildingId
+  if (!mongoose.Types.ObjectId.isValid(buildingId)) {
+    return next(new AppError('Invalid building ID format', 400));
+  }
+  
+  // Query for spots in this building
+  const spots = await ParkingSpot.find({
+    building: buildingId,
+    spot_type: "building"
+  }).select('-__v');
+  
+  // If no spots found, still return success with empty array
   res.status(200).json({
-    status: "success",
-    results: parkingSpots.length,
+    status: 'success',
+    results: spots.length,
     data: {
-      parkingSpots,
-    },
+      spots
+    }
   });
 });
+
+// exports.getParkingSpotsByBuilding = catchAsync(async (req, res, next) => {
+//   const parkingSpots = await parkingSpotService.getParkingSpotsByBuilding(
+//     req.params.buildingId
+//   );
+
+//   res.status(200).json({
+//     status: "success",
+//     results: parkingSpots.length,
+//     data: {
+//       parkingSpots,
+//     },
+//   });
+// });
 
 exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getAvailablePrivateSpots();
@@ -424,4 +448,124 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
       new AppError(`Error finding optimal parking spots: ${error.message}`, 500)
     );
   }
+});
+
+exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
+  const { building_id, start_datetime, end_datetime } = req.body;
+  const userId = req.user.id;
+
+  if (!building_id || !start_datetime || !end_datetime) {
+    return next(
+      new AppError(
+        "Building ID, start datetime, and end datetime are required",
+        400
+      )
+    );
+  }
+
+  let bookingStart, bookingEnd;
+  try {
+    bookingStart = new Date(start_datetime);
+    bookingEnd = new Date(end_datetime);
+    if (isNaN(bookingStart.getTime()) || isNaN(bookingEnd.getTime())) {
+      throw new Error("Invalid date format");
+    }
+  } catch (e) {
+    return next(
+      new AppError(
+        "Invalid start or end datetime format. Please use ISO 8601 format.",
+        400
+      )
+    );
+  }
+
+  if (bookingEnd <= bookingStart) {
+    return next(
+      new AppError("End datetime must be after start datetime.", 400)
+    );
+  }
+
+  // Find an available spot in the building
+  const availableSpot = await parkingSpotService.findAvailableBuildingSpot(
+    building_id,
+    bookingStart,
+    bookingEnd,
+    userId
+  );
+
+  if (!availableSpot) {
+    return next(
+      new AppError("No available spots found in this building for the requested time period", 404)
+    );
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      spot: availableSpot,
+      start_datetime: bookingStart,
+      end_datetime: bookingEnd
+    },
+  });
+});
+
+exports.allocateResidentSpot = catchAsync(async (req, res, next) => {
+  const pms = req.pms; // Assuming PMS instance is on req via middleware
+  const { start_datetime, end_datetime, building_id /* other criteria */ } = req.body;
+  const userId = req.user.id; // Or however you identify the resident
+
+  if (!start_datetime || !end_datetime) {
+    return next(new AppError('Start and end datetimes are required for allocation.', 400));
+  }
+
+  let allocationStart, allocationEnd;
+  try {
+    allocationStart = new Date(start_datetime);
+    allocationEnd = new Date(end_datetime);
+    if (isNaN(allocationStart.getTime()) || isNaN(allocationEnd.getTime())) {
+      throw new Error("Invalid date format for allocation");
+    }
+  } catch (e) {
+    return next(new AppError("Invalid start or end datetime format for allocation.", 400));
+  }
+
+  if (allocationEnd <= allocationStart) {
+    return next(new AppError("Allocation end datetime must be after start datetime.", 400));
+  }
+
+  if (!pms) {
+    return next(new AppError("Parking Management System is not available.", 503));
+  }
+  // Ensure PMS is loaded (pms.allocateSpotForResident should also handle this or throw)
+  // if (pms.isLoaded === false && typeof pms.loadFromDatabase === 'function') {
+  //   await pms.loadFromDatabase().catch(err => { /* handle or log error */ });
+  // }
+  // if (pms.isLoaded === false) { // Check again
+  //   return next(new AppError("PMS not ready for allocation.", 503));
+  // }
+
+  const allocationCriteria = { building_id }; // Pass any necessary criteria to PMS
+  const allocationResult = await pms.allocateSpotForResident(
+    allocationStart,
+    allocationEnd,
+    userId,
+    allocationCriteria
+  );
+
+  if (!allocationResult || !allocationResult.spotId) {
+    return next(new AppError('No suitable parking spot could be allocated at this time.', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Spot allocated successfully. Please proceed to book this spot.',
+    data: {
+      allocated_spot_id: allocationResult.spotId,
+      // PMS might confirm or slightly adjust times, pass them back
+      confirmed_start_datetime: allocationResult.confirmed_start_datetime.toISOString(),
+      confirmed_end_datetime: allocationResult.confirmed_end_datetime.toISOString(),
+      // You might want to return some basic details of the allocated spot here too
+      // e.g., spot_number, floor, etc., by fetching the spot briefly if needed.
+    },
+  });
 });
