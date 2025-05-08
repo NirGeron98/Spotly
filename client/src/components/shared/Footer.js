@@ -36,13 +36,22 @@ const Footer = () => {
           © 2025 כל הזכויות שמורות
         </p>
         <div className="flex flex-wrap justify-center sm:justify-start gap-4 text-sm sm:text-base">
-          <button onClick={() => handleOpenPopup("terms")} className="hover:text-white transition">
+          <button
+            onClick={() => handleOpenPopup("terms")}
+            className="hover:text-white transition"
+          >
             תנאי שימוש
           </button>
-          <button onClick={() => handleOpenPopup("privacy")} className="hover:text-white transition">
+          <button
+            onClick={() => handleOpenPopup("privacy")}
+            className="hover:text-white transition"
+          >
             מדיניות פרטיות
           </button>
-          <button onClick={() => handleOpenPopup("contact")} className="hover:text-white transition">
+          <button
+            onClick={() => handleOpenPopup("contact")}
+            className="hover:text-white transition"
+          >
             צור קשר
           </button>
         </div>
@@ -53,6 +62,7 @@ const Footer = () => {
           title={popupTitle}
           description={popupContent}
           onClose={() => setShowPopup(false)}
+          type="info"
         />
       )}
     </footer>

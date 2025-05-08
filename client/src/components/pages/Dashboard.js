@@ -18,6 +18,8 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
     if (role === "user" || role === "private_prop_owner") {
       localStorage.removeItem("mode");
       navigate("/search-parking", { state: { fromDashboard: true } });
+    } else if (!role) {
+      navigate("/search-parking");
     }
   }, [role, navigate]);
 
@@ -60,7 +62,7 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
                   }
                   primary={true}
                   onClick={() => {
-                    localStorage.removeItem("mode");
+                    localStorage.removeItem("mode", "regular");
                     navigate("/search-parking");
                   }}
                 />
@@ -75,9 +77,10 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
                     </div>
                   }
                   primary={false}
-                  onClick={() =>
-                    navigate("/search-parking", { state: { mode: "building" } })
-                  }
+                  onClick={() => {
+                    localStorage.setItem("mode", "building");
+                    navigate("/search-parking");
+                  }}
                 />
               </div>
             </div>

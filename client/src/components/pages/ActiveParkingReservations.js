@@ -47,10 +47,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchActiveBookings();
-  }, [now]); // Ensure it fetches fresh data when `now` changes
-
   // Calculate time remaining for all active bookings
   useEffect(() => {
     const timers = {};
@@ -117,12 +113,12 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
 
-      await axios.delete(
+      await axios.patch(
         `/api/v1/bookings/${selectedBooking._id}`,
         { status: "cancelled" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       // Remove the cancelled booking from the local state immediately
       setBookings(
         bookings.filter((booking) => booking._id !== selectedBooking._id)
@@ -147,8 +143,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     setEndingParkingBooking(booking);
     setShowEndParkingModal(true);
   };
-
-  // Update this function in ActiveParkingReservations component
 
   const confirmEndParking = async () => {
     if (!endingParkingBooking) return;
@@ -184,9 +178,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  // Also remove the showPaymentSummary modal if it exists in your code
-  // since the payment popup will replace this functionality
-
   const userTimezone = "Asia/Jerusalem"; // Define userTimezone
 
   const formatDateTime = (dateTimeString) => {
@@ -197,6 +188,30 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: userTimezone });
     } catch (e) {
       console.error("Error formatting date-time:", e, dateTimeString);
+      return "Invalid Date";
+    }
+  };
+
+  const formatDisplayDate = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString);
+      const zonedDate = toZonedTime(date, userTimezone);
+      return format(zonedDate, "dd/MM/yyyy", { timeZone: userTimezone });
+    } catch (e) {
+      console.error("Error formatting date:", e, dateTimeString);
+      return "Invalid Date";
+    }
+  };
+
+  const formatDisplayTime = (dateTimeString) => {
+    if (!dateTimeString) return "N/A";
+    try {
+      const date = parseISO(dateTimeString);
+      const zonedDate = toZonedTime(date, userTimezone);
+      return format(zonedDate, "HH:mm", { timeZone: userTimezone });
+    } catch (e) {
+      console.error("Error formatting time:", e, dateTimeString);
       return "Invalid Date";
     }
   };
@@ -222,6 +237,76 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     return (roundedDuration * booking.base_rate).toFixed(2);
   };
 
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxButtons = 5; // Maximum number of page buttons to show
+
+    if (totalPages <= maxButtons) {
+      // Show all pages if less than maxButtons
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Show limited page numbers with ellipsis
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      }
+    }
+
+    return pageNumbers;
+  };
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case "active":
+        return { text: "פעיל", class: "bg-green-100 text-green-800" };
+      case "completed":
+        return { text: "הושלם", class: "bg-blue-100 text-blue-800" };
+      case "cancelled":
+        return { text: "בוטל", class: "bg-red-100 text-red-800" };
+      default:
+        return { text: status, class: "bg-gray-100 text-gray-800" };
+    }
+  };
+
+  const getPaymentStatusDisplay = (status) => {
+    switch (status) {
+      case "completed":
+        return { text: "שולם", class: "bg-green-100 text-green-800" };
+      case "pending":
+        return { text: "ממתין לתשלום", class: "bg-yellow-100 text-yellow-800" };
+      case "refunded":
+        return { text: "הוחזר", class: "bg-blue-100 text-blue-800" };
+      default:
+        return { text: status, class: "bg-gray-100 text-gray-800" };
+    }
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
@@ -232,7 +317,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
-        <main className="flex-grow flex flex-col justify-between p-4 md:p-6 md:mr-5 mt-12 min-h-[75vh]">
+        <main className="flex-grow flex flex-col justify-start p-4 md:p-6 md:mr-5 mt-4 min-h-[75vh]">
           <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
             הזמנות חנייה פעילות
           </h1>
@@ -262,231 +347,235 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               </button>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">
+            <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500 max-w-4xl mx-auto">
               אין כרגע הזמנות פעילות להצגה.
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="overflow-x-auto flex justify-center">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        סוג הזמנה
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        כתובת החנייה
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        זמן התחלה
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        זמן סיום
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        תעריף
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        סטטוס תשלום
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        זמן נותר
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        פעולות
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentBookings.map((booking) => {
-                      const timer = timeRemaining[booking._id] || {
-                        hours: 0,
-                        minutes: 0,
-                        percentage: 0,
-                        isActive: false,
-                      };
-                      return (
-                        <tr key={booking._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                            {booking.booking_type === "parking"
-                              ? "חנייה"
-                              : "טעינה"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                            {booking.spot && booking.spot.address
-                              ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
-                              : "כתובת לא זמינה"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                            {formatDateTime(booking.start_datetime)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                            {formatDateTime(booking.end_datetime)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                            {booking.base_rate} ₪/שעה
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${
-                                booking.payment_status === "completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : booking.payment_status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {booking.payment_status === "completed"
-                                ? "שולם"
-                                : booking.payment_status === "pending"
-                                ? "ממתין לתשלום"
-                                : booking.payment_status === "refunded"
-                                ? "הוחזר"
-                                : "נכשל"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            {timer.isActive ? (
-                              <div className="flex flex-col items-center">
-                                <div className="relative w-14 h-14">
-                                  <svg
-                                    className="w-14 h-14"
-                                    viewBox="0 0 36 36"
-                                  >
-                                    <path
-                                      d="M18 2.0845
-                                        a 15.9155 15.9155 0 0 1 0 31.831
-                                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none"
-                                      stroke="#e5e7eb"
-                                      strokeWidth="3"
-                                      strokeDasharray="100, 100"
-                                    />
-                                    <path
-                                      d="M18 2.0845
-                                        a 15.9155 15.9155 0 0 1 0 31.831
-                                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                                      fill="none"
-                                      stroke="#3b82f6"
-                                      strokeWidth="3"
-                                      strokeDasharray={`${timer.percentage}, 100`}
-                                    />
-                                  </svg>
-                                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-sm font-medium">
-                                    <FaClock className="mx-auto text-blue-600" />
-                                  </div>
-                                </div>
-                                <div className="text-sm font-medium mt-1">
-                                  {timer.hours}:
-                                  {timer.minutes.toString().padStart(2, "0")}
+            <div
+              className="overflow-x-auto bg-white rounded-lg shadow-md w-full max-w-[90rem] mx-auto flex flex-col"
+              style={{ minHeight: "500px" }}
+            >
+              {/* Table container */}
+              <div className="w-full text-base text-right">
+                {/* Header row */}
+                <div className="flex bg-indigo-50 text-indigo-800 border-b">
+                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                    סוג הזמנה
+                  </div>
+                  <div className="px-3 py-3 w-[25%] font-semibold text-center">
+                    כתובת החניה
+                  </div>
+                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
+                    זמן התחלה
+                  </div>
+                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
+                    זמן סיום
+                  </div>
+                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                    תעריף
+                  </div>
+                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                    סטטוס תשלום
+                  </div>
+                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                    זמן נותר
+                  </div>
+                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                    פעולות
+                  </div>
+                </div>
+
+                {/* Table body */}
+                <div className="divide-y">
+                  {currentBookings.map((booking) => {
+                    const timer = timeRemaining[booking._id] || {
+                      hours: 0,
+                      minutes: 0,
+                      percentage: 0,
+                      isActive: false,
+                    };
+                    const status = getStatusDisplay(booking.status);
+                    const paymentStatus = getPaymentStatusDisplay(
+                      booking.payment_status
+                    );
+
+                    return (
+                      <div
+                        key={booking._id}
+                        className="flex hover:bg-indigo-50 transition-colors duration-150"
+                      >
+                        <div className="px-3 py-3 w-[10%] text-center">
+                          {booking.booking_type === "parking"
+                            ? "חנייה"
+                            : "טעינה"}
+                        </div>
+                        <div className="px-3 py-3 w-[25%] text-center">
+                          {booking.spot && booking.spot.address
+                            ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
+                            : "כתובת לא זמינה"}
+                        </div>
+                        <div className="px-3 py-3 w-[15%] text-center">
+                          {formatDisplayDate(booking.start_datetime)}
+                          <div className="text-xs text-gray-500">
+                            {formatDisplayTime(booking.start_datetime)}
+                          </div>
+                        </div>
+                        <div className="px-3 py-3 w-[15%] text-center">
+                          {formatDisplayDate(booking.end_datetime)}
+                          <div className="text-xs text-gray-500">
+                            {formatDisplayTime(booking.end_datetime)}
+                          </div>
+                        </div>
+                        <div className="px-3 py-3 w-[10%] text-center">
+                          {booking.base_rate} ₪/שעה
+                        </div>
+                        <div className="px-3 py-3 w-[10%] text-center">
+                          <span
+                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
+                          >
+                            {paymentStatus.text}
+                          </span>
+                        </div>
+                        <div className="px-3 py-3 w-[10%] text-center">
+                          {timer.isActive ? (
+                            <div className="flex flex-col items-center">
+                              <div className="relative w-12 h-12 mx-auto">
+                                <svg className="w-12 h-12" viewBox="0 0 36 36">
+                                  <path
+                                    d="M18 2.0845
+                                      a 15.9155 15.9155 0 0 1 0 31.831
+                                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none"
+                                    stroke="#e5e7eb"
+                                    strokeWidth="3"
+                                    strokeDasharray="100, 100"
+                                  />
+                                  <path
+                                    d="M18 2.0845
+                                      a 15.9155 15.9155 0 0 1 0 31.831
+                                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none"
+                                    stroke="#3b82f6"
+                                    strokeWidth="3"
+                                    strokeDasharray={`${timer.percentage}, 100`}
+                                  />
+                                </svg>
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-sm font-medium">
+                                  <FaClock className="mx-auto text-blue-600" />
                                 </div>
                               </div>
-                            ) : (
-                              <div className="text-sm text-gray-500 text-center">
-                                {new Date(booking.start_datetime) > now
-                                  ? "לא התחיל"
-                                  : "הסתיים"}
+                              <div className="text-sm font-medium mt-1">
+                                {timer.hours}:
+                                {timer.minutes.toString().padStart(2, "0")}
                               </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                            <div className="flex flex-col space-y-2">
-                              {timer.isActive && (
-                                <button
-                                  onClick={() => handleEndParking(booking)}
-                                  className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs flex items-center justify-center"
-                                >
-                                  <FaCheck className="ml-1" /> סיים חניה
-                                </button>
-                              )}
-
-                              {canBeCanceled(booking.start_datetime) && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedBooking(booking);
-                                    setShowCancelModal(true);
-                                  }}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  בטל הזמנה
-                                </button>
-                              )}
-
-                              {!canBeCanceled(booking.start_datetime) &&
-                                !timer.isActive && (
-                                  <span className="text-gray-400">
-                                    לא ניתן לביטול
-                                  </span>
-                                )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          ) : (
+                            <div className="text-sm text-gray-500">
+                              {new Date(booking.start_datetime) > now
+                                ? "לא התחיל"
+                                : "הסתיים"}
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-3 py-3 w-[10%] flex justify-center">
+                          <div className="flex flex-col space-y-2">
+                            {timer.isActive && (
+                              <button
+                                onClick={() => handleEndParking(booking)}
+                                className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs flex items-center justify-center"
+                              >
+                                <FaCheck className="ml-1" /> סיים חניה
+                              </button>
+                            )}
+
+                            {canBeCanceled(booking.start_datetime) && (
+                              <button
+                                onClick={() => {
+                                  setSelectedBooking(booking);
+                                  setShowCancelModal(true);
+                                }}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                בטל הזמנה
+                              </button>
+                            )}
+
+                            {!canBeCanceled(booking.start_datetime) &&
+                              !timer.isActive && (
+                                <span className="text-gray-400">
+                                  לא ניתן לביטול
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-          <div className="flex-grow flex flex-col justify-between min-h-[500px]">
-            <div></div> {/* Placeholder for spacing if needed */}
-            {bookings.length > 0 && (
-              <div className="flex justify-center items-center mt-6 space-x-2 space-x-reverse">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className={`px-3 py-2 rounded-full transition ${
-                    currentPage === 1
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
-                >
-                  הקודם
-                </button>
 
-                {[...Array(totalPages)].map((_, i) => {
-                  const page = i + 1;
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 rounded-full transition font-medium ${
-                        page === currentPage
-                          ? "bg-blue-700 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-blue-100"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-2 rounded-full transition ${
-                    currentPage === totalPages
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
-                >
-                  הבא
-                </button>
-                {bookings.length > 0 && (
-                  <div className="text-center text-sm text-gray-600 mt-2">
+              {/* Pagination */}
+              {bookings.length > 0 && (
+                <div className="flex justify-between items-center px-6 py-4 border-t bg-white mt-auto">
+                  <div className="text-sm text-gray-600">
                     מציג {indexOfFirstBooking + 1}-
                     {Math.min(indexOfLastBooking, bookings.length)} מתוך{" "}
                     {bookings.length}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded-full transition ${
+                        currentPage === 1
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                    >
+                      הקודם
+                    </button>
+
+                    {getPageNumbers().map((pageNumber, i) => (
+                      <button
+                        key={i}
+                        onClick={() =>
+                          typeof pageNumber === "number" &&
+                          handlePageChange(pageNumber)
+                        }
+                        disabled={pageNumber === "..."}
+                        className={`px-4 py-1.5 rounded-full font-medium transition ${
+                          pageNumber === currentPage
+                            ? "bg-blue-700 text-white"
+                            : pageNumber === "..."
+                            ? "bg-transparent text-gray-400 cursor-default"
+                            : "bg-gray-100 text-gray-700 hover:bg-blue-100"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-1 rounded-full transition ${
+                        currentPage === totalPages
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                    >
+                      הבא
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
 
