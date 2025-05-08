@@ -46,41 +46,41 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
   const [sortOrder, setSortOrder] = useState("desc");
 
   // Consolidated formatter for date and time
-  const formatDisplayDateTime = (dateTimeString) => {
-    if (!dateTimeString) return "N/A";
+  const formatDisplayDateTime = (dateTime) => {
+    if (!dateTime) return "N/A";
     try {
-      const date = parseISO(dateTimeString); // Assuming dateTimeString is UTC ISO from backend
+      const date = dateTime instanceof Date ? dateTime : parseISO(dateTime);
       if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: USER_TIMEZONE });
     } catch (e) {
-      console.error("Error formatting display date-time:", e, dateTimeString);
+      console.error("Error formatting display date-time:", e, dateTime);
       return "Invalid Date";
     }
   };
 
-  const formatDisplayDate = (dateTimeString) => {
-    if (!dateTimeString) return "N/A";
+  const formatDisplayDate = (dateTime) => {
+    if (!dateTime) return "N/A";
     try {
-      const date = parseISO(dateTimeString);
+      const date = dateTime instanceof Date ? dateTime : parseISO(dateTime);
       if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "dd/MM/yyyy", { timeZone: USER_TIMEZONE });
     } catch (e) {
-      console.error("Error formatting display date:", e, dateTimeString);
+      console.error("Error formatting display date:", e, dateTime);
       return "Invalid Date";
     }
   };
 
-  const formatDisplayTime = (dateTimeString) => {
-    if (!dateTimeString) return "N/A";
+  const formatDisplayTime = (dateTime) => {
+    if (!dateTime) return "N/A";
     try {
-      const date = parseISO(dateTimeString);
+      const date = dateTime instanceof Date ? dateTime : parseISO(dateTime);
       if (!isValid(date)) return "Invalid Date";
       const zonedDate = toZonedTime(date, USER_TIMEZONE);
       return format(zonedDate, "HH:mm", { timeZone: USER_TIMEZONE });
     } catch (e) {
-      console.error("Error formatting display time:", e, dateTimeString);
+      console.error("Error formatting display time:", e, dateTime);
       return "Invalid Date";
     }
   };
@@ -162,6 +162,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           startTime: formatDisplayTime(spot.created_at),
           endTime: "-",
           actionDate: spot.created_at,
+          rawActionDate: isValid(spotDate) ? spotDate : null,
           address: spot.address
             ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
                 spot.address.city || ""
@@ -182,7 +183,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         const scheduleEntries = (spot.availability_schedule || []).map(
           (schedule) => {
-            // Add safety checks for date parsing
             let scheduleDate = null;
             try {
               if (schedule.date) {
@@ -191,6 +191,21 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               }
             } catch (err) {
               console.error("Error parsing schedule date:", err);
+            }
+
+            let scheduleActionDate = null;
+            try {
+              if (schedule.created_at) {
+                scheduleActionDate = parseISO(schedule.created_at);
+                if (!isValid(scheduleActionDate)) {
+                  scheduleActionDate = spotDate;
+                }
+              } else {
+                scheduleActionDate = spotDate;
+              }
+            } catch (err) {
+              console.error("Error parsing schedule action date:", err);
+              scheduleActionDate = spotDate;
             }
 
             const formatTime = (timeStr) => {
@@ -202,22 +217,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 .toString()
                 .padStart(2, "0")}`;
             };
-
-            // Safety check for schedule.created_at
-            let scheduleActionDate = null;
-            try {
-              if (schedule.created_at) {
-                scheduleActionDate = parseISO(schedule.created_at);
-                if (!isValid(scheduleActionDate)) {
-                  scheduleActionDate = spotDate; // Fall back to spot creation date
-                }
-              } else {
-                scheduleActionDate = spotDate;
-              }
-            } catch (err) {
-              console.error("Error parsing schedule action date:", err);
-              scheduleActionDate = spotDate;
-            }
 
             return {
               id: `${spot._id}-${schedule._id}`,
@@ -236,6 +235,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               paymentStatus: "n/a",
               rawDate: scheduleDate,
               rawActionDate: scheduleActionDate,
+              actionDate: schedule.created_at || spot.created_at,
               activityType: "availability",
               icon: "FaCalendarAlt",
               showPaymentIcon: false,
@@ -640,10 +640,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
             </div>
           </div>
 
-          <div
-            className="overflow-x-auto bg-white rounded-lg shadow-md max-w-7xl mx-auto flex flex-col"
-            style={{ height: "600px" }}
-          >
+          <div className="overflow-x-auto bg-white rounded-lg shadow-md max-w-7xl mx-auto flex flex-col">
             {/* Table container */}
             <div className="w-full text-base text-right">
               {/* Header row */}
@@ -682,10 +679,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                     item.paymentStatus
                   );
 
-                  const actionDateTime =
-                    item.originalBooking?.created_at ||
-                    item.originalSpot?.created_at ||
-                    item.actionDate;
+                  const actionDateTime = item.rawActionDate || item.actionDate;
 
                   return (
                     <div
@@ -700,20 +694,23 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                       </div>
                       <div className="px-3 py-3 w-[35%] text-center">
                         {item.activityType !== "publication" ? (
-                          <div className="text-sm">
+                          <div className="text-sm leading-relaxed">
+                            {(item.activityType === "booking" ||
+                              item.activityType === "availability") && (
+                              <>
+                                <div>תאריך: {item.date}</div>
+                                <div>
+                                  שעות: {item.startTime}
+                                  {item.endTime !== "-" && ` - ${item.endTime}`}
+                                </div>
+                              </>
+                            )}
                             {item.activityType === "booking" && (
                               <div>כתובת: {item.address}</div>
                             )}
-                            <div>תאריך : {item.date}</div>
-                            <div>
-                              שעות: {item.startTime}{" "}
-                              {item.endTime !== "-" ? `- ${item.endTime}` : ""}
-                            </div>
                           </div>
                         ) : (
-                          <div className="text-sm">
-                            {/* Empty cell for publication */}
-                          </div>
+                          <div className="text-sm" />
                         )}
                       </div>
                       <div className="px-3 py-3 w-[20%]">
