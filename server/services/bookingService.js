@@ -19,280 +19,231 @@ const parkingSpotService = require("./parkingSpotService");
  * @param {Object} bookingDetails - Additional booking details
  * @returns {Promise<Object>} The created booking
  */
+/**
+ * Creates a new booking, updating the parking spot's availability schedule.
+ *
+ * @param {string} userId - The ID of the user making the booking.
+ * @param {string} spotId - The ID of the parking spot.
+ * @param {Date} requestedStartTimeUTC - The requested start datetime in UTC.
+ * @param {Date} requestedEndTimeUTC - The requested end datetime in UTC.
+ * @param {Object} bookingDetails - Additional details like booking_type, base_rate_override.
+ * @param {string} timezone - The timezone of the user making the booking (for record-keeping).
+ * @returns {Promise<Booking>} The newly created booking document.
+ */
 exports.createBooking = async (
   userId,
   spotId,
-  requestedStartTime,
-  requestedEndTime,
-  bookingDetails = {}
+  requestedStartTimeUTC,
+  requestedEndTimeUTC,
+  bookingDetails = {},
+  timezone
 ) => {
   const session = await mongoose.startSession();
+  session.startTransaction();
   let newBookingDocument = null;
 
   try {
-    await session.withTransaction(async (sess) => {
-      // 1. Find the spot
-      const spot = await ParkingSpot.findById(spotId).session(sess);
-      if (!spot) {
-        throw new AppError("Parking spot not found.", 404);
-      }
+    // 1. Fetch the parking spot within the transaction
+    const spot = await ParkingSpot.findById(spotId).session(session);
+    if (!spot) {
+      throw new AppError("Parking spot not found.", 404);
+    }
 
-      // 2. Find matching availability schedule
-      const matchingSchedule = spot.availability_schedule?.find(
-        (slot) =>
-          slot.is_available &&
-          requestedStartTime >= slot.start_datetime &&
-          requestedEndTime <= slot.end_datetime
+    // 2. Find an available schedule slot that entirely contains the requested booking time
+    // The `availability_schedule` should be sorted by start_datetime for predictable matching.
+    // This can be enforced by sorting before saving or when querying if not always sorted.
+    const suitableSchedule = spot.availability_schedule
+        .sort((a,b) => a.start_datetime - b.start_datetime) // Ensure order
+        .find(
+            (slot) =>
+            slot.is_available &&
+            requestedStartTimeUTC >= slot.start_datetime &&
+            requestedEndTimeUTC <= slot.end_datetime
+        );
+
+    if (!suitableSchedule) {
+      throw new AppError(
+        "No available schedule window found for the requested time.",
+        400
       );
+    }
 
-      if (!matchingSchedule) {
-        throw new AppError(
-          "No available schedule found for the requested time",
-          400
-        );
+    // 3. Determine booking source, base rate, and payment status
+    let booking_source;
+    let final_base_rate;
+    let initial_payment_status = "pending"; // Default for private spots
+
+    if (spot.spot_type === "private") {
+      booking_source = "private_spot_rental";
+      final_base_rate =
+        bookingDetails.base_rate_override !== undefined
+          ? bookingDetails.base_rate_override
+          : spot.hourly_price; // Assuming hourly_price exists on private spots
+      if (final_base_rate === undefined || final_base_rate === null) {
+        throw new AppError("Hourly rate not set for this private spot.", 400);
       }
-      // 3. Determine booking details based on spot type
-      let booking_source;
-      let final_base_rate;
-      let initial_payment_status = "pending";
-
-      if (spot.spot_type === "private") {
-        booking_source = "private_spot_rental";
-        final_base_rate =
-          bookingDetails.base_rate_override !== undefined
-            ? bookingDetails.base_rate_override
-            : spot.hourly_price;
-      } else if (spot.spot_type === "building") {
-        booking_source = "resident_building_allocation";
-        final_base_rate = 0;
-        initial_payment_status = "not_applicable";
-      } else {
-        throw new AppError(
-          `Booking not supported for spot type: ${spot.spot_type}`,
-          400
-        );
-      }
-
-      // 4. Create booking payload
-      const bookingPayload = {
-        user: userId,
-        spot: spotId,
-        schedule: matchingSchedule._id,
-        start_datetime: requestedStartTime,
-        end_datetime: requestedEndTime,
-        booking_type: bookingDetails.booking_type || "parking",
-        base_rate: final_base_rate,
-        status: "active",
-        payment_status: initial_payment_status,
-        booking_source,
-        timezone: bookingDetails.timezone || "UTC",
-      };
-
-      // 5. Create the booking
-      const createdBookings = await Booking.create([bookingPayload], {
-        session: sess,
-      });
-      newBookingDocument = createdBookings[0];
-
-      // 6. Mark the schedule as booked but keep it
-      await parkingSpotService.markScheduleAsBooked(
-        spotId,
-        matchingSchedule._id.toString(),
-        newBookingDocument._id,
-        { session: sess }
+    } else if (spot.spot_type === "building") {
+      booking_source = "resident_building_allocation";
+      final_base_rate = 0; // Typically free or managed differently for residents
+      initial_payment_status = "not_applicable";
+    } else {
+      throw new AppError(
+        `Booking not supported for spot type: ${spot.spot_type}`,
+        400
       );
+    }
 
-      // 7. Create partial availability windows if needed
-      if (matchingSchedule.start_datetime < requestedStartTime) {
-        // Create "before booking" window
-        await ParkingSpot.findByIdAndUpdate(
-          spotId,
-          {
-            $push: {
-              availability_schedule: {
-                start_datetime: matchingSchedule.start_datetime,
-                end_datetime: requestedStartTime,
-                is_available: true,
-                type: matchingSchedule.type,
-              },
-            },
-          },
-          { session: sess }
-        );
-      }
+    // 4. Create the booking document
+    const bookingPayload = {
+      user: userId,
+      spot: spotId,
+      schedule: suitableSchedule._id, // Link to the original schedule entry that is being booked/split
+      start_datetime: requestedStartTimeUTC,
+      end_datetime: requestedEndTimeUTC,
+      status: "active", // Or "pending_confirmation" if you have such a flow
+      booking_type: bookingDetails.booking_type || (spot.is_charging_station ? "charging" : "parking"),
+      booking_source,
+      base_rate: final_base_rate,
+      // final_amount might be calculated later based on duration and rate
+      payment_status: initial_payment_status,
+      timezone: timezone || "UTC", // Store user's timezone
+    };
 
-      if (matchingSchedule.end_datetime > requestedEndTime) {
-        // Create "after booking" window
-        await ParkingSpot.findByIdAndUpdate(
-          spotId,
-          {
-            $push: {
-              availability_schedule: {
-                start_datetime: requestedEndTime,
-                end_datetime: matchingSchedule.end_datetime,
-                is_available: true,
-                type: matchingSchedule.type,
-              },
-            },
-          },
-          { session: sess }
-        );
-      }
-    });
+    const createdBookings = await Booking.create([bookingPayload], { session });
+    newBookingDocument = createdBookings[0];
 
+    // 5. Mark the original schedule as booked and split it to create surrounding available windows
+    // The original `suitableSchedule` entry will now represent the booked portion.
+    // New entries will be made for any time before or after the booking within that original slot.
+    await parkingSpotService.markScheduleAsBookedAndSplit(
+      spotId,
+      suitableSchedule._id.toString(),
+      requestedStartTimeUTC,
+      requestedEndTimeUTC,
+      newBookingDocument._id,
+      { session }
+    );
+
+    // 6. (Optional but Recommended) Optimize schedules to merge any new fragments if possible
+    // Though splitting logic should create distinct new fragments, a general cleanup is good.
+    // However, splitting logic is quite specific, direct optimization might not be needed here if splitting is precise.
+    // If splitting creates fragments that could immediately merge with *other existing* fragments, then run:
+    // await parkingSpotService.optimizeAvailabilitySchedules(spotId, { session });
+
+
+    await session.commitTransaction();
     return newBookingDocument;
   } catch (error) {
-    console.error("Error in bookingService.createBooking:", error);
-    if (error instanceof AppError) throw error;
-    throw new AppError(`Failed to create booking: ${error.message}`, 500);
+    await session.abortTransaction();
+    console.error("Error in createBooking service:", error);
+    if (error instanceof AppError) throw error; // Re-throw AppError instances
+    throw new AppError(`Failed to create booking: ${error.message}`, 500); // Wrap other errors
   } finally {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
     session.endSession();
   }
 };
 /**
- * Cancel a booking and restore availability
+ * Cancels a booking and restores the availability of the parking spot schedule.
+ *
+ * @param {string} bookingId - The ID of the booking to cancel.
+ * @param {string} userId - The ID of the user attempting to cancel (for permission check).
+ * @returns {Promise<Booking>} The updated (canceled) booking document.
  */
 exports.cancelBooking = async (bookingId, userId) => {
   const session = await mongoose.startSession();
-  console.log(`Starting cancelBooking for booking ${bookingId}`);
+  session.startTransaction();
+  let canceledBookingDoc = null;
 
   try {
-    let canceledBooking = null;
+    // 1. Find the booking and populate spot details to get schedule info
+    const booking = await Booking.findById(bookingId).populate('spot').session(session);
 
-    await session.withTransaction(async (sess) => {
-      // 1. Find the booking with populated spot details
-      console.log("Finding booking...");
-      const booking = await Booking.findById(bookingId)
-        .populate("spot") // Make sure to populate spot
-        .session(sess);
+    if (!booking) {
+      throw new AppError("Booking not found.", 404);
+    }
 
-      if (!booking) {
-        console.log("Booking not found!");
-        throw new AppError("Booking not found", 404);
-      }
-
-      console.log(
-        `Found booking: ${booking._id}, schedule: ${booking.schedule}, spot: ${booking.spot._id}`
+    // 2. Authorization: Check if the user owns the booking or has rights to cancel
+    // (Add role-based cancellation if needed, e.g., admin)
+    if (booking.user.toString() !== userId) {
+      throw new AppError(
+        "You do not have permission to cancel this booking.",
+        403
       );
+    }
 
-      // 2. Get important references
-      const scheduleId = booking.schedule;
-      const spotId = booking.spot._id;
-      const bookingStart = booking.start_datetime;
-      const bookingEnd = booking.end_datetime;
-      const spotType = booking.spot.spot_type;
-      const bookingType = booking.booking_type;
+    // 3. Check if booking can be canceled (e.g., not already started or canceled)
+    if (booking.status === "canceled") {
+      throw new AppError("Booking is already canceled.", 400);
+    }
+    if (booking.status === "completed") {
+      throw new AppError("Cannot cancel a completed booking.", 400);
+    }
+    // Add any other cancellation policy checks (e.g., cancellation window)
+    const now = new Date();
+    if (booking.start_datetime <= now && booking.status === 'active') { // Check if current time is past booking start
+        // throw new AppError("Cannot cancel a booking that has already started or is in the past.", 400);
+        // Depending on policy, you might allow cancellation of active bookings for a partial refund, etc.
+        // For now, strict: cannot cancel if started.
+    }
 
-      // 3. Verify ownership & check cancellation conditions
-      if (booking.user.toString() !== userId) {
-        throw new AppError(
-          "You don't have permission to cancel this booking",
-          403
-        );
-      }
 
-      if (booking.status === "canceled") {
-        throw new AppError("Booking is already cancelled", 400);
-      }
+    // 4. Restore the availability schedule slot that was tied to this booking
+    // The `booking.schedule` should hold the _id of the `availability_schedule` subdocument
+    // that was created or modified to represent the booked period.
+    if (!booking.schedule) {
+        // This case needs careful consideration. If a booking exists without a direct schedule link,
+        // it implies a different availability management strategy was used for this booking,
+        // or data is inconsistent.
+        // For the current design (where `booking.schedule` links to the specific booked slot),
+        // this would be an anomaly.
+        // As a fallback, we might need to create a new availability window based on booking times.
+        console.warn(`Booking ${bookingId} does not have a direct schedule link. Attempting to create availability.`);
+        // Fallback: Create a new availability window for the booked period
+        const spot = await ParkingSpot.findById(booking.spot._id).session(session); // Ensure spot is fetched if not populated fully
+        if (!spot) throw new AppError("Associated parking spot not found for booking.", 404);
 
-      const now = new Date();
-      if (booking.start_datetime <= now) {
-        throw new AppError(
-          "Cannot cancel a booking that has already started",
-          400
-        );
-      }
-
-      // 4. Try to restore schedule, or create a new one if not found
-      try {
-        if (scheduleId) {
-          console.log(`Restoring schedule ${scheduleId} for spot ${spotId}`);
-          await parkingSpotService.restoreSchedule(
-            spotId,
-            scheduleId.toString(),
-            { session: sess }
-          );
-          console.log("Successfully restored schedule");
-          console.log("Cleaning up partial windows");
-          await ParkingSpot.findByIdAndUpdate(
-            spotId,
-            {
-              $pull: {
-                availability_schedule: {
-                  $and: [
-                    { _id: { $ne: mongoose.Types.ObjectId(scheduleId) } }, // Don't remove the schedule we just restored
-                    {
-                      $or: [
-                        // Remove windows that start at the same time as the booking but end earlier
-                        {
-                          start_datetime: booking.start_datetime,
-                          end_datetime: { $lt: booking.end_datetime },
-                        },
-                        // Remove windows that end at the same time as the booking but start later
-                        {
-                          end_datetime: booking.end_datetime,
-                          start_datetime: { $gt: booking.start_datetime },
-                        },
-                        // Remove any window that falls entirely within the booking's timeframe
-                        {
-                          start_datetime: { $gte: booking.start_datetime },
-                          end_datetime: { $lte: booking.end_datetime },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              },
-            },
-            { session: sess }
-          );
-        } else {
-          throw new Error("No schedule ID found");
-        }
-      } catch (scheduleError) {
-        console.log(
-          "Creating new availability window due to error:",
-          scheduleError.message
-        );
-
-        // Create new availability window with the booked time range
-        await ParkingSpot.findByIdAndUpdate(
-          spotId,
-          {
-            $push: {
-              availability_schedule: {
-                start_datetime: bookingStart,
-                end_datetime: bookingEnd,
-                is_available: true,
-                type:
-                  bookingType === "charging"
-                    ? "טעינה לרכב חשמלי"
-                    : "השכרה רגילה",
-              },
-            },
-          },
-          { session: sess }
-        );
-
-        // After creating a new window, optimize to merge with any adjacent ones
-        await parkingSpotService.optimizeAvailabilitySchedules(spotId, {
-          session: sess,
+        spot.availability_schedule.push({
+            _id: new mongoose.Types.ObjectId(),
+            start_datetime: booking.start_datetime,
+            end_datetime: booking.end_datetime,
+            is_available: true,
+            type: booking.booking_type === "charging" ? "טעינה לרכב חשמלי" : "השכרה רגילה", // Infer type
+            booking_id: null,
         });
-      }
+        // No need to save spot here, optimizeAvailabilitySchedules will do it.
 
-      // 5. Update booking status
-      booking.status = "canceled";
-      await booking.save({ session: sess });
+    } else {
+        // This is the primary path: the booking has a schedule ID.
+        // This ID refers to the schedule entry that *is* the booking slot.
+        await parkingSpotService.restoreSchedule(
+            booking.spot._id.toString(), // spotId
+            booking.schedule.toString(), // bookedScheduleId
+            { session }
+        );
+    }
 
-      canceledBooking = booking;
+    // 5. Optimize the availability schedule for the spot (merges restored slot with adjacent ones)
+    // This is crucial to keep the schedule clean and prevent fragmentation.
+    await parkingSpotService.optimizeAvailabilitySchedules(booking.spot._id.toString(), {
+      session,
     });
 
-    return canceledBooking;
+
+    // 6. Update the booking status
+    booking.status = "canceled";
+    // Handle payment refunds if applicable (this would be a separate service call)
+    if (booking.payment_status === "completed" && booking.final_amount > 0) {
+      // booking.payment_status = "refunded"; // Or "pending_refund"
+      // Integrate with payment gateway for actual refund
+      console.log(`Booking ${bookingId} was paid. Placeholder for refund logic.`);
+    }
+    canceledBookingDoc = await booking.save({ session });
+
+    await session.commitTransaction();
+    return canceledBookingDoc;
   } catch (error) {
-    console.error("Error in bookingService.cancelBooking:", error);
+    await session.abortTransaction();
+    console.error("Error in cancelBooking service:", error);
     if (error instanceof AppError) throw error;
     throw new AppError(`Failed to cancel booking: ${error.message}`, 500);
   } finally {

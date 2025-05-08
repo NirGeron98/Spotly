@@ -47,6 +47,10 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    fetchActiveBookings();
+  }, [now]); // Ensure it fetches fresh data when `now` changes
+
   // Calculate time remaining for all active bookings
   useEffect(() => {
     const timers = {};
@@ -113,12 +117,12 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
 
-      await axios.patch(
+      await axios.delete(
         `/api/v1/bookings/${selectedBooking._id}`,
         { status: "cancelled" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
+      
       // Remove the cancelled booking from the local state immediately
       setBookings(
         bookings.filter((booking) => booking._id !== selectedBooking._id)

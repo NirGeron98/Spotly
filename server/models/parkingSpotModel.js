@@ -242,6 +242,12 @@ parkingSpotSchema.virtual("effective_hourly_price").get(function () {
   return this.spot_type === "private" ? this.hourly_price : null;
 });
 
-const 
-ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
+parkingSpotSchema.index({
+  'availability_schedule.is_available': 1,
+  'availability_schedule.start_datetime': 1,
+  'availability_schedule.end_datetime': 1,
+  'availability_schedule.type': 1 // If type is often a filter
+});
+
+const ParkingSpot = mongoose.model("ParkingSpot", parkingSpotSchema);
 module.exports = ParkingSpot;
