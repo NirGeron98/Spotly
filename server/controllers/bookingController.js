@@ -31,7 +31,7 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
 });
 
 exports.createBooking = catchAsync(async (req, res, next) => {
-  const { spot: spotId, start_datetime, end_datetime, booking_type, base_rate_override } = req.body;
+  const { spot: spotId, start_datetime, end_datetime, booking_type, base_rate_override, timezone } = req.body;
   const userId = req.user.id;
 
   // 1. Required field validation
@@ -60,7 +60,7 @@ exports.createBooking = catchAsync(async (req, res, next) => {
   try {
     const bookingDetails = { booking_type, base_rate_override };
     const newBooking = await bookingService.createBooking(
-      userId, spotId, bookingStart, bookingEnd, bookingDetails
+      userId, spotId, bookingStart, bookingEnd, bookingDetails, timezone
     );
 
     res.status(201).json({

@@ -306,6 +306,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
         end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
         booking_source: "private_spot_rental",
+        timezone: USER_TIMEZONE,
         base_rate:
           parkingSpots.find((spot) => spot._id === spotId)?.hourly_price || 0,
       };

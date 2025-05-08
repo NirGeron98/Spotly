@@ -78,25 +78,25 @@ exports.createUserParkingSpot = catchAsync(async (req, res, next) => {
 
 exports.getBuildingSpots = catchAsync(async (req, res, next) => {
   const { buildingId } = req.params;
-  
+
   // Validate buildingId
   if (!mongoose.Types.ObjectId.isValid(buildingId)) {
-    return next(new AppError('Invalid building ID format', 400));
+    return next(new AppError("Invalid building ID format", 400));
   }
-  
+
   // Query for spots in this building
   const spots = await ParkingSpot.find({
     building: buildingId,
-    spot_type: "building"
-  }).select('-__v');
-  
+    spot_type: "building",
+  }).select("-__v");
+
   // If no spots found, still return success with empty array
   res.status(200).json({
-    status: 'success',
+    status: "success",
     results: spots.length,
     data: {
-      spots
-    }
+      spots,
+    },
   });
 });
 
@@ -127,7 +127,6 @@ exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
 exports.getMyParkingSpots = catchAsync(async (req, res, next) => {
   const ownerId = req.params.ownerId || req.user.id;
   const parkingSpots = await parkingSpotService.getOwnerParkingSpots(ownerId);
-  console.log("My Parking Spots:", parkingSpots);
   res.status(200).json({
     status: "success",
     results: parkingSpots.length,
@@ -495,7 +494,10 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
 
   if (!availableSpot) {
     return next(
-      new AppError("No available spots found in this building for the requested time period", 404)
+      new AppError(
+        "No available spots found in this building for the requested time period",
+        404
+      )
     );
   }
 
@@ -504,18 +506,21 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
     data: {
       spot: availableSpot,
       start_datetime: bookingStart,
-      end_datetime: bookingEnd
+      end_datetime: bookingEnd,
     },
   });
 });
 
 exports.allocateResidentSpot = catchAsync(async (req, res, next) => {
   const pms = req.pms; // Assuming PMS instance is on req via middleware
-  const { start_datetime, end_datetime, building_id /* other criteria */ } = req.body;
+  const { start_datetime, end_datetime, building_id /* other criteria */ } =
+    req.body;
   const userId = req.user.id; // Or however you identify the resident
 
   if (!start_datetime || !end_datetime) {
-    return next(new AppError('Start and end datetimes are required for allocation.', 400));
+    return next(
+      new AppError("Start and end datetimes are required for allocation.", 400)
+    );
   }
 
   let allocationStart, allocationEnd;
@@ -526,15 +531,21 @@ exports.allocateResidentSpot = catchAsync(async (req, res, next) => {
       throw new Error("Invalid date format for allocation");
     }
   } catch (e) {
-    return next(new AppError("Invalid start or end datetime format for allocation.", 400));
+    return next(
+      new AppError("Invalid start or end datetime format for allocation.", 400)
+    );
   }
 
   if (allocationEnd <= allocationStart) {
-    return next(new AppError("Allocation end datetime must be after start datetime.", 400));
+    return next(
+      new AppError("Allocation end datetime must be after start datetime.", 400)
+    );
   }
 
   if (!pms) {
-    return next(new AppError("Parking Management System is not available.", 503));
+    return next(
+      new AppError("Parking Management System is not available.", 503)
+    );
   }
   // Ensure PMS is loaded (pms.allocateSpotForResident should also handle this or throw)
   // if (pms.isLoaded === false && typeof pms.loadFromDatabase === 'function') {
@@ -553,17 +564,24 @@ exports.allocateResidentSpot = catchAsync(async (req, res, next) => {
   );
 
   if (!allocationResult || !allocationResult.spotId) {
-    return next(new AppError('No suitable parking spot could be allocated at this time.', 404));
+    return next(
+      new AppError(
+        "No suitable parking spot could be allocated at this time.",
+        404
+      )
+    );
   }
 
   res.status(200).json({
-    status: 'success',
-    message: 'Spot allocated successfully. Please proceed to book this spot.',
+    status: "success",
+    message: "Spot allocated successfully. Please proceed to book this spot.",
     data: {
       allocated_spot_id: allocationResult.spotId,
       // PMS might confirm or slightly adjust times, pass them back
-      confirmed_start_datetime: allocationResult.confirmed_start_datetime.toISOString(),
-      confirmed_end_datetime: allocationResult.confirmed_end_datetime.toISOString(),
+      confirmed_start_datetime:
+        allocationResult.confirmed_start_datetime.toISOString(),
+      confirmed_end_datetime:
+        allocationResult.confirmed_end_datetime.toISOString(),
       // You might want to return some basic details of the allocated spot here too
       // e.g., spot_number, floor, etc., by fetching the spot briefly if needed.
     },

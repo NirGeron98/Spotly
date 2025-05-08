@@ -85,6 +85,7 @@ exports.createBooking = async (
         status: "active",
         payment_status: initial_payment_status,
         booking_source,
+        timezone: bookingDetails.timezone || "UTC",
       };
 
       // 5. Create the booking
@@ -156,82 +157,145 @@ exports.createBooking = async (
  */
 exports.cancelBooking = async (bookingId, userId) => {
   const session = await mongoose.startSession();
-  
+  console.log(`Starting cancelBooking for booking ${bookingId}`);
+
   try {
     let canceledBooking = null;
-    
+
     await session.withTransaction(async (sess) => {
-      // 1. Find the booking
-      const booking = await Booking.findById(bookingId).session(sess);
+      // 1. Find the booking with populated spot details
+      console.log("Finding booking...");
+      const booking = await Booking.findById(bookingId)
+        .populate("spot") // Make sure to populate spot
+        .session(sess);
+
       if (!booking) {
+        console.log("Booking not found!");
         throw new AppError("Booking not found", 404);
       }
-      
-      // 2. Verify ownership
+
+      console.log(
+        `Found booking: ${booking._id}, schedule: ${booking.schedule}, spot: ${booking.spot._id}`
+      );
+
+      // 2. Get important references
+      const scheduleId = booking.schedule;
+      const spotId = booking.spot._id;
+      const bookingStart = booking.start_datetime;
+      const bookingEnd = booking.end_datetime;
+      const spotType = booking.spot.spot_type;
+      const bookingType = booking.booking_type;
+
+      // 3. Verify ownership & check cancellation conditions
       if (booking.user.toString() !== userId) {
-        throw new AppError("You don't have permission to cancel this booking", 403);
+        throw new AppError(
+          "You don't have permission to cancel this booking",
+          403
+        );
       }
-      
-      // 3. Check if it's not too late to cancel
-      if (booking.status === "cancelled") {
+
+      if (booking.status === "canceled") {
         throw new AppError("Booking is already cancelled", 400);
       }
-      
+
       const now = new Date();
       if (booking.start_datetime <= now) {
-        throw new AppError("Cannot cancel a booking that has already started", 400);
+        throw new AppError(
+          "Cannot cancel a booking that has already started",
+          400
+        );
       }
-      
-      // 4. Get the schedule ID and spot ID
-      const scheduleId = booking.schedule;
-      const spotId = booking.spot;
-      
-      if (!scheduleId) {
-        throw new AppError("This booking doesn't have an associated schedule", 400);
+
+      // 4. Try to restore schedule, or create a new one if not found
+      try {
+        if (scheduleId) {
+          console.log(`Restoring schedule ${scheduleId} for spot ${spotId}`);
+          await parkingSpotService.restoreSchedule(
+            spotId,
+            scheduleId.toString(),
+            { session: sess }
+          );
+          console.log("Successfully restored schedule");
+          console.log("Cleaning up partial windows");
+          await ParkingSpot.findByIdAndUpdate(
+            spotId,
+            {
+              $pull: {
+                availability_schedule: {
+                  $and: [
+                    { _id: { $ne: mongoose.Types.ObjectId(scheduleId) } }, // Don't remove the schedule we just restored
+                    {
+                      $or: [
+                        // Remove windows that start at the same time as the booking but end earlier
+                        {
+                          start_datetime: booking.start_datetime,
+                          end_datetime: { $lt: booking.end_datetime },
+                        },
+                        // Remove windows that end at the same time as the booking but start later
+                        {
+                          end_datetime: booking.end_datetime,
+                          start_datetime: { $gt: booking.start_datetime },
+                        },
+                        // Remove any window that falls entirely within the booking's timeframe
+                        {
+                          start_datetime: { $gte: booking.start_datetime },
+                          end_datetime: { $lte: booking.end_datetime },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            { session: sess }
+          );
+        } else {
+          throw new Error("No schedule ID found");
+        }
+      } catch (scheduleError) {
+        console.log(
+          "Creating new availability window due to error:",
+          scheduleError.message
+        );
+
+        // Create new availability window with the booked time range
+        await ParkingSpot.findByIdAndUpdate(
+          spotId,
+          {
+            $push: {
+              availability_schedule: {
+                start_datetime: bookingStart,
+                end_datetime: bookingEnd,
+                is_available: true,
+                type:
+                  bookingType === "charging"
+                    ? "טעינה לרכב חשמלי"
+                    : "השכרה רגילה",
+              },
+            },
+          },
+          { session: sess }
+        );
+
+        // After creating a new window, optimize to merge with any adjacent ones
+        await parkingSpotService.optimizeAvailabilitySchedules(spotId, {
+          session: sess,
+        });
       }
-      
-      // 5. Update the booking status
-      booking.status = "cancelled";
+
+      // 5. Update booking status
+      booking.status = "canceled";
       await booking.save({ session: sess });
-      
-      // 6. Restore the original availability window
-      await parkingSpotService.restoreSchedule(
-        spotId, 
-        scheduleId.toString(),
-        { session: sess }
-      );
-      
-      // 7. Remove any partial windows that were created
-      await ParkingSpot.updateOne(
-        { _id: spotId },
-        {
-          $pull: {
-            availability_schedule: {
-              $or: [
-                { end_datetime: booking.start_datetime, is_available: true },
-                { start_datetime: booking.end_datetime, is_available: true }
-              ]
-            }
-          }
-        },
-        { session: sess }
-      );
-      
-      // 8. Optimize remaining schedules to ensure proper merging
-      await parkingSpotService.optimizeAvailabilitySchedules(spotId, { session: sess });
-      
+
       canceledBooking = booking;
     });
-    
+
     return canceledBooking;
   } catch (error) {
     console.error("Error in bookingService.cancelBooking:", error);
     if (error instanceof AppError) throw error;
     throw new AppError(`Failed to cancel booking: ${error.message}`, 500);
   } finally {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
     session.endSession();
   }
 };
@@ -284,39 +348,6 @@ exports.checkParkingSpotAvailability = async (spotId, startTime, endTime) => {
   });
 
   return overlappingBookings.length === 0;
-};
-
-/**
- * Cancel a booking
- * @param {string} bookingId - Booking ID
- * @param {string} userId - ID of the user attempting to cancel
- * @returns {Promise<Object>} The canceled booking
- */
-exports.cancelBooking = async (bookingId, userId) => {
-  const booking = await Booking.findById(bookingId);
-
-  if (!booking) {
-    throw new AppError("Booking not found", 404);
-  }
-
-  // Verify that the user owns this booking
-  if (booking.user.toString() !== userId) {
-    throw new AppError(
-      "You do not have permission to cancel this booking",
-      403
-    );
-  }
-
-  // Check if the booking can be canceled (e.g., not already started)
-  const now = new Date();
-  if (booking.start_datetime <= now) {
-    throw new AppError("Cannot cancel a booking that has already started", 400);
-  }
-
-  booking.status = "canceled";
-  await booking.save();
-
-  return booking;
 };
 
 /**

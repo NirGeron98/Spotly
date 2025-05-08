@@ -534,74 +534,115 @@ exports.markScheduleAsBooked = async (
  */
 exports.restoreSchedule = async (spotId, scheduleId, options = {}) => {
   const { session } = options;
-
+  
+  console.log(`Attempting to restore schedule ${scheduleId} for spot ${spotId}`);
+  
   // Find the spot and schedule
   const spot = await ParkingSpot.findById(spotId).session(session || null);
   if (!spot) {
-    throw new AppError("Parking spot not found", 404);
+    throw new AppError('Parking spot not found', 404);
   }
-
+  
   // Find the schedule to restore
-  const scheduleIndex = spot.availability_schedule.findIndex(
-    (schedule) => schedule._id.toString() === scheduleId
+  let scheduleIndex = spot.availability_schedule.findIndex(
+    schedule => schedule._id.toString() === scheduleId
   );
-
+  
+  console.log(`Schedule found at index: ${scheduleIndex}`);
   if (scheduleIndex === -1) {
-    throw new AppError("Availability schedule not found", 404);
+    throw new AppError('Availability schedule not found', 404);
   }
-
+  
+  // Get the schedule we're restoring
   const scheduleToRestore = spot.availability_schedule[scheduleIndex];
-
-  // Mark it as available and remove booking reference
+  
+  // Mark it as available
   scheduleToRestore.is_available = true;
   scheduleToRestore.booking_id = null;
-
-  // Find adjacent schedules to merge
-  const schedulesToMerge = [];
-  spot.availability_schedule.forEach((schedule, index) => {
-    if (index !== scheduleIndex && schedule.is_available) {
-      if (
-        schedule.end_datetime.getTime() ===
-          scheduleToRestore.start_datetime.getTime() ||
-        schedule.start_datetime.getTime() ===
-          scheduleToRestore.end_datetime.getTime()
-      ) {
-        schedulesToMerge.push({ index, schedule });
+  
+  // Sort by start time to ensure adjacent windows are next to each other
+  spot.availability_schedule.sort((a, b) => 
+    a.start_datetime.getTime() - b.start_datetime.getTime()
+  );
+  
+  // After sorting, re-find our schedule's index
+  scheduleIndex = spot.availability_schedule.findIndex(
+    s => s._id.toString() === scheduleId
+  );
+  
+  // Check for LEFT merge (with previous window)
+  if (scheduleIndex > 0) {
+    const prev = spot.availability_schedule[scheduleIndex - 1];
+    
+    if (prev.is_available && 
+        prev.type === scheduleToRestore.type) {
+      
+      // Check if windows are touching (with 1 second tolerance)
+      const timeDiff = Math.abs(
+        prev.end_datetime.getTime() - scheduleToRestore.start_datetime.getTime()
+      );
+      
+      if (timeDiff <= 1000) { // 1-second tolerance
+        console.log('Merging with left window:', {
+          prevEnd: prev.end_datetime,
+          currentStart: scheduleToRestore.start_datetime
+        });
+        
+        // Merge by extending current window backwards
+        scheduleToRestore.start_datetime = prev.start_datetime;
+        
+        // Remove the previous window
+        spot.availability_schedule.splice(scheduleIndex - 1, 1);
+        
+        // Update index since we removed a window before our current one
+        scheduleIndex--;
       }
     }
-  });
-
-  // Merge adjacent schedules if found
-  if (schedulesToMerge.length > 0) {
-    let mergedStart = scheduleToRestore.start_datetime;
-    let mergedEnd = scheduleToRestore.end_datetime;
-
-    schedulesToMerge.forEach(({ schedule }) => {
-      if (schedule.start_datetime < mergedStart) {
-        mergedStart = schedule.start_datetime;
-      }
-      if (schedule.end_datetime > mergedEnd) {
-        mergedEnd = schedule.end_datetime;
-      }
-    });
-
-    scheduleToRestore.start_datetime = mergedStart;
-    scheduleToRestore.end_datetime = mergedEnd;
-
-    // Remove merged schedules (in reverse order to avoid index issues)
-    schedulesToMerge
-      .sort((a, b) => b.index - a.index)
-      .forEach(({ index }) => {
-        spot.availability_schedule.splice(index, 1);
-      });
   }
-
+  
+  // Check for RIGHT merge (with next window)
+  if (scheduleIndex < spot.availability_schedule.length - 1) {
+    const next = spot.availability_schedule[scheduleIndex + 1];
+    
+    if (next.is_available && 
+        next.type === scheduleToRestore.type) {
+      
+      // Check if windows are touching (with 1 second tolerance)
+      const timeDiff = Math.abs(
+        scheduleToRestore.end_datetime.getTime() - next.start_datetime.getTime()
+      );
+      
+      if (timeDiff <= 1000) { // 1-second tolerance
+        console.log('Merging with right window:', {
+          currentEnd: scheduleToRestore.end_datetime,
+          nextStart: next.start_datetime
+        });
+        
+        // Merge by extending current window forward
+        scheduleToRestore.end_datetime = next.end_datetime;
+        
+        // Remove the next window
+        spot.availability_schedule.splice(scheduleIndex + 1, 1);
+      }
+    }
+  }
+  
+  console.log('Final window after merging:', {
+    start: scheduleToRestore.start_datetime,
+    end: scheduleToRestore.end_datetime,
+    available: scheduleToRestore.is_available
+  });
+  
+  // Save the changes
   await spot.save({ session: session || null });
+  
   return scheduleToRestore;
 };
 
 exports.optimizeAvailabilitySchedules = async (spotId, options = {}) => {
   const { session } = options;
+
+  console.log("Running optimizeAvailabilitySchedules for spot:", spotId);
 
   const spot = await ParkingSpot.findById(spotId).session(session || null);
   if (!spot) {
@@ -617,17 +658,37 @@ exports.optimizeAvailabilitySchedules = async (spotId, options = {}) => {
     (a, b) => a.start_datetime.getTime() - b.start_datetime.getTime()
   );
 
+  // Print before merging
+  console.log(
+    "Before merging:",
+    spot.availability_schedule.map((s) => ({
+      id: s._id.toString(),
+      start: s.start_datetime,
+      end: s.end_datetime,
+      available: s.is_available,
+    }))
+  );
+
   // Find and merge adjacent available schedules
   let i = 0;
   while (i < spot.availability_schedule.length - 1) {
     const current = spot.availability_schedule[i];
     const next = spot.availability_schedule[i + 1];
 
+    const timeDiff = Math.abs(
+      current.end_datetime.getTime() - next.start_datetime.getTime()
+    );
+
     if (
       current.is_available &&
       next.is_available &&
-      current.end_datetime.getTime() === next.start_datetime.getTime()
+      current.type === next.type &&
+      timeDiff <= 1000
     ) {
+      // Allow 1 second tolerance
+
+      console.log(`Merging windows at indexes ${i} and ${i + 1}`);
+
       // Merge the schedules
       current.end_datetime = next.end_datetime;
 
@@ -639,6 +700,17 @@ exports.optimizeAvailabilitySchedules = async (spotId, options = {}) => {
       i++;
     }
   }
+
+  // Print after merging
+  console.log(
+    "After merging:",
+    spot.availability_schedule.map((s) => ({
+      id: s._id.toString(),
+      start: s.start_datetime,
+      end: s.end_datetime,
+      available: s.is_available,    
+    }))
+  );
 
   await spot.save({ session: session || null });
   return spot;
