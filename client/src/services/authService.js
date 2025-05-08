@@ -93,23 +93,4 @@ export const authService = {
     );
     return response.data;
   },
-  updateParkingSpot: async (spotId, updateData) => {
-    const token = localStorage.getItem("token");
-
-    const response = await api.patch(`/parking-spots/${spotId}`, updateData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.data;
-  },
-
-  getMySpots: async () => {
-    const token = localStorage.getItem("token");
-    const response = await api.get("/parking-spots/my-spots", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  },
 };

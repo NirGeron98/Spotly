@@ -22,17 +22,17 @@ const Sidebar = ({ current, setCurrent, role }) => {
   const options = [
     {
       key: "search",
-      label: "חיפוש חנייה חדשה",
+      label: "חיפוש חנייה",
       icon: <FaSearch className="text-lg" />,
       path: "/search-parking",
       visible: true,
     },
     {
-      key: "activeReservations",
-      label: " הזמנות פעילות שביצעתי ",
-      icon: <FaHistory className="text-lg" />,
-      path: "/active-reservations",
-      visible: true,
+      key: "release",
+      label: "פינוי החנייה שלי",
+      icon: <FaRegWindowClose className="text-lg" />,
+      path: "/release",
+      visible: role === "private_prop_owner" || isBuildingMode,
     },
     {
       key: "history",
@@ -42,15 +42,6 @@ const Sidebar = ({ current, setCurrent, role }) => {
       visible: true,
     },
   ];
-
-  // Modified releaseOption to always be visible regardless of role or mode
-  const releaseOption = {
-    key: "releaseParking", // Changed from "release" to match the state in ReleaseParking component
-    label: "ניהול החנייה שלי",
-    icon: <FaRegWindowClose className="text-lg" />,
-    path: "/release",
-    visible: true, // Always visible now
-  };
 
   return (
     <>
@@ -77,7 +68,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-blue-400 rounded-full"></div>
         </div>
 
-        {/* כפתורים רגילים */}
+        {/* תפריט */}
         <nav className="flex flex-col px-3 py-4 overflow-y-auto flex-grow">
           {options.map(
             (opt) =>
@@ -86,7 +77,16 @@ const Sidebar = ({ current, setCurrent, role }) => {
                   key={opt.key}
                   onClick={() => {
                     setCurrent(opt.key);
-                    navigate(opt.path);
+
+                    if (opt.key === "release" && isBuildingMode) {
+                      navigate("/release", {
+                        state: { mode: "building" },
+                        replace: true,
+                      });
+                    } else {
+                      navigate(opt.path);
+                    }
+
                     setIsOpen(false);
                   }}
                   onMouseEnter={() => setIsHovered(opt.key)}
@@ -108,51 +108,17 @@ const Sidebar = ({ current, setCurrent, role }) => {
                   >
                     {opt.icon}
                   </div>
-                  <span className="text-sm font-medium">{opt.label}</span>
+                  <span
+                    className={`text-sm font-medium ${
+                      current === opt.key ? "text-indigo-900" : ""
+                    }`}
+                  >
+                    {opt.label}
+                  </span>
                 </button>
               )
           )}
         </nav>
-
-        {/* כפתור ניהול חנייה - למטה */}
-        {releaseOption.visible && (
-          <div className="px-3 py-2 border-t border-blue-700/30 bg-blue-900/30">
-            <button
-              onClick={() => {
-                setCurrent(releaseOption.key);
-                if (isBuildingMode) {
-                  navigate("/release", {
-                    state: { mode: "building" },
-                    replace: true,
-                  });
-                } else {
-                  navigate(releaseOption.path);
-                }
-                setIsOpen(false);
-              }}
-              onMouseEnter={() => setIsHovered(releaseOption.key)}
-              onMouseLeave={() => setIsHovered(null)}
-              className={`w-full text-right px-3 py-3 rounded-md flex items-center gap-3 transition-all duration-300 ease-in-out ${
-                current === releaseOption.key
-                  ? "bg-white text-indigo-900 shadow-md"
-                  : "text-blue-100 hover:bg-blue-700/50 hover:text-white"
-              }`}
-            >
-              <div
-                className={`p-2 rounded-full ${
-                  current === releaseOption.key
-                    ? "bg-indigo-100 text-indigo-900"
-                    : isHovered === releaseOption.key
-                    ? "bg-blue-600 text-white"
-                    : "bg-blue-800/70 text-blue-200"
-                }`}
-              >
-                {releaseOption.icon}
-              </div>
-              <span className="text-sm font-medium">{releaseOption.label}</span>
-            </button>
-          </div>
-        )}
 
         {/* תחתית */}
         <div className="px-3 py-4 text-center text-blue-200 text-xs bg-indigo-900/30">

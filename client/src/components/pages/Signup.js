@@ -168,12 +168,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         passwordConfirm,
         phone_number,
         role,
-        spot_type: residenceType === "apartment" ? "building" : "private",
-        apartment_number:
-          residenceType === "apartment" ? apartmentNumber : null,
-        spot_number: residenceType === "apartment" ? parkingNumber : null,
-        spot_floor: residenceType === "apartment" ? parkingFloor : null,
       };
+
       // Add address data
       if (residenceType === "apartment" || residenceType === "house") {
         registrationData.address = {
@@ -187,7 +183,6 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       if (residenceType === "apartment" && buildingInfo) {
         registrationData.resident_building = buildingInfo._id;
       }
-      console.log("Registration data:", registrationData);
 
       // Register the user with the complete data
       await authService.register(registrationData);

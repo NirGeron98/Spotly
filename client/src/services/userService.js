@@ -42,31 +42,15 @@ export const userService = {
     return response.data;
   },
 
-  updatePassword: async (passwordData) => {
-    const response = await api.patch("/users/updateMyPassword", passwordData);
+updatePassword: async (passwordData) => {
+  const response = await api.patch("/users/updateMyPassword", passwordData);
+  
+  if (response.data.token) {
+    localStorage.setItem("token", response.data.token);
+    localStorage.setItem("user", JSON.stringify(response.data.data.user));
+  }
 
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
-    }
+  return response.data;
+}
 
-    return response.data;
-  },
-
-  getMySpots: async () => {
-    const token = localStorage.getItem("token");
-    const response = await api.get("/parking-spots/my-spots", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  },
-
-  updateParkingSpot: async (spotId, requestData) => {
-    const token = localStorage.getItem("token");
-    const response = await api.patch(`/parking-spots/${spotId}`, requestData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  },
 };
-
