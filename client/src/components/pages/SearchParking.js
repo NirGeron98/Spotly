@@ -312,17 +312,25 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const handleBookParking = async (spotId) => {
     try {
       const token = localStorage.getItem("token");
+      const selectedSpot = parkingSpots.find((spot) => spot._id === spotId);
+
+      // Debug the spot's hourly price
+      console.log("Selected spot details:", {
+        id: selectedSpot?._id,
+        hourly_price: selectedSpot?.hourly_price,
+        type: typeof selectedSpot?.hourly_price,
+        spot_type: selectedSpot?.spot_type,
+      });
 
       // Format the booking data according to your API
       const bookingData = {
         spot: spotId,
-        user: user._id,
         booking_type: searchParams.is_charging_station ? "charging" : "parking",
         start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
         end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
-        base_rate:
-          parkingSpots.find((spot) => spot._id === spotId)?.hourly_price || 0,
-        booking_source: "private_spot_rental",
+        base_rate_override: selectedSpot?.hourly_price || 0,
+        base_rate: selectedSpot?.hourly_price || 0, // Send both parameters
+        timezone: USER_TIMEZONE,
       };
 
       // Show confirmation popup
@@ -332,10 +340,14 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         type: "confirm",
         onConfirm: async () => {
           try {
+            console.log("Sending booking data:", bookingData);
+
             // Create booking
             const response = await axios.post("/api/v1/bookings", bookingData, {
               headers: { Authorization: `Bearer ${token}` },
             });
+
+            console.log("Booking response:", response.data);
 
             if (response.data?.status === "success") {
               setPopupData({
@@ -346,13 +358,21 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
               });
 
               // Refresh search results to reflect the new booking
-              searchParkingSpots();
+              setTimeout(() => {
+                searchParkingSpots();
+              }, 2000);
             }
           } catch (err) {
             console.error("שגיאה בביצוע הזמנה:", err);
+
+            let errorMessage = "אירעה שגיאה בעת ביצוע ההזמנה. אנא נסה שנית.";
+            if (err.response?.data?.message) {
+              errorMessage = err.response.data.message;
+            }
+
             setPopupData({
               title: "שגיאה בהזמנה",
-              description: "אירעה שגיאה בעת ביצוע ההזמנה. אנא נסה שנית.",
+              description: errorMessage,
               type: "error",
             });
           }

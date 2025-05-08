@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
@@ -6,6 +6,198 @@ import Footer from "../shared/Footer";
 import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
+
+const ActiveParkingTimer = ({
+  activeBooking,
+  timeRemaining,
+  handleEndParking,
+}) => {
+  if (!activeBooking || !timeRemaining || !timeRemaining.isActive) return null;
+
+  const { hours, minutes, percentage } = timeRemaining;
+
+  return (
+    <div className="mb-8 w-full">
+      <div
+        className="rounded-xl shadow-xl p-6 mx-auto max-w-4xl transform hover:scale-105 transition-transform duration-300"
+        style={{
+          background: "linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6)",
+          backgroundSize: "200% 200%",
+          animation: "15s ease infinite",
+          animationName: "gradientShift",
+        }}
+      >
+        <style jsx>{`
+          @keyframes gradientShift {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+          @keyframes pulseRing {
+            0% {
+              transform: scale(0.95);
+              opacity: 0.7;
+            }
+            50% {
+              transform: scale(1);
+              opacity: 0.3;
+            }
+            100% {
+              transform: scale(0.95);
+              opacity: 0.7;
+            }
+          }
+          @keyframes rotate {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+          @keyframes float {
+            0%,
+            100% {
+              transform: translateY(0);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
+          }
+        `}</style>
+        <div className="flex flex-col md:flex-row items-center justify-between">
+          {/* Left side: Booking info */}
+          <div className="text-white mb-6 md:mb-0 md:w-1/2 text-center md:text-right">
+            <h3 className="text-xl font-bold mb-2">חנייה פעילה כעת</h3>
+            <p className="mb-1 text-blue-100">
+              <span className="font-semibold">כתובת:</span>{" "}
+              {activeBooking.spot && activeBooking.spot.address
+                ? `${activeBooking.spot.address.city}, ${activeBooking.spot.address.street} ${activeBooking.spot.address.number}`
+                : "כתובת לא זמינה"}
+            </p>
+            <p className="mb-1 text-blue-100">
+              <span className="font-semibold">תעריף:</span>{" "}
+              {activeBooking.base_rate !== undefined &&
+              activeBooking.base_rate !== null &&
+              activeBooking.base_rate > 0
+                ? `${activeBooking.base_rate} ₪/שעה`
+                : activeBooking.spot &&
+                  activeBooking.spot.hourly_price &&
+                  activeBooking.spot.hourly_price > 0
+                ? `${activeBooking.spot.hourly_price} ₪/שעה`
+                : "0 ₪/שעה"}
+            </p>
+            <p className="mb-1 text-blue-100">
+              <span className="font-semibold">מיקום חנייה:</span>{" "}
+              {activeBooking.spot?.spot_number
+                ? `חנייה מספר ${activeBooking.spot.spot_number}`
+                : "חנייה פרטית"}
+            </p>
+          </div>
+
+          {/* Center: Large Timer */}
+          <div className="relative md:w-1/3 flex flex-col items-center">
+            {/* Pulsing ring effect */}
+            <div
+              className="absolute w-48 h-48 rounded-full bg-blue-400 opacity-30 mx-auto"
+              style={{
+                animation: "3s infinite",
+                animationName: "pulseRing",
+              }}
+            ></div>
+
+            {/* Second pulse ring with delay */}
+            <div
+              className="absolute w-52 h-52 rounded-full bg-indigo-400 opacity-20 mx-auto"
+              style={{
+                animation: "3s infinite",
+                animationName: "pulseRing",
+                animationDelay: "1.5s",
+              }}
+            ></div>
+
+            <div className="relative w-44 h-44 mx-auto">
+              {/* Rotating outer ring */}
+              <div
+                className="absolute inset-0 w-full h-full border-4 border-white opacity-10 rounded-full"
+                style={{
+                  animation: "10s linear infinite",
+                  animationName: "rotate",
+                }}
+              ></div>
+
+              {/* Base circle */}
+              <svg className="w-44 h-44" viewBox="0 0 36 36">
+                <path
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.2)"
+                  strokeWidth="3"
+                  strokeDasharray="100, 100"
+                />
+                <path
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={`${percentage}, 100`}
+                  className="drop-shadow-lg"
+                />
+              </svg>
+
+              {/* Central time display */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <FaClock className="text-white mb-2 text-xl" />
+                <div className="text-4xl font-bold text-white drop-shadow-md">
+                  {hours}:{minutes.toString().padStart(2, "0")}
+                </div>
+                <div className="text-xs text-blue-100 mt-1">זמן נותר</div>
+              </div>
+            </div>
+
+            {/* Animation elements */}
+            <div className="absolute w-full h-full pointer-events-none">
+              <div className="absolute w-2 h-2 bg-blue-300 rounded-full top-10 left-10 animate-ping"></div>
+              <div
+                className="absolute w-3 h-3 bg-purple-300 rounded-full bottom-10 right-20 animate-ping"
+                style={{ animationDelay: "0.5s" }}
+              ></div>
+              <div
+                className="absolute w-2 h-2 bg-indigo-300 rounded-full bottom-20 left-20 animate-ping"
+                style={{ animationDelay: "0.8s" }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Right side: Action button */}
+          <div className="md:w-1/6 flex justify-center">
+            <button
+              onClick={() => handleEndParking(activeBooking)}
+              className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-indigo-600 font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <span className="relative z-10 group-hover:text-white transition-colors duration-300">
+                סיים חניה
+              </span>
+              <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-x-0 group-hover:scale-x-100 origin-left"></span>
+              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 animate-pulse"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   document.title = "הזמנות חנייה פעילות | Spotly";
@@ -22,6 +214,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   const [endingParkingBooking, setEndingParkingBooking] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState({});
   const [now, setNow] = useState(new Date());
+  const [activeTimerBooking, setActiveTimerBooking] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const bookingsPerPage = 10;
@@ -38,6 +231,29 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   const user = JSON.parse(localStorage.getItem("user"));
   const role = user?.role || "user";
 
+  // Find active booking with timer
+  const findActiveBookingWithTimer = useCallback(() => {
+    // Find bookings that are currently active (started but not ended)
+    const activeBookings = bookings.filter((booking) => {
+      const startTime = new Date(booking.start_datetime);
+      const endTime = new Date(booking.end_datetime);
+      return now >= startTime && now < endTime;
+    });
+
+    if (activeBookings.length === 0) {
+      setActiveTimerBooking(null);
+      return;
+    }
+
+    // Sort by end time (ascending) to find the one ending soonest
+    activeBookings.sort(
+      (a, b) => new Date(a.end_datetime) - new Date(b.end_datetime)
+    );
+
+    // Set the first one (ending soonest) as the active booking
+    setActiveTimerBooking(activeBookings[0]);
+  }, [bookings, now]);
+
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -46,6 +262,11 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Find active booking whenever bookings or time changes
+  useEffect(() => {
+    findActiveBookingWithTimer();
+  }, [findActiveBookingWithTimer, bookings, now]);
 
   // Calculate time remaining for all active bookings
   useEffect(() => {
@@ -92,10 +313,20 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Debug the response data
+      console.log("Bookings response:", response.data.data.bookings);
+
       // The API already filters out cancelled bookings, so we just need the active ones
-      const activeBookings = response.data.data.bookings.filter(
-        (booking) => booking.status === "active"
-      );
+      const activeBookings = response.data.data.bookings
+        .filter((booking) => booking.status === "active")
+        .map((booking) => {
+          console.log(`Booking ${booking._id} rate details:`, {
+            base_rate: booking.base_rate,
+            spot_hourly_price: booking.spot?.hourly_price,
+            payment_status: booking.payment_status,
+          });
+          return booking;
+        });
 
       setBookings(activeBookings);
       setError(null);
@@ -113,9 +344,10 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
 
+      // Changed from DELETE with body to PATCH with body
       await axios.patch(
         `/api/v1/bookings/${selectedBooking._id}`,
-        { status: "cancelled" },
+        { status: "canceled" }, // Changed from "cancelled" to "canceled" to match the enum in your model
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -331,6 +563,15 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             </div>
           )}
 
+          {/* Add the ActiveParkingTimer component here */}
+          {activeTimerBooking && timeRemaining[activeTimerBooking._id] && (
+            <ActiveParkingTimer
+              activeBooking={activeTimerBooking}
+              timeRemaining={timeRemaining[activeTimerBooking._id]}
+              handleEndParking={handleEndParking}
+            />
+          )}
+
           {loading ? (
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
@@ -427,7 +668,15 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                           </div>
                         </div>
                         <div className="px-3 py-3 w-[10%] text-center">
-                          {booking.base_rate} ₪/שעה
+                          {booking.base_rate !== undefined &&
+                          booking.base_rate !== null &&
+                          booking.base_rate > 0
+                            ? `${booking.base_rate} ₪/שעה`
+                            : booking.spot &&
+                              booking.spot.hourly_price &&
+                              booking.spot.hourly_price > 0
+                            ? `${booking.spot.hourly_price} ₪/שעה`
+                            : "0 ₪/שעה"}
                         </div>
                         <div className="px-3 py-3 w-[10%] text-center">
                           <span

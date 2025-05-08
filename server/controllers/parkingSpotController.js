@@ -100,20 +100,6 @@ exports.getBuildingSpots = catchAsync(async (req, res, next) => {
   });
 });
 
-// exports.getParkingSpotsByBuilding = catchAsync(async (req, res, next) => {
-//   const parkingSpots = await parkingSpotService.getParkingSpotsByBuilding(
-//     req.params.buildingId
-//   );
-
-//   res.status(200).json({
-//     status: "success",
-//     results: parkingSpots.length,
-//     data: {
-//       parkingSpots,
-//     },
-//   });
-// });
-
 exports.getAvailablePrivateSpots = catchAsync(async (req, res, next) => {
   const parkingSpots = await parkingSpotService.getAvailablePrivateSpots();
 
