@@ -305,6 +305,7 @@ exports.addAvailabilitySchedule = async (spotId, scheduleData, userId) => {
     start_datetime,
     end_datetime,
     is_available: true,
+    created_at: new Date(),
   };
 
   parkingSpot.availability_schedule.push(newScheduleEntry);
@@ -505,6 +506,7 @@ exports.findAvailableBuildingSpot = async (
  * @param {Object} options - Options object, e.g., { session } for transactions.
  * @returns {Promise<void>}
  */
+
 exports.markScheduleAsBookedAndSplit = async (
   spotId,
   originalScheduleId,
@@ -515,37 +517,30 @@ exports.markScheduleAsBookedAndSplit = async (
 ) => {
   const { session } = options;
 
-  // Fetch the parking spot using the session
+  // Find the parking spot
   const spot = await ParkingSpot.findById(spotId).session(session);
   if (!spot) {
-    throw new AppError("Parking spot not found during booking update", 404);
+    throw new AppError("Parking spot not found", 404);
   }
 
+  // Find the original schedule
   const scheduleIndex = spot.availability_schedule.findIndex(
     (s) => s._id.toString() === originalScheduleId
   );
 
   if (scheduleIndex === -1) {
-    throw new AppError("Original availability schedule not found for booking", 404);
+    throw new AppError("Original availability schedule not found", 404);
   }
 
   const originalSchedule = spot.availability_schedule[scheduleIndex];
-
-  // Store the original start and end times and type before modifying
   const originalStart = new Date(originalSchedule.start_datetime);
   const originalEnd = new Date(originalSchedule.end_datetime);
   const scheduleType = originalSchedule.type;
 
-  // 1. Update the original schedule entry to represent the booked slot
-  originalSchedule.is_available = false;
-  originalSchedule.booking_id = bookingId;
-  // Adjust its start and end to match the booking precisely
-  originalSchedule.start_datetime = bookingStartTime;
-  originalSchedule.end_datetime = bookingEndTime;
-
+  // Create new schedules for the "before" and "after" windows
   const newSchedulesToAdd = [];
 
-  // 2. Create a new schedule for the part *before* the booking, if any
+  // 1. Create a new schedule for the part *before* the booking, if any
   if (originalStart < bookingStartTime) {
     newSchedulesToAdd.push({
       _id: new mongoose.Types.ObjectId(), // Generate new ID
@@ -556,6 +551,12 @@ exports.markScheduleAsBookedAndSplit = async (
       booking_id: null,
     });
   }
+
+  // 2. Update the original schedule to represent the booked slot
+  originalSchedule.start_datetime = bookingStartTime;
+  originalSchedule.end_datetime = bookingEndTime;
+  originalSchedule.is_available = false;
+  originalSchedule.booking_id = bookingId;
 
   // 3. Create a new schedule for the part *after* the booking, if any
   if (originalEnd > bookingEndTime) {
@@ -575,7 +576,7 @@ exports.markScheduleAsBookedAndSplit = async (
   }
 
   // Save the parking spot with all changes
-  await spot.save({ session }); // Pass the session here
+  await spot.save({ session });
 };
 
 /**
@@ -590,45 +591,67 @@ exports.markScheduleAsBookedAndSplit = async (
  */
 exports.restoreSchedule = async (spotId, bookedScheduleId, options = {}) => {
   const { session } = options;
-  console.log(`Attempting to restore schedule ${bookedScheduleId} for spot ${spotId} within transaction.`);
 
+  // Find the parking spot
   const spot = await ParkingSpot.findById(spotId).session(session);
   if (!spot) {
-    // This should ideally not happen if called within a transaction that already fetched the spot
-    throw new AppError("Parking spot not found during schedule restoration", 404);
+    throw new AppError("Parking spot not found", 404);
   }
 
+  // Find the schedule to restore
   const scheduleIndex = spot.availability_schedule.findIndex(
     (s) => s._id.toString() === bookedScheduleId
   );
 
   if (scheduleIndex === -1) {
-    // This indicates a potential issue, as the booked schedule should exist.
-    // It might be that the schedule was already merged or removed, which needs careful handling.
-    // For now, we'll throw an error. Depending on the desired behavior,
-    // you might want to create a new availability window based on booking times.
-    console.error(`Booked schedule ${bookedScheduleId} not found in spot ${spotId} for restoration.`);
-    throw new AppError(`Booked schedule ${bookedScheduleId} not found for restoration.`, 404);
+    throw new AppError("Schedule not found", 404);
   }
 
   const scheduleToRestore = spot.availability_schedule[scheduleIndex];
 
-  // Ensure it's actually linked to a booking and is not available
-  if (scheduleToRestore.is_available || !scheduleToRestore.booking_id) {
-    // This could happen if cancellation is attempted twice or if data is inconsistent.
-    console.warn(`Schedule ${bookedScheduleId} is already available or not linked to a booking.`);
-    // Depending on strictness, you might throw an error or just return.
-    // For now, let's proceed to mark it available to ensure correct state.
+  // Mark the schedule as available
+  scheduleToRestore.is_available = true;
+  scheduleToRestore.booking_id = null;
+
+  // Sort schedules by start time to ensure proper merging
+  spot.availability_schedule.sort(
+    (a, b) => a.start_datetime.getTime() - b.start_datetime.getTime()
+  );
+
+  // Re-find the index of the restored schedule after sorting
+  const newIndex = spot.availability_schedule.findIndex(
+    (schedule) => schedule._id.toString() === bookedScheduleId
+  );
+
+  // Merge with adjacent windows
+  if (newIndex > 0) {
+    const prev = spot.availability_schedule[newIndex - 1];
+    if (
+      prev.is_available &&
+      prev.type === scheduleToRestore.type &&
+      prev.end_datetime.getTime() === scheduleToRestore.start_datetime.getTime()
+    ) {
+      // Merge with the previous window
+      scheduleToRestore.start_datetime = prev.start_datetime;
+      spot.availability_schedule.splice(newIndex - 1, 1); // Remove the previous window
+    }
   }
 
-  scheduleToRestore.is_available = true;
-  scheduleToRestore.booking_id = null; // Remove the link to the booking
+  if (newIndex < spot.availability_schedule.length - 1) {
+    const next = spot.availability_schedule[newIndex + 1];
+    if (
+      next.is_available &&
+      next.type === scheduleToRestore.type &&
+      scheduleToRestore.end_datetime.getTime() === next.start_datetime.getTime()
+    ) {
+      // Merge with the next window
+      scheduleToRestore.end_datetime = next.end_datetime;
+      spot.availability_schedule.splice(newIndex + 1, 1); // Remove the next window
+    }
+  }
 
-  // The actual merging will be handled by optimizeAvailabilitySchedules
-  // Save is called after optimization.
-  console.log(`Schedule ${bookedScheduleId} marked as available. Optimization will follow.`);
-  // We don't save here; optimizeAvailabilitySchedules will save.
-  return scheduleToRestore; // Return the modified (but not yet saved) schedule
+  // Save the updated parking spot
+  await spot.save({ session });
 };
 
 /**
@@ -641,105 +664,42 @@ exports.restoreSchedule = async (spotId, bookedScheduleId, options = {}) => {
  */
 exports.optimizeAvailabilitySchedules = async (spotId, options = {}) => {
   const { session } = options;
-  console.log(`Optimizing availability schedules for spot: ${spotId} within transaction.`);
 
   const spot = await ParkingSpot.findById(spotId).session(session);
   if (!spot) {
     throw new AppError("Parking spot not found for optimization", 404);
   }
 
-  if (!spot.availability_schedule || spot.availability_schedule.length === 0) {
-    console.log("No schedules to optimize.");
-    return spot; // No schedules to optimize
-  }
-
   let schedules = spot.availability_schedule;
 
-  // 1. Filter out invalid schedules (e.g., end <= start) - Defensive coding
-  schedules = schedules.filter(s => s.start_datetime < s.end_datetime);
+  // Sort schedules by start_datetime
+  schedules.sort((a, b) => a.start_datetime - b.start_datetime);
 
-  // 2. Sort schedules by start_datetime primarily, and then by end_datetime for tie-breaking
-  // This helps in processing them in chronological order for merging.
-  schedules.sort((a, b) => {
-    if (a.start_datetime.getTime() !== b.start_datetime.getTime()) {
-      return a.start_datetime.getTime() - b.start_datetime.getTime();
-    }
-    return a.end_datetime.getTime() - b.end_datetime.getTime();
-  });
+  let i = 0;
+  while (i < schedules.length - 1) {
+    const current = schedules[i];
+    const next = schedules[i + 1];
 
-  const optimizedSchedules = [];
-  if (schedules.length === 0) {
-      spot.availability_schedule = [];
-      await spot.save({ session });
-      return spot;
-  }
-
-  // Initialize with the first schedule
-  let currentMergeCandidate = { ...schedules[0].toObject() }; // Work with a copy
-
-  for (let i = 1; i < schedules.length; i++) {
-    const nextSchedule = schedules[i].toObject(); // Work with a copy
-
-    // Check for merge condition:
-    // - Both are available
-    // - Same type
-    // - currentMergeCandidate.end_datetime is a Date object
-    // - nextSchedule.start_datetime is a Date object
-    // - They are adjacent or overlapping (current ends when or after next starts)
-    //   A small tolerance (e.g., 1 millisecond) can be added for exact adjacency if needed.
-    //   `currentMergeCandidate.end_datetime >= nextSchedule.start_datetime` allows for overlapping or touching.
-    //   If strict adjacency (touching, not overlapping) is required: `currentMergeCandidate.end_datetime.getTime() === nextSchedule.start_datetime.getTime()`
+    // Check if the current and next schedules can be merged
     if (
-      currentMergeCandidate.is_available &&
-      nextSchedule.is_available &&
-      currentMergeCandidate.type === nextSchedule.type &&
-      currentMergeCandidate.end_datetime instanceof Date && // Ensure it's a Date
-      nextSchedule.start_datetime instanceof Date && // Ensure it's a Date
-      currentMergeCandidate.end_datetime.getTime() >= nextSchedule.start_datetime.getTime() // Allows merging if touching or overlapping
+      current.is_available &&
+      next.is_available &&
+      current.type === next.type &&
+      current.end_datetime.getTime() >= next.start_datetime.getTime() - 1
     ) {
-      // Merge: Extend the end_datetime of the current candidate if next one ends later
-      if (nextSchedule.end_datetime > currentMergeCandidate.end_datetime) {
-        currentMergeCandidate.end_datetime = nextSchedule.end_datetime;
-      }
-      // If they are perfectly identical (start, end, type, availability), the loop will just skip the next one.
+      // Merge the schedules
+      current.end_datetime = new Date(
+        Math.max(current.end_datetime.getTime(), next.end_datetime.getTime())
+      );
+
+      // Remove the next schedule
+      schedules.splice(i + 1, 1);
     } else {
-      // No merge possible, push the current candidate to results
-      optimizedSchedules.push(currentMergeCandidate);
-      // Start a new merge candidate
-      currentMergeCandidate = { ...nextSchedule };
+      // Move to the next schedule
+      i++;
     }
   }
 
-  // Add the last merge candidate
-  optimizedSchedules.push(currentMergeCandidate);
-
-
-  // Prevent duplicate windows:
-  // This step is more robust after sorting and initial merging.
-  // A duplicate here means two entries that are exactly identical after the merge pass.
-  const finalSchedules = [];
-  if (optimizedSchedules.length > 0) {
-    finalSchedules.push(optimizedSchedules[0]); // Add the first one
-    for (let i = 1; i < optimizedSchedules.length; i++) {
-      const prev = finalSchedules[finalSchedules.length - 1];
-      const current = optimizedSchedules[i];
-      // Check if current is NOT identical to the previous one added
-      if (
-        prev.start_datetime.getTime() !== current.start_datetime.getTime() ||
-        prev.end_datetime.getTime() !== current.end_datetime.getTime() ||
-        prev.is_available !== current.is_available ||
-        prev.type !== current.type ||
-        (prev.booking_id ? prev.booking_id.toString() : null) !== (current.booking_id ? current.booking_id.toString() : null)
-      ) {
-        finalSchedules.push(current);
-      }
-    }
-  }
-
-
-  spot.availability_schedule = finalSchedules;
+  // Save the updated schedules
   await spot.save({ session });
-  console.log(`Optimization complete for spot ${spotId}. Schedules count: ${spot.availability_schedule.length}`);
-  return spot;
 };
-
