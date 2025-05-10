@@ -436,18 +436,20 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
 });
 
 exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
+  // 1. First verify user role is building_resident
+  if (req.user.role !== 'building_resident') {
+    return next(new AppError('Only building residents can search for building spots', 403));
+  }
+
   const { building_id, start_datetime, end_datetime } = req.body;
   const userId = req.user.id;
 
+  // 2. Validate required parameters
   if (!building_id || !start_datetime || !end_datetime) {
-    return next(
-      new AppError(
-        "Building ID, start datetime, and end datetime are required",
-        400
-      )
-    );                              
+    return next(new AppError('Building ID, start datetime, and end datetime are required', 400));
   }
 
+  // 3. Parse and validate dates
   let bookingStart, bookingEnd;
   try {
     bookingStart = new Date(start_datetime);
@@ -456,120 +458,57 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
       throw new Error("Invalid date format");
     }
   } catch (e) {
-    return next(
-      new AppError(
-        "Invalid start or end datetime format. Please use ISO 8601 format.",
-        400
-      )
-    );
+    return next(new AppError('Invalid datetime format. Please use ISO 8601 format.', 400));
   }
 
   if (bookingEnd <= bookingStart) {
-    return next(
-      new AppError("End datetime must be after start datetime.", 400)
-    );
+    return next(new AppError('End datetime must be after start datetime.', 400));
   }
 
-  // Find an available spot in the building
-  const availableSpot = await parkingSpotService.findAvailableBuildingSpot(
-    building_id,
-    bookingStart,
-    bookingEnd,
-    userId
-  );
-
-  if (!availableSpot) {
-    return next(
-      new AppError(
-        "No available spots found in this building for the requested time period",
-        404
-      )
+  try {
+    // 4. Find an available spot in the building
+    const availableSpot = await parkingSpotService.findAvailableBuildingSpot(
+      building_id,
+      bookingStart,
+      bookingEnd,
+      userId
     );
-  }
 
-  res.status(200).json({
-    status: "success",
-    data: {
-      spot: availableSpot,
-      start_datetime: bookingStart,
-      end_datetime: bookingEnd,
-    },
-  });
+    if (!availableSpot) {
+      return next(new AppError('No available spots found in your building for the requested time period', 404));
+    }
+
+    // 5. Create a booking using the booking service
+    const bookingService = require('../services/bookingService');
+    const bookingDetails = {
+      booking_type: 'parking',
+      booking_source: 'resident_building_allocation',
+      status: 'active',
+      payment_status: 'not_required' // Building spots don't require payment
+    };
+
+    const booking = await bookingService.createBooking(
+      userId,
+      availableSpot._id,
+      bookingStart,
+      bookingEnd,
+      bookingDetails
+    );
+
+    // 6. Return both the spot and booking details
+    res.status(200).json({
+      status: 'success',
+      data: {
+        spot: availableSpot,
+        booking: booking,
+        start_datetime: bookingStart,
+        end_datetime: bookingEnd
+      }
+    });
+  } catch (error) {
+    if (error.statusCode === 403) {
+      return next(new AppError('You can only search for spots in your own building', 403));
+    }
+    throw error;
+  }
 });
-
-// exports.allocateResidentSpot = catchAsync(async (req, res, next) => {
-//   const pms = req.pms; // Assuming PMS instance is on req via middleware
-//   const { start_datetime, end_datetime, building_id /* other criteria */ } =
-//     req.body;
-//   const userId = req.user.id; // Or however you identify the resident
-
-//   if (!start_datetime || !end_datetime) {
-//     return next(
-//       new AppError("Start and end datetimes are required for allocation.", 400)
-//     );
-//   }
-
-//   let allocationStart, allocationEnd;
-//   try {
-//     allocationStart = new Date(start_datetime);
-//     allocationEnd = new Date(end_datetime);
-//     if (isNaN(allocationStart.getTime()) || isNaN(allocationEnd.getTime())) {
-//       throw new Error("Invalid date format for allocation");
-//     }
-//   } catch (e) {
-//     return next(
-//       new AppError("Invalid start or end datetime format for allocation.", 400)
-//     );
-//   }
-
-//   if (allocationEnd <= allocationStart) {
-//     return next(
-//       new AppError("Allocation end datetime must be after start datetime.", 400)
-//     );
-//   }
-
-//   if (!pms) {
-//     return next(
-//       new AppError("Parking Management System is not available.", 503)
-//     );
-//   }
-//   // Ensure PMS is loaded (pms.allocateSpotForResident should also handle this or throw)
-//   // if (pms.isLoaded === false && typeof pms.loadFromDatabase === 'function') {
-//   //   await pms.loadFromDatabase().catch(err => { /* handle or log error */ });
-//   // }
-//   // if (pms.isLoaded === false) { // Check again
-//   //   return next(new AppError("PMS not ready for allocation.", 503));
-//   // }
-
-//   const allocationCriteria = { building_id }; // Pass any necessary criteria to PMS
-//   const allocationResult = await pms.allocateSpotForResident(
-//     allocationStart,
-//     allocationEnd,
-//     userId,
-//     allocationCriteria
-//   );
-
-//   if (!allocationResult || !allocationResult.spotId) {
-//     return next(
-//       new AppError(
-//         "No suitable parking spot could be allocated at this time.",
-//         404
-//       )
-//     );
-//   }
-
-//   res.status(200).json({
-//     status: "success",
-//     message: "Spot allocated successfully. Please proceed to book this spot.",
-//     data: {
-//       allocated_spot_id: allocationResult.spotId,
-//       // PMS might confirm or slightly adjust times, pass them back
-//       confirmed_start_datetime:
-//         allocationResult.confirmed_start_datetime.toISOString(),
-//       confirmed_end_datetime:
-//         allocationResult.confirmed_end_datetime.toISOString(),
-//       // You might want to return some basic details of the allocated spot here too
-//       // e.g., spot_number, floor, etc., by fetching the spot briefly if needed.
-//     },
-//   });
-// });

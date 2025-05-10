@@ -14,14 +14,14 @@ router
   .get("/private/charging-stations", parkingSpotController.getChargingStations)
   .get("/private", parkingSpotController.getPrivateSpots);
 
-router.get("/building/:buildingId", parkingSpotController.getBuildingSpots)
+router.get("/building/:buildingId", parkingSpotController.getBuildingSpots);
+
+// Route for building residents to find available spots
 router.post(
   '/building/find-available',
-  authController.protect,
-  authController.restrictTo('building_resident', "admin"),  
+  authController.restrictTo('building_resident'), // Explicitly restrict to building residents
   parkingSpotController.findBuildingSpotForResident
 );
-
 
 router
   .route("/:spotId")
@@ -50,18 +50,6 @@ router
     authController.restrictTo("private_prop_owner", "building_resident"),
     parkingSpotController.addAvailabilitySchedule
   );
-
-// Release parking routes (restricted to private property owners)
-// router.post(
-//   "/release",
-//   authController.restrictTo("private_prop_owner"),
-//   parkingSpotController.add
-// );
-// router.get(
-//   "/my-released",
-//   authController.restrictTo("private_prop_owner"),
-//   parkingSpotController.getMyReleasedSpots
-// );
 
 router
   .route("/")

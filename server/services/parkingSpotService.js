@@ -464,20 +464,19 @@ exports.findAvailableBuildingSpot = async (
   endTime,
   userId
 ) => {
-  // Find a user's assigned spot first
-  const userAssignedSpot = await ParkingSpot.findOne({
-    building: buildingId,
-    spot_type: "building",
-    user: userId,
-  });
+  // 1. First verify the user is actually a resident of this building
+  const user = await User.findById(userId).populate('resident_building');
+  if (!user || !user.resident_building || user.resident_building._id.toString() !== buildingId) {
+    throw new AppError('You can only look for spots in your registered building', 403);
+  }
 
-  // find any available spot in the building
+  // 2. Get all spots in the user's building
   const buildingSpots = await ParkingSpot.find({
     building: buildingId,
     spot_type: "building",
   });
 
-  // Check each spot for availability
+  // 3. Check each spot until we find the first available one for the requested time
   for (const spot of buildingSpots) {
     const isAvailable = await exports.isSpotAvailableForBooking(
       spot._id,
@@ -486,7 +485,7 @@ exports.findAvailableBuildingSpot = async (
     );
 
     if (isAvailable.available) {
-      return spot;
+      return spot;  // Return the first available spot we find
     }
   }
 
