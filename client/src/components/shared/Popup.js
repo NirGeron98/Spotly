@@ -10,14 +10,42 @@ const Popup = ({
 }) => {
   const isError = type === "error";
   const isSuccess = type === "success";
-  const isAlert = isError || isSuccess;
+  const isConfirm = type === "confirm";
 
-  const icon = isError ? "❌" : isSuccess ? "✅" : "ℹ️";
-  const borderColor = isError
-    ? "border-red-500"
-    : isSuccess
-    ? "border-green-500"
-    : "border-blue-500";
+  const getIcon = () => {
+    if (isError) return "⛔";
+    if (isSuccess) return "✅";
+    if (isConfirm) return "📝";
+    return "ℹ️";
+  };
+
+  const getBgColor = () => {
+    if (isError) return "bg-red-50";
+    if (isSuccess) return "bg-green-50";
+    if (isConfirm) return "bg-gray-50";
+    return "bg-blue-50";
+  };
+
+  const getBorderColor = () => {
+    if (isError) return "border-red-400";
+    if (isSuccess) return "border-green-400";
+    if (isConfirm) return "border-gray-400";
+    return "border-blue-400";
+  };
+
+  const getHeaderColor = () => {
+    if (isError) return "bg-red-500 text-white";
+    if (isSuccess) return "bg-green-500 text-white";
+    if (isConfirm) return "bg-gray-600 text-white";
+    return "bg-blue-500 text-white";
+  };
+
+  const getButtonClass = () => {
+    if (isError) return "bg-red-500 hover:bg-red-600";
+    if (isSuccess) return "bg-green-500 hover:bg-green-600";
+    if (isConfirm) return "bg-gray-600 hover:bg-gray-700";
+    return "bg-blue-500 hover:bg-blue-600";
+  };
 
   const [show, setShow] = useState(false);
 
@@ -27,49 +55,70 @@ const Popup = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
+      <div className="absolute inset-0 bg-black bg-opacity-25 backdrop-blur-sm pointer-events-auto"></div>
+
       <div
-        className={`bg-white rounded-xl shadow-xl relative transform transition-all duration-300 ease-out 
+        className={`relative bg-white rounded-2xl shadow-2xl transform transition-all duration-300 ease-out overflow-hidden pointer-events-auto
         ${show ? "opacity-100 scale-100" : "opacity-0 scale-90"} 
-        ${isAlert ? `border ${borderColor}` : "border border-gray-300"} 
-        p-6 pointer-events-auto inline-block`}
-        style={{ maxWidth: wide ? "900px" : "700px",
-          minwidth: "280px",
+        border-2 ${getBorderColor()}`}
+        style={{
+          width: wide ? "90vw" : "min(85vw, 550px)",
+          maxWidth: wide ? "900px" : "550px",
+          minWidth: "280px",
+          maxHeight: "85vh",
         }}
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 left-3 text-gray-400 hover:text-gray-700 text-xl"
+        <div
+          className={`px-6 py-4 ${getHeaderColor()} flex justify-between items-center`}
         >
-          ✖
-        </button>
-
-        {/* Title */}
-        <h3 className="text-xl font-bold text-center text-gray-800 mb-4">
-          {title}
-        </h3>
-
-        {/* Content */}
-        <div className="flex items-start gap-4">
-          {isAlert && <div className="text-2xl mt-1">{icon}</div>}
-
-          <div className="text-sm text-gray-700 leading-relaxed max-h-[60vh] overflow-y-auto">
-            {description}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{getIcon()}</span>
+            <h3 className="text-xl font-bold">{title}</h3>
           </div>
+          <button
+            onClick={onClose}
+            className="text-white hover:text-gray-200 text-xl focus:outline-none transition-transform hover:scale-110"
+            aria-label="סגור"
+          >
+            ✖
+          </button>
         </div>
 
-        {/* Confirm Button (optional) */}
-        {onConfirm && (
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={onConfirm}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-            >
-              אישור
-            </button>
+        <div className={`p-6 ${getBgColor()}`}>
+          <div
+            className="text-gray-700 leading-relaxed overflow-y-auto"
+            style={{ maxHeight: "60vh", fontSize: "1.05rem" }}
+          >
+            {description}
           </div>
-        )}
+
+          <div className="mt-8 flex justify-end gap-3">
+            {onConfirm ? (
+              <>
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={onConfirm}
+                  className={`px-5 py-2.5 text-white rounded-lg transition font-medium ${getButtonClass()} shadow-md`}
+                >
+                  אישור
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onClose}
+                className={`px-5 py-2.5 text-white rounded-lg transition font-medium ${getButtonClass()} shadow-md`}
+              >
+                אישור
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

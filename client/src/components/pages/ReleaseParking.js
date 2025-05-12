@@ -60,48 +60,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     USER_TIMEZONE
   );
 
-  const renderPriceValidationPopup = () => {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg p-6 max-w-md mx-4 w-full shadow-xl">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-amber-600">נדרש לעדכן את המחיר לשעה</h3>
-            <button
-              onClick={() => setPopupData({ ...popupData, show: false })}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="text-gray-700 space-y-4">
-            <div className="bg-amber-50 p-4 rounded-md border border-amber-200">
-              <p className="mb-2">לפני שתוכל להוסיף זמינות חנייה, עליך להגדיר מחיר לשעה בהגדרות החנייה.</p>
-              <p>המחיר הנוכחי הוא <span className="font-bold">0₪</span>, אנא עדכן אותו להמשך.</p>
-            </div>
-
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={() => {
-                  setPopupData({ ...popupData, show: false });
-                  const privateSpot = parkingSlots.find(
-                    (s) => s.spot_type === "private"
-                  );
-                  setNewPrice(privateSpot?.hourly_price?.toString() || "");
-                  setPriceError("");
-                  setPriceSuccess("");
-                  setShowSettingsPopup(true);
-                }}
-                className="bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition-colors text-lg font-medium w-full max-w-xs"
-              >
-                הגדרות חנייה
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const getRoundedTime = (date = new Date()) => {
     const minutes = date.getMinutes();
     const roundedMinutes = Math.ceil(minutes / 15) * 15;
@@ -589,10 +547,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           "handleAddSlot: Validation failed - Private spot price is zero or not set"
         );
 
-        // Use the renderPriceValidationPopup function
         setPopupData({
           title: "נדרש לעדכן את המחיר לשעה",
-          description: renderPriceValidationPopup(),
+          description:
+            "לפני שתוכל להוסיף זמינות חנייה, עליך להגדיר מחיר לשעה בהגדרות החנייה.",
           type: "warning",
           show: true,
         });
@@ -791,12 +749,17 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         const endTime = pixelToTime(endY);
         if (startTime && endTime && startTime < endTime) {
           // Check if hourly price is set before showing quick add popup
-          const privateSpot = parkingSlots.find((s) => s.spot_type === "private");
-          if (!isBuildingMode && (!privateSpot?.hourly_price || privateSpot.hourly_price === 0)) {
-            // Use the renderPriceValidationPopup function
+          const privateSpot = parkingSlots.find(
+            (s) => s.spot_type === "private"
+          );
+          if (
+            !isBuildingMode &&
+            (!privateSpot?.hourly_price || privateSpot.hourly_price === 0)
+          ) {
             setPopupData({
               title: "נדרש לעדכן את המחיר לשעה",
-              description: renderPriceValidationPopup(),
+              description:
+                "לפני שתוכל להוסיף זמינות חנייה, עליך להגדיר מחיר לשעה בהגדרות החנייה.",
               type: "warning",
               show: true,
             });
@@ -1008,8 +971,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     {getWeekDates().map((date, i) => (
                       <div
                         key={i}
-                        className={`flex-1 text-center py-2 px-1 border-l border-gray-200 ${isDayInPast(i) ? "bg-gray-100" : "bg-gray-50"
-                          }`}
+                        className={`flex-1 text-center py-2 px-1 border-l border-gray-200 ${
+                          isDayInPast(i) ? "bg-gray-100" : "bg-gray-50"
+                        }`}
                       >
                         <div className="font-bold text-blue-800">
                           {getDayName(getDay(date))}
@@ -1037,10 +1001,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         return (
                           <div
                             key={dayIndex}
-                            className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${isPast
-                              ? "bg-gray-100 cursor-not-allowed"
-                              : "bg-white"
-                              }`}
+                            className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${
+                              isPast
+                                ? "bg-gray-100 cursor-not-allowed"
+                                : "bg-white"
+                            }`}
                             onMouseDown={(e) =>
                               !isPast && handleMouseDown(e, dayIndex)
                             }
@@ -1051,8 +1016,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                             {Array.from({ length: 18 }).map((_, i) => (
                               <div
                                 key={i}
-                                className={`absolute w-full h-[1px] ${isPast ? "bg-gray-200" : "bg-gray-100"
-                                  }`}
+                                className={`absolute w-full h-[1px] ${
+                                  isPast ? "bg-gray-200" : "bg-gray-100"
+                                }`}
                                 style={{ top: i * 60 }}
                               ></div>
                             ))}
@@ -1090,19 +1056,22 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         isExpanded ? null : schedule
                                       )
                                     }
-                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${isBooked
-                                      ? "bg-red-100 border border-red-300 text-red-800"
-                                      : schedule.type === "טעינה לרכב חשמלי"
+                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${
+                                      isBooked
+                                        ? "bg-red-100 border border-red-300 text-red-800"
+                                        : schedule.type === "טעינה לרכב חשמלי"
                                         ? "bg-green-100 border border-green-300 text-green-800"
                                         : "bg-blue-100 border border-blue-300 text-blue-800"
-                                      } ${isExpanded ? "shadow-lg z-20" : "z-10"
-                                      }`}
+                                    } ${
+                                      isExpanded ? "shadow-lg z-20" : "z-10"
+                                    }`}
                                     style={{
                                       top: `${top}px`,
-                                      height: `${isExpanded
-                                        ? "auto"
-                                        : Math.max(height, 20)
-                                        }px`,
+                                      height: `${
+                                        isExpanded
+                                          ? "auto"
+                                          : Math.max(height, 20)
+                                      }px`,
                                       minHeight: `${Math.max(height, 20)}px`,
                                     }}
                                   >
@@ -1140,8 +1109,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         )}
                                       </div>
                                       <div
-                                        className={`font-semibold ${isExpanded ? "text-base" : "text-xs"
-                                          }`}
+                                        className={`font-semibold ${
+                                          isExpanded ? "text-base" : "text-xs"
+                                        }`}
                                       >
                                         {schedule.display_start_time} -{" "}
                                         {schedule.display_end_time}
@@ -1158,7 +1128,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                           {schedule.slot?.spot_number
                                             ? `מספר ${schedule.slot.spot_number}`
                                             : schedule.slot?.address?.street ||
-                                            "פרטית"}
+                                              "פרטית"}
                                         </div>
                                       </div>
                                     )}
@@ -1305,8 +1275,19 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     {priceError && (
                       <div className="text-red-500 text-sm mt-2 bg-red-50 p-2 rounded border border-red-100">
                         <span className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
                           </svg>
                           {priceError}
                         </span>
@@ -1315,8 +1296,19 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     {priceSuccess && (
                       <div className="text-green-500 text-sm mt-2 bg-green-50 p-2 rounded border border-green-100">
                         <span className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
                           </svg>
                           {priceSuccess}
                         </span>
@@ -1332,51 +1324,80 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">עיר:</div>
+                        <div className="w-1/4 text-gray-600 font-medium">
+                          עיר:
+                        </div>
                         <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
-                          {parkingSlots.find((s) => s.spot_type === "private")?.address?.city || "-"}
+                          {parkingSlots.find((s) => s.spot_type === "private")
+                            ?.address?.city || "-"}
                         </div>
                       </div>
 
                       <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">רחוב:</div>
+                        <div className="w-1/4 text-gray-600 font-medium">
+                          רחוב:
+                        </div>
                         <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
-                          {parkingSlots.find((s) => s.spot_type === "private")?.address?.street || "-"}
+                          {parkingSlots.find((s) => s.spot_type === "private")
+                            ?.address?.street || "-"}
                         </div>
                       </div>
 
                       <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">מספר בית:</div>
+                        <div className="w-1/4 text-gray-600 font-medium">
+                          מספר בית:
+                        </div>
                         <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
-                          {parkingSlots.find((s) => s.spot_type === "private")?.address?.number || "-"}
+                          {parkingSlots.find((s) => s.spot_type === "private")
+                            ?.address?.number || "-"}
                         </div>
                       </div>
 
-                      {parkingSlots.find((s) => s.spot_type === "private")?.spot_number && (
+                      {parkingSlots.find((s) => s.spot_type === "private")
+                        ?.spot_number && (
                         <div className="flex items-center">
-                          <div className="w-1/4 text-gray-600 font-medium">מספר חנייה:</div>
+                          <div className="w-1/4 text-gray-600 font-medium">
+                            מספר חנייה:
+                          </div>
                           <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
-                            {parkingSlots.find((s) => s.spot_type === "private")?.spot_number || "-"}
+                            {parkingSlots.find((s) => s.spot_type === "private")
+                              ?.spot_number || "-"}
                           </div>
                         </div>
                       )}
 
-                      {parkingSlots.find((s) => s.spot_type === "private")?.floor && (
+                      {parkingSlots.find((s) => s.spot_type === "private")
+                        ?.floor && (
                         <div className="flex items-center">
-                          <div className="w-1/4 text-gray-600 font-medium">קומה:</div>
+                          <div className="w-1/4 text-gray-600 font-medium">
+                            קומה:
+                          </div>
                           <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
-                            {parkingSlots.find((s) => s.spot_type === "private")?.floor || "-"}
+                            {parkingSlots.find((s) => s.spot_type === "private")
+                              ?.floor || "-"}
                           </div>
                         </div>
                       )}
                     </div>
 
                     <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-100 flex items-start gap-2 text-sm text-blue-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 flex-shrink-0 mt-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                       <span>
-                        פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות לשירות לקוחות.
+                        פרטי הכתובת מוצגים לצפייה בלבד. לשינוי כתובת יש לפנות
+                        לשירות לקוחות.
                       </span>
                     </div>
                   </div>

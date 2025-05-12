@@ -270,10 +270,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           valueA = a.hourly_price || 0;
           valueB = b.hourly_price || 0;
           break;
-        case "rating":
-          valueA = a.rating || 0;
-          valueB = b.rating || 0;
-          break;
         case "distance":
         default:
           valueA = a.distance || 0;
@@ -428,6 +424,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     return Math.max(Math.ceil(diffMinutes / 60), 1); // Minimum of 1 hour
   };
 
+  useEffect(() => {
+    // Re-sort parking spots whenever sortBy or sortOrder changes
+    setParkingSpots((prevSpots) => sortParkingSpots(prevSpots));
+  }, [searchParams.sortBy, searchParams.sortOrder]);
+
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
@@ -573,17 +574,49 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 </div>
               </div>
 
+              {/* Charging Station */}
+              <div className="md:col-span-4 mb-4">
+                <h3 className="font-semibold mb-2">עמדת טעינה לרכב חשמלי</h3>
+                <div className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    id="is_charging_station"
+                    name="is_charging_station"
+                    checked={searchParams.is_charging_station}
+                    onChange={handleInputChange}
+                    className="ml-2"
+                  />
+                  <label htmlFor="is_charging_station" className="text-sm">
+                    חפש רק חניות עם עמדת טעינה
+                  </label>
+                </div>
+
+                {searchParams.is_charging_station && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      סוג מטען
+                    </label>
+                    <select
+                      name="charger_type"
+                      value={searchParams.charger_type}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 rounded-md border border-gray-300"
+                    >
+                      <option value="">כל סוגי המטענים</option>
+                      {chargerTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
               {/* Filter Button and Search Button */}
               <div className="md:col-span-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mt-2">
                 {/* Left buttons */}
                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center justify-center gap-2 w-full sm:w-auto"
-                  >
-                    <FaFilter /> סינון מתקדם
-                  </button>
                   <button
                     type="button"
                     onClick={() => setShowPreferences(true)}
@@ -606,135 +639,15 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   <FaSearch /> חפש חניה
                 </button>
               </div>
-
-              {/* Advanced Filters Panel */}
-              {showFilters && (
-                <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg mt-2">
-                  {/* Parking Preferences */}
-                  <div className="flex flex-col">
-                    <h3 className="font-semibold mb-2">העדפות חניה</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      <label className="flex items-center text-sm">
-                        <input type="checkbox" name="indoor" className="mr-2" />
-                        חניה מקורה
-                      </label>
-
-                      {/* Rating Filter */}
-                      <div className="mt-4">
-                        <h3 className="font-semibold mb-2">דירוג מינימלי</h3>
-                        <div className="flex items-center gap-2">
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                type="button"
-                                onClick={() =>
-                                  setSearchParams((prev) => ({
-                                    ...prev,
-                                    minRating: star,
-                                  }))
-                                }
-                                className="text-xl focus:outline-none"
-                              >
-                                <span
-                                  className={`${
-                                    star <= (searchParams.minRating || 0)
-                                      ? "text-yellow-400"
-                                      : "text-gray-300"
-                                  }`}
-                                >
-                                  ★
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                          <span className="text-sm text-gray-500 mr-2">
-                            {searchParams.minRating
-                              ? `${searchParams.minRating} כוכבים ומעלה`
-                              : "כל הדירוגים"}
-                          </span>
-                          {searchParams.minRating > 0 && (
-                            <button
-                              onClick={() =>
-                                setSearchParams((prev) => ({
-                                  ...prev,
-                                  minRating: 0,
-                                }))
-                              }
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              (נקה)
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Charging Station */}
-                  <div>
-                    <h3 className="font-semibold mb-2">
-                      עמדת טעינה לרכב חשמלי
-                    </h3>
-                    <div className="flex items-center mb-2">
-                      <input
-                        type="checkbox"
-                        id="is_charging_station"
-                        name="is_charging_station"
-                        checked={searchParams.is_charging_station}
-                        onChange={handleInputChange}
-                        className="ml-2"
-                      />
-                      <label htmlFor="is_charging_station" className="text-sm">
-                        חפש רק חניות עם עמדת טעינה
-                      </label>
-                    </div>
-
-                    {searchParams.is_charging_station && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          סוג מטען
-                        </label>
-                        <select
-                          name="charger_type"
-                          value={searchParams.charger_type}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded-md border border-gray-300"
-                        >
-                          <option value="">כל סוגי המטענים</option>
-                          {chargerTypes.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Reset Filters Button */}
-                  <div className="md:col-span-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetFilters();
-                        setSearchParams((prev) => ({ ...prev, minRating: 0 }));
-                      }}
-                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm flex items-center gap-2"
-                    >
-                      <FaSync /> איפוס מסננים
-                    </button>
-                  </div>
-                </div>
-              )}
             </form>
           </div>
 
-          {/* Results Sorting Bar */}
           {parkingSpots.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-4 max-w-6xl mx-auto flex justify-between items-center">
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4 max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="text-gray-700 flex items-center gap-2">
-                <span>נמצאו {parkingSpots.length} תוצאות</span>
+                <span className="font-medium">
+                  נמצאו {parkingSpots.length} תוצאות
+                </span>
                 {distancePreference !== 3 || pricePreference !== 3 ? (
                   <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center">
                     <FaCog className="ml-1" />
@@ -756,37 +669,50 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   </div>
                 ) : null}
               </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => handleSortChange("distance")}
-                  className={`flex items-center ${
-                    searchParams.sortBy === "distance"
-                      ? "text-blue-600 font-medium"
-                      : "text-gray-600"
-                  }`}
-                >
-                  מרחק {getSortIcon("distance")}
-                </button>
+
+              <div className="relative">
                 <button
                   onClick={() => handleSortChange("price")}
-                  className={`flex items-center ${
+                  className={`flex items-center px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
                     searchParams.sortBy === "price"
-                      ? "text-blue-600 font-medium"
-                      : "text-gray-600"
+                      ? "bg-blue-600 text-white shadow"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  מחיר {getSortIcon("price")}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`${
+                        searchParams.sortBy === "price"
+                          ? "text-white"
+                          : "text-blue-500"
+                      } text-lg font-semibold`}
+                    >
+                      ₪
+                    </span>
+                    <span>מיון לפי מחיר</span>
+                    {searchParams.sortBy === "price" && (
+                      <div
+                        className={`ml-2 flex items-center justify-center h-6 w-6 rounded-full bg-white bg-opacity-25`}
+                      >
+                        {searchParams.sortOrder === "asc" ? (
+                          <FaArrowUp className="text-white text-xs" />
+                        ) : (
+                          <FaArrowDown className="text-white text-xs" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </button>
-                <button
-                  onClick={() => handleSortChange("rating")}
-                  className={`flex items-center ${
-                    searchParams.sortBy === "rating"
-                      ? "text-blue-600 font-medium"
-                      : "text-gray-600"
-                  }`}
-                >
-                  דירוג {getSortIcon("rating")}
-                </button>
+
+                {searchParams.sortBy === "price" && (
+                  <div className="absolute top-0 left-0 right-0 mt-14 text-center">
+                    <span className="inline-block bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full shadow-sm">
+                      {searchParams.sortOrder === "asc"
+                        ? "מוצג מהזול ליקר"
+                        : "מוצג מהיקר לזול"}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
