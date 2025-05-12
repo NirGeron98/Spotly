@@ -47,8 +47,8 @@ exports.updatePreferences = async (userId, preferences) => {
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     { 
-      'preferences.distance_importance': preferences.distance_importance,
-      'preferences.price_importance': preferences.price_importance
+      'preferences.distance_importance': preferences.distance_importance - 1 ,
+      'preferences.price_importance': preferences.price_importance - 1 
     },
     {
       new: true,

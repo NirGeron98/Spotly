@@ -38,555 +38,272 @@ class ParkingSpotFinder {
     timezone = "UTC",
     excludeOwnerId = null
   ) {
-    // Get user preferences
-    let userPreferences;
     if (!excludeOwnerId) {
-      throw new AppError(
-        "User ID is required for optimal parking spot search",
-        400
-      );
+      throw new AppError("User ID is required for optimal parking spot search", 400);
     }
-
     const user = await User.findById(excludeOwnerId);
-    if (!user) {
-      throw new AppError("User not found", 404);
-    }
-    userPreferences = user.preferences;
+    if (!user) throw new AppError("User not found", 404);
 
-    // Enhanced logging
+    const distPref  = user.preferences.distance_importance;
+    const pricePref = user.preferences.price_importance;
+
+    // --- Logging ---
     console.log("====== PARKING FINDER ALGORITHM EXECUTION ======");
-    console.log(
-      `Search parameters: lat=${desiredLat}, lon=${desiredLon}, maxPrice=${maxPrice}`
-    );
+    console.log(`Search parameters: lat=${desiredLat}, lon=${desiredLon}, maxPrice=${maxPrice}`);
     console.log(`Time range: ${desiredStartTime} to ${desiredEndTime}`);
-    console.log(
-      `User preferences: distance=${userPreferences.distance_importance}, price=${userPreferences.price_importance}`
-    );
+    console.log(`User preferences: distance=${distPref}, price=${pricePref}`);
 
-    // Validate timezone
-    if (!timezone) {
-      throw new AppError(
-        "Timezone is required for accurate parking spot search.",
-        400
-      );
-    }
-
-    // Convert string times (assumed to be in the user's local timezone) to UTC Date objects
-    let desiredStart, desiredEnd;
+    // 1) parse times into UTC
+    let startUtc, endUtc;
     try {
-      desiredStart = fromZonedTime(desiredStartTime, timezone);
-      desiredEnd = fromZonedTime(desiredEndTime, timezone);
-    } catch (error) {
-      console.error("Error converting zoned time to UTC:", error);
-      throw new AppError(
-        "Invalid desiredStartTime, desiredEndTime, or timezone format.",
-        400
-      );
+      startUtc = fromZonedTime(desiredStartTime, timezone);
+      endUtc   = fromZonedTime(desiredEndTime, timezone);
+    } catch (err) {
+      throw new AppError("Invalid desiredStartTime, desiredEndTime, or timezone format.", 400);
     }
 
-    console.log(
-      `Desired start (UTC): ${desiredStart.toISOString()}, Desired end (UTC): ${desiredEnd.toISOString()}`
-    );
-
-    // Fetch all parking spots from database with additional filters
+    // 2) fetch & filter out owner
     const allSpots = await this._fetchAllSpots(additionalFilters);
-    console.log(`1. Spots fetched initially: ${allSpots.length}`); // LOG 1
+    console.log(`1. Spots fetched initially: ${allSpots.length}`);
 
-    let filteredSpots = allSpots;
-
-    if (excludeOwnerId) {
-      const countBeforeOwnerFilter = filteredSpots.length;
-      filteredSpots = filteredSpots.filter(
-        (spot) => spot.original?.owner?._id?.toString() !== excludeOwnerId
-      );
-      console.log(
-        `2. Spots after owner exclusion (excluded ID: ${excludeOwnerId}): ${filteredSpots.length} (was ${countBeforeOwnerFilter})`
-      ); // LOG 2
-    } else {
-      console.log(
-        `2. Owner exclusion not applied as excludeOwnerId is null/undefined.`
-      );
-    }
-
-    // If no spots are available, return empty array
-    if (!filteredSpots || filteredSpots.length === 0) {
-      console.log("No spots after initial fetch or owner filter.");
-      return [];
-    }
-
-    // Filter spots by availability
-    console.log(
-      `Attempting to filter ${filteredSpots.length} spots by availability...`
+    const spotsExcludingOwner = allSpots.filter(
+      (s) => s.original.owner._id.toString() !== excludeOwnerId
     );
-    console.log(
-      `Desired Start (UTC): ${desiredStart.toISOString()}, Desired End (UTC): ${desiredEnd.toISOString()}`
+    console.log(`2. Spots after owner exclusion: ${spotsExcludingOwner.length}`);
+
+    // 3) availability
+    const available = spotsExcludingOwner.filter((s) =>
+      this._checkAvailability(s.availability, startUtc, endUtc)
     );
+    console.log(`3. Spots after availability filter: ${available.length}`);
+    if (!available.length) return [];
 
-    const availableSpots = filteredSpots.filter((spot) => {
-      const isAvailable = this._checkAvailability(
-        spot.availability,
-        desiredStart,
-        desiredEnd
-      );
-      // Optional: Log details for specific spots if needed for deeper debugging
-      // if (spot._id.toString() === 'SOME_SPECIFIC_SPOT_ID_TO_DEBUG') {
-      //   console.log(`Checking availability for spot ${spot._id}:`, spot.availability, `Result: ${isAvailable}`);
-      // }
-      return isAvailable;
-    });
-    console.log(`3. Spots after availability filter: ${availableSpots.length}`); // LOG 3
+    // 4) price
+    const priceOk = available.filter((s) => s.price_per_hour <= maxPrice);
+    console.log(`4. Spots after price filter: ${priceOk.length}`);
+    if (!priceOk.length) return [];
 
-    // If no spots are available, return empty array
-    if (availableSpots.length === 0) {
-      console.log("No spots available for the desired time range.");
-      return [];
-    }
+    // --- Mahalanobis with preference weights ---
 
-    // Apply price filter
-    const priceFilteredSpots = availableSpots.filter(
-      (spot) => spot.price_per_hour <= maxPrice
-    );
-    console.log(
-      `4. Spots after price filter (maxPrice: ${maxPrice}): ${priceFilteredSpots.length}`
-    ); // LOG 4
-
-    // If no spots match price criteria, return empty array
-    if (priceFilteredSpots.length === 0) {
-      console.log("No spots match the price criteria.");
-      return [];
-    }
-
-    // Calculate features for each spot with preference weights
-    const spotsWithFeatures = priceFilteredSpots.map((spot) => {
-      const distance = this._calculateDistance(
-        spot.latitude,
-        spot.longitude,
-        desiredLat,
-        desiredLon
-      );
-      const priceRatio = spot.price_per_hour / maxPrice;
-
-      // Apply user preference weights
-      const weightedDistance =
-        distance * (userPreferences.distance_importance / 3);
-      const weightedPrice = priceRatio * (userPreferences.price_importance / 3);
-
-      return {
-        ...spot,
-        distance: weightedDistance,
-        priceRatio: weightedPrice,
-      };
+    // A) compute raw features [distance, priceRatio]
+    const rawFeatures = priceOk.map((spot) => {
+      const d  = this._calculateDistance(spot.latitude, spot.longitude, desiredLat, desiredLon);
+      const pr = spot.price_per_hour / maxPrice;
+      return [d, pr];
     });
 
-    // Extract features for normalization and Mahalanobis distance calculation
-    const features = spotsWithFeatures.map((spot) => [
-      spot.distance,
-      spot.price_per_hour,
-      spot.priceRatio,
-    ]);
+    // B) z-score normalize
+    const normalized = this._normalizeFeatures(rawFeatures);
 
-    // If we have too few spots, use simple weighted ranking
-    if (features.length < 4) {
-      const simpleRankedSpots = spotsWithFeatures.sort((a, b) => {
-        const distanceWeight = userPreferences.distance_importance / 5;
-        const priceWeight = userPreferences.price_importance / 5;
+    // C) attach back to spots
+    priceOk.forEach((spot, i) => {
+      const [d, pr]        = rawFeatures[i];
+      const [dNorm, pNorm] = normalized[i];
+      spot.distance             = d;
+      spot.priceRatio           = pr;
+      spot.normalizedDistance   = dNorm;
+      spot.normalizedPriceRatio = pNorm;
+    });
 
-        const aScore = a.distance * distanceWeight + a.priceRatio * priceWeight;
-        const bScore = b.distance * distanceWeight + b.priceRatio * priceWeight;
+    // D) covariance & inverse
+    const covMatrix    = this._calculateCovarianceMatrix(normalized);
+    const augCovMatrix = this._handleSingularMatrix(covMatrix);
+    const invCovMatrix = this._invertMatrix(augCovMatrix);
 
-        return aScore - bScore;
-      });
+    // E) ideal point in normalized space
+    const idealPoint = [
+      Math.min(...normalized.map((f) => f[0])),
+      Math.min(...normalized.map((f) => f[1])),
+    ];
 
-      return simpleRankedSpots.slice(0, maxResults);
-    }
-
-    // Normalize features
-    const normalizedFeatures = this._normalizeFeatures(features);
-
-    // Calculate covariance matrix
-    const covMatrix = this._calculateCovarianceMatrix(normalizedFeatures);
-
-    // Handle potential singular matrix by adding small noise
-    const augmentedCovMatrix = this._handleSingularMatrix(covMatrix);
-
-    // Calculate inverse of covariance matrix
-    const invCovMatrix = this._invertMatrix(augmentedCovMatrix);
-
-    // Calculate Mahalanobis distance for each spot with preference weights
-    const idealPoint = [0, 0, 0]; // [distance, price, priceRatio] - Ideal is minimum of each
-
-    for (let i = 0; i < spotsWithFeatures.length; i++) {
-      const mahalanobisDistance = this._calculateMahalanobisDistance(
-        normalizedFeatures[i],
-        idealPoint,
-        invCovMatrix
-      );
-
-      // Apply preference weights to final distance
-      const weightedDistance =
-        mahalanobisDistance *
-        ((userPreferences.distance_importance +
-          userPreferences.price_importance) /
-          6);
-
-      spotsWithFeatures[i].mahalanobisDistance = weightedDistance;
-    }
-
-    // Sort by weighted Mahalanobis distance (lowest to highest)
-    const rankedSpots = spotsWithFeatures.sort(
-      (a, b) => a.mahalanobisDistance - b.mahalanobisDistance
-    );
-
-    // Return top results
-    return rankedSpots.slice(0, maxResults);
-  }
-
-  /**
-   * Check if a parking spot is available during the desired time slot
-   * @param {Array} spotAvailability - List of availability slots for the spot
-   * @param {Date} desiredStartUtc - Desired start time (UTC)
-   * @param {Date} desiredEndUtc - Desired end time (UTC)
-   * @returns {boolean} - True if spot is available, False otherwise
-   */
-  _checkAvailability(spotAvailability, desiredStartUtc, desiredEndUtc) {
-    if (
-      !spotAvailability ||
-      !Array.isArray(spotAvailability) ||
-      spotAvailability.length === 0
-    ) {
-      // console.log(`Spot has no availability schedules or invalid format.`);
-      return false;
-    }
-
-    // console.log(`_checkAvailability: Desired UTC Start: ${desiredStartUtc.toISOString()}, Desired UTC End: ${desiredEndUtc.toISOString()}`);
-
-    return spotAvailability.some((schedule) => {
-      if (!schedule.start_datetime || !schedule.end_datetime) {
-        // console.warn(`Schedule object missing start_datetime or end_datetime: ${JSON.stringify(schedule)}`);
-        return false;
+    // F) weighted Mahalanobis distance
+    priceOk.forEach((spot, i) => {
+      const [dNorm, pNorm] = normalized[i];
+      // diff from ideal, scaled by preferences
+      const diff = [
+        (dNorm - idealPoint[0]) * distPref,
+        (pNorm - idealPoint[1]) * pricePref,
+      ];
+      let sum = 0;
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 2; c++) {
+          sum += diff[r] * invCovMatrix[r][c] * diff[c];
+        }
       }
+      spot.score = Math.sqrt(sum);
+    });
 
-      const scheduleStart = new Date(schedule.start_datetime);
-      const scheduleEnd = new Date(schedule.end_datetime);
+    // G) sort & limit
+    const ranked = priceOk
+      .sort((a, b) => a.score - b.score)
+      .slice(0, maxResults);
 
-      const isMatch =
-        schedule.is_available === true &&
-        scheduleStart <= desiredStartUtc &&
-        scheduleEnd >= desiredEndUtc;
+    return ranked;
+  }
 
-      // console.log(`  Checking schedule: Start: ${scheduleStart.toISOString()}, End: ${scheduleEnd.toISOString()}, Available: ${schedule.is_available}. Match: ${isMatch}`);
-      return isMatch;
+  _checkAvailability(avails, startUtc, endUtc) {
+    if (!Array.isArray(avails) || !avails.length) return false;
+    return avails.some((sch) => {
+      if (!sch.start_datetime || !sch.end_datetime) return false;
+      const s = new Date(sch.start_datetime), e = new Date(sch.end_datetime);
+      return sch.is_available && s <= startUtc && e >= endUtc;
     });
   }
 
-  /**
-   * Calculate the geographic distance between two points in kilometers
-   * @param {number} lat1 - Latitude of the first point
-   * @param {number} lon1 - Longitude of the first point
-   * @param {number} lat2 - Latitude of the second point
-   * @param {number} lon2 - Longitude of the second point
-   * @returns {number} - Distance in kilometers
-   */
   _calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of the Earth in km
-    const dLat = this._deg2rad(lat2 - lat1);
-    const dLon = this._deg2rad(lon2 - lon1);
-
+    const R = 6371;
+    const dLat = this._deg2rad(lat2 - lat1), dLon = this._deg2rad(lon2 - lon1);
     const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLat/2)**2 +
       Math.cos(this._deg2rad(lat1)) *
-        Math.cos(this._deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
-
-    return distance;
+      Math.cos(this._deg2rad(lat2)) *
+      Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  /**
-   * Convert degrees to radians
-   * @param {number} deg - Angle in degrees
-   * @returns {number} - Angle in radians
-   */
   _deg2rad(deg) {
-    return deg * (Math.PI / 180);
+    return (deg * Math.PI) / 180;
   }
 
-  /**
-   * Normalize features to have mean 0 and standard deviation 1
-   * @param {Array} features - 2D array of features [n_samples, n_features]
-   * @returns {Array} - Normalized features
-   */
   _normalizeFeatures(features) {
-    const numFeatures = features[0].length;
-    const numSamples = features.length;
+    const m = features.length, n = features[0].length;
+    const means = Array(n).fill(0), stds = Array(n).fill(0);
 
-    const means = Array(numFeatures).fill(0);
-    const stds = Array(numFeatures).fill(0);
+    // compute means
+    features.forEach(row => row.forEach((v,j) => (means[j] += v)));
+    for (let j=0; j<n; j++) means[j] /= m;
 
-    for (let i = 0; i < numSamples; i++) {
-      for (let j = 0; j < numFeatures; j++) {
-        means[j] += features[i][j];
-      }
-    }
-    for (let j = 0; j < numFeatures; j++) {
-      means[j] /= numSamples;
-    }
+    // compute variances
+    features.forEach(row => row.forEach((v,j) => (stds[j] += (v - means[j])**2)));
+    for (let j=0; j<n; j++) stds[j] = Math.sqrt(stds[j]/m) || 1;
 
-    for (let i = 0; i < numSamples; i++) {
-      for (let j = 0; j < numFeatures; j++) {
-        stds[j] += Math.pow(features[i][j] - means[j], 2);
-      }
-    }
-    for (let j = 0; j < numFeatures; j++) {
-      stds[j] = Math.sqrt(stds[j] / numSamples);
-      if (stds[j] === 0) stds[j] = 1;
-    }
-
-    const normalizedFeatures = [];
-    for (let i = 0; i < numSamples; i++) {
-      const normalizedSample = [];
-      for (let j = 0; j < numFeatures; j++) {
-        normalizedSample.push((features[i][j] - means[j]) / stds[j]);
-      }
-      normalizedFeatures.push(normalizedSample);
-    }
-
-    return normalizedFeatures;
+    // return normalized
+    return features.map(row => row.map((v,j) => (v - means[j]) / stds[j]));
   }
 
-  /**
-   * Calculate the covariance matrix for a set of features
-   * @param {Array} features - 2D array of features [n_samples, n_features]
-   * @returns {Array} - Covariance matrix
-   */
   _calculateCovarianceMatrix(features) {
-    const numFeatures = features[0].length;
-    const numSamples = features.length;
+    const m = features.length, n = features[0].length;
+    const means = Array(n).fill(0),
+          cov   = Array(n).fill().map(() => Array(n).fill(0));
 
-    const covMatrix = Array(numFeatures)
-      .fill()
-      .map(() => Array(numFeatures).fill(0));
+    // means
+    features.forEach(row => row.forEach((v,j) => (means[j] += v)));
+    for (let j=0; j<n; j++) means[j] /= m;
 
-    const means = Array(numFeatures).fill(0);
-    for (let i = 0; i < numSamples; i++) {
-      for (let j = 0; j < numFeatures; j++) {
-        means[j] += features[i][j];
-      }
-    }
-    for (let j = 0; j < numFeatures; j++) {
-      means[j] /= numSamples;
-    }
-
-    for (let i = 0; i < numFeatures; i++) {
-      for (let j = 0; j < numFeatures; j++) {
+    // covariances
+    for (let i=0; i<n; i++) {
+      for (let j=0; j<n; j++) {
         let sum = 0;
-        for (let k = 0; k < numSamples; k++) {
+        for (let k=0; k<m; k++) {
           sum += (features[k][i] - means[i]) * (features[k][j] - means[j]);
         }
-        covMatrix[i][j] = sum / (numSamples - 1);
+        cov[i][j] = sum / (m - 1);
       }
     }
-
-    return covMatrix;
+    return cov;
   }
 
-  /**
-   * Handle potential singular matrix by adding small noise
-   * @param {Array} matrix - Input matrix
-   * @returns {Array} - Matrix with small regularization if needed
-   */
   _handleSingularMatrix(matrix) {
-    const n = matrix.length;
-    const augmentedMatrix = JSON.parse(JSON.stringify(matrix));
-
-    for (let i = 0; i < n; i++) {
-      augmentedMatrix[i][i] += 1e-6;
-    }
-
-    return augmentedMatrix;
+    return matrix.map((row,i) => row.map((v,j) => v + (i===j ? 1e-6 : 0)));
   }
 
-  /**
-   * Calculate the inverse of a matrix using Gaussian elimination
-   * @param {Array} matrix - Input matrix
-   * @returns {Array} - Inverse matrix
-   */
   _invertMatrix(matrix) {
     const n = matrix.length;
+    const A = matrix.map(r => [...r]);
+    const I = matrix.map((_,i) => Array(n).fill(0).map((__,j) => i===j ? 1 : 0));
 
-    const augmented = [];
-    for (let i = 0; i < n; i++) {
-      augmented[i] = [];
-      for (let j = 0; j < n; j++) {
-        augmented[i][j] = matrix[i][j];
-      }
-      for (let j = 0; j < n; j++) {
-        augmented[i][j + n] = i === j ? 1 : 0;
-      }
-    }
-
-    for (let i = 0; i < n; i++) {
-      let maxVal = Math.abs(augmented[i][i]);
+    // Gauss-Jordan elimination
+    for (let i=0; i<n; i++) {
       let maxRow = i;
-      for (let j = i + 1; j < n; j++) {
-        const val = Math.abs(augmented[j][i]);
-        if (val > maxVal) {
-          maxVal = val;
-          maxRow = j;
-        }
+      for (let r=i+1; r<n; r++) {
+        if (Math.abs(A[r][i]) > Math.abs(A[maxRow][i])) maxRow = r;
+      }
+      [A[i], A[maxRow]] = [A[maxRow], A[i]];
+      [I[i], I[maxRow]] = [I[maxRow], I[i]];
+
+      const pivot = A[i][i];
+      if (Math.abs(pivot) < 1e-10) throw new Error("Singular matrix");
+      for (let j=0; j<n; j++) {
+        A[i][j] /= pivot;
+        I[i][j] /= pivot;
       }
 
-      if (maxRow !== i) {
-        for (let j = 0; j < 2 * n; j++) {
-          const temp = augmented[i][j];
-          augmented[i][j] = augmented[maxRow][j];
-          augmented[maxRow][j] = temp;
-        }
-      }
-
-      const pivot = augmented[i][i];
-      if (Math.abs(pivot) < 1e-10) {
-        throw new Error("Matrix is singular");
-      }
-
-      for (let j = 0; j < 2 * n; j++) {
-        augmented[i][j] /= pivot;
-      }
-
-      for (let j = 0; j < n; j++) {
-        if (j !== i) {
-          const factor = augmented[j][i];
-          for (let k = 0; k < 2 * n; k++) {
-            augmented[j][k] -= factor * augmented[i][k];
-          }
+      // eliminate other rows
+      for (let r=0; r<n; r++) {
+        if (r === i) continue;
+        const factor = A[r][i];
+        for (let c=0; c<n; c++) {
+          A[r][c] -= factor * A[i][c];
+          I[r][c] -= factor * I[i][c];
         }
       }
     }
-
-    const inverse = [];
-    for (let i = 0; i < n; i++) {
-      inverse[i] = [];
-      for (let j = 0; j < n; j++) {
-        inverse[i][j] = augmented[i][j + n];
-      }
-    }
-
-    return inverse;
+    return I;
   }
 
-  /**
-   * Calculate the Mahalanobis distance between two points
-   * @param {Array} x - First point
-   * @param {Array} y - Second point
-   * @param {Array} invCov - Inverse of covariance matrix
-   * @returns {number} - Mahalanobis distance
-   */
-  _calculateMahalanobisDistance(x, y, invCov) {
-    const n = x.length;
-    const diff = Array(n);
-
-    for (let i = 0; i < n; i++) {
-      diff[i] = x[i] - y[i];
-    }
-
-    let sum = 0;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        sum += diff[i] * invCov[i][j] * diff[j];
-      }
-    }
-
-    return Math.sqrt(sum);
-  }
-
-  /**
-   * Fetch all parking spots from the database
-   * @param {Object} filters - Additional filters to apply to the query
-   * @returns {Promise<Array>} - List of parking spots
-   */
   async _fetchAllSpots(filters = {}) {
     try {
-      const query = {
-        spot_type: "private",
-      };
-
+      const query = { spot_type: "private" };
       if (filters.is_charging_station) {
         query.is_charging_station = true;
-
-        if (filters.charger_type) {
-          query.charger_type = filters.charger_type;
-        }
+        if (filters.charger_type) query.charger_type = filters.charger_type;
       }
-
-      const parkingSpots = await ParkingSpot.find(query).populate({
+      const spots = await ParkingSpot.find(query).populate({
         path: "owner",
-        select: "name phone_number email",
+        select: "name phone_number email"
       });
-
-      const formattedSpots = parkingSpots
-        .filter(
-          (spot) =>
-            spot.address &&
-            spot.address.latitude &&
-            spot.address.longitude &&
-            spot.availability_schedule &&
-            spot.availability_schedule.length > 0
+      return spots
+        .filter(s =>
+          s.address?.latitude != null &&
+          s.address?.longitude != null &&
+          Array.isArray(s.availability_schedule) &&
+          s.availability_schedule.length
         )
-        .map((spot) => ({
-          spot_id: spot._id,
-          latitude: spot.address.latitude,  
-          longitude: spot.address.longitude,
-          price_per_hour: spot.hourly_price || 0,
-          availability: spot.availability_schedule,
-          original: spot,
-          is_charging_station: spot.is_charging_station,
-          charger_type: spot.charger_type,
+        .map(s => ({
+          spot_id: s._id,
+          latitude: s.address.latitude,
+          longitude: s.address.longitude,
+          price_per_hour: s.hourly_price || 0,
+          availability: s.availability_schedule,
+          original: s,
+          is_charging_station: s.is_charging_station,
+          charger_type: s.charger_type
         }));
-
-      return formattedSpots;
-    } catch (error) {
-      console.error("Error fetching parking spots:", error);
-      throw new AppError("Failed to fetch parking spots from database", 500);
+    } catch (err) {
+      console.error("Error fetching parking spots:", err);
+      throw new AppError("Failed to fetch parking spots", 500);
     }
   }
 
-  /**
-   * Format the ranked spots for API response
-   * @param {Array} rankedSpots - Ranked parking spots
-   * @returns {Array} - Formatted spots for API response
-   */
   formatResults(rankedSpots) {
     return rankedSpots.map((spot) => {
-      const original = spot.original;
-
+      const o = spot.original;
       return {
-        _id: original._id,
-        hourly_price: original.hourly_price,
-        address: original.address,
+        _id: o._id,
+        hourly_price: o.hourly_price,
+        address: o.address,
         owner: {
-          _id: original.owner._id,
-          name: original.owner.name,
-          phone_number: original.owner.phone_number,
+          _id: o.owner._id,
+          name: o.owner.name,
+          phone_number: o.owner.phone_number,
         },
-        is_charging_station: original.is_charging_station,
-        charger_type: original.charger_type,
+        //is_charging_station: o.is_charging_station,
+        //charger_type: o.charger_type,
         distance_km: parseFloat(spot.distance.toFixed(2)),
-        score: parseFloat(spot.mahalanobisDistance?.toFixed(4) || "0"),
-        availability: original.availability_schedule
-          .filter((schedule) => schedule.is_available)
-          .map((schedule) => ({
-            id: schedule._id,
-            date: schedule.date,
-            start_time: schedule.start_time,
-            end_time: schedule.end_time,
-          })),
+        //normalized_distance: parseFloat(spot.normalizedDistance.toFixed(4)),
+        //normalized_price_ratio: parseFloat(spot.normalizedPriceRatio.toFixed(4)),
+        //score: parseFloat(spot.score.toFixed(4)),
+        // availability: o.availability_schedule
+        //   .filter((sch) => sch.is_available)
+        //   .map((sch) => ({
+        //     id: sch._id,
+        //     date: sch.date,
+        //     start_time: sch.start_time,
+        //     end_time: sch.end_time,
+        //   })),
       };
     });
   }
 }
 
-// Export the class for use in other modules
 module.exports = new ParkingSpotFinder();

@@ -68,8 +68,8 @@ const userSchema = new mongoose.Schema({
     distance_importance: {
       type: Number,
       default: 3,
-      min: 1,
-      max: 5,
+      min: 0,
+      max: 4,
       validate: {
         validator: Number.isInteger,
         message: 'Distance importance must be an integer between 1 and 5'
@@ -78,8 +78,8 @@ const userSchema = new mongoose.Schema({
     price_importance: {
       type: Number,
       default: 3,
-      min: 1,
-      max: 5,
+      min: 0,
+      max: 4,
       validate: {
         validator: Number.isInteger,
         message: 'Price importance must be an integer between 1 and 5'
