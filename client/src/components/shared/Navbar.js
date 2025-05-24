@@ -8,7 +8,7 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 
-const Navbar = ({ loggedIn, setLoggedIn }) => {
+const Navbar = ({ loggedIn, setLoggedIn, activePage }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,6 +16,19 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
     localStorage.removeItem("user");
     setLoggedIn(false);
     navigate("/login", { replace: true });
+  };  const handleHomeClick = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    
+    if (!user) {
+      navigate("/");
+      return;
+    }
+    
+    if (user.role === "building_resident") {
+      navigate("/dashboard");
+    } else {
+      navigate("/search-parking");
+    }
   };
 
   const handleLogoClick = (e) => {
@@ -31,25 +44,42 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
     } else {
       navigate("/");
     }
-  };
-
-  const isActive = (path) => {
-    if (path === "/") {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (user?.role === "building_resident" && location.pathname === "/dashboard") {
-        return true;
+  };  const isActive = (path) => {
+    try {
+      // If the component specifies an active page directly, use that
+      if (path === "/" && activePage) {
+        if (activePage === "dashboard" && location.pathname === "/dashboard") {
+          return true;
+        }
+        if (activePage === "search-parking" && location.pathname === "/search-parking") {
+          return true;
+        }
       }
-      if (["private_prop_owner", "user"].includes(user?.role) && location.pathname === "/search-parking") {
-        return true;
+      
+      // Otherwise use the default logic
+      if (path === "/") {
+        const user = JSON.parse(localStorage.getItem("user"));
+        
+        if (user?.role === "building_resident" && location.pathname === "/dashboard") {
+          return true;
+        }
+        
+        if (["private_prop_owner", "user"].includes(user?.role) && location.pathname === "/search-parking") {
+          return true;
+        }
       }
+      
+      if (path === "/signup" || path === "/signup-details") {
+        return (
+          location.pathname === "/signup" ||
+          location.pathname === "/signup-details"
+        );
+      }
+      
+      return location.pathname === path;
+    } catch (error) {
+      return false;
     }
-    if (path === "/signup" || path === "/signup-details") {
-      return (
-        location.pathname === "/signup" ||
-        location.pathname === "/signup-details"
-      );
-    }
-    return location.pathname === path;
   };
 
   const linkStyle = (path) =>
@@ -73,10 +103,11 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
         </a>
 
         {/* כפתורים */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          {loggedIn ? (
-            <>
-              <button onClick={handleLogoClick} className={linkStyle("/")}>
+        <div className="flex items-center gap-2 sm:gap-4">          {loggedIn ? (
+            <>              <button
+                onClick={handleHomeClick}
+                className={linkStyle("/")}
+              >
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
               </button>
@@ -96,10 +127,12 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
                 <FaSignOutAlt className="ml-1.5 text-lg" />
                 התנתקות
               </button>
-            </>
-          ) : (
+            </>          ) : (
             <>
-              <button onClick={handleLogoClick} className={linkStyle("/")}>
+              <button
+                onClick={handleHomeClick}
+                className={linkStyle("/")}
+              >
                 <FaHome className="ml-1.5 text-lg" />
                 דף הבית
               </button>

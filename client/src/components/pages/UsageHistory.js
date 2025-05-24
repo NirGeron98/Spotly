@@ -16,6 +16,7 @@ import {
   FaMapMarkerAlt,
   FaMoneyBill,
   FaInfoCircle,
+  FaBuilding,
 } from "react-icons/fa";
 
 const UsageHistory = ({ loggedIn, setLoggedIn }) => {
@@ -39,7 +40,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     usageType: "all",
     status: "all",
     activityType: "all",
-    paymentStatus: "all",
   });
 
   const [sortField, setSortField] = useState("actionDate");
@@ -123,6 +123,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
         const actionDate = b.created_at ? parseISO(b.created_at) : null;
 
+        // Check if it's a building spot (for cooperative/free parking)
+        const isBuilding = b.spot?.spot_type === "building";
+
         return {
           id: b._id,
           date: formatDisplayDate(b.start_datetime),
@@ -130,9 +133,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           endTime: formatDisplayTime(b.end_datetime),
           actionDate: b.created_at,
           address: b.spot?.address
-            ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
-                b.spot.address.city || ""
-              }`
+            ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${b.spot.address.city || ""
+            }`
             : "כתובת לא זמינה",
           city: b.spot?.address?.city || "",
           price: b.final_amount || b.base_rate || 0,
@@ -144,9 +146,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           rawActionDate: isValid(actionDate) ? actionDate : null,
           activityType:
             b.spot?.owner?.toString() === user._id ? "rental" : "booking",
-          icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
+          icon: isBuilding ? "FaBuilding" : (b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar"),
           showPaymentIcon:
             b.payment_status === "completed" && b.status === "completed",
+          isPaid: !isBuilding, // Add a flag for paid spots
           originalBooking: b,
         };
       });
@@ -155,6 +158,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const spotHistory = spots.flatMap((spot) => {
         // Safely parse spot creation date
         const spotDate = spot.created_at ? parseISO(spot.created_at) : null;
+        const isBuilding = spot.spot_type === "building";
 
         const spotEntry = {
           id: spot._id,
@@ -164,9 +168,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           actionDate: spot.created_at,
           rawActionDate: isValid(spotDate) ? spotDate : null,
           address: spot.address
-            ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
-                spot.address.city || ""
-              }`
+            ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
+            }`
             : "כתובת לא זמינה",
           city: spot.address?.city || "",
           price: spot.hourly_rate || 0,
@@ -176,8 +179,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           rawDate: isValid(spotDate) ? spotDate : null,
           rawActionDate: isValid(spotDate) ? spotDate : null,
           activityType: "publication",
-          icon: "FaMapMarkerAlt",
+          icon: isBuilding ? "FaBuilding" : "FaMapMarkerAlt", // Use building icon for residential spots
           showPaymentIcon: false,
+          isPaid: !isBuilding, // Add a flag for paid spots
           originalSpot: spot,
         };
 
@@ -224,21 +228,21 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               startTime: formatTime(schedule.start_time),
               endTime: formatTime(schedule.end_time),
               address: spot.address
-                ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
-                    spot.address.city || ""
-                  }`
+                ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
+                }`
                 : "כתובת לא זמינה",
               city: spot.address?.city || "",
               price: spot.hourly_rate || 0,
-              type: "זמינות חניה",
+              type: isBuilding ? "פינוי חניה" : "זמינות חניה",
               status: schedule.is_available ? "available" : "booked",
               paymentStatus: "n/a",
               rawDate: scheduleDate,
               rawActionDate: scheduleActionDate,
               actionDate: schedule.created_at || spot.created_at,
               activityType: "availability",
-              icon: "FaCalendarAlt",
+              icon: isBuilding ? "FaBuilding" : "FaCalendarAlt", // Use building icon for residential spots
               showPaymentIcon: false,
+              isPaid: !isBuilding, // Add a flag for paid spots
               originalSchedule: schedule,
               originalSpot: spot,
               scheduleId: schedule._id,
@@ -261,7 +265,14 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value, triggerSearch: false }));
+
+    if (name === "searchTerm") {
+      // For search text, just update the state without triggering search
+      setFilters((prev) => ({ ...prev, [name]: value, triggerSearch: false }));
+    } else {
+      // For dropdowns, immediately trigger the search
+      setFilters((prev) => ({ ...prev, [name]: value, triggerSearch: true }));
+    }
   };
 
   const resetFilters = () => {
@@ -270,8 +281,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       usageType: "all",
       status: "all",
       activityType: "all",
-      paymentStatus: "all",
-      triggerSearch: false,
+      triggerSearch: true, // Immediately trigger the search on reset
     });
   };
 
@@ -329,12 +339,22 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         return <FaMapMarkerAlt className="text-red-600" />;
       case "FaCalendarAlt":
         return <FaCalendarAlt className="text-green-600" />;
+      case "FaBuilding":
+        return <FaBuilding className="text-purple-600" />;
       default:
         return null;
     }
   };
 
-  const getActivityTypeDisplay = (type) => {
+  const getActivityTypeDisplay = (type, item) => {
+    // Check if this is an availability activity in a residential building
+    if (type === "availability" &&
+      item.originalSpot &&
+      item.originalSpot.spot_type === "building") {
+      return "פינוי חניה לשכן";  // "vacating parking space for a neighbor"
+    }
+
+    // Original switch case for other activity types
     switch (type) {
       case "booking":
         return "ביצוע הזמנה";
@@ -343,7 +363,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       case "publication":
         return "התחלת פעילות";
       case "availability":
-        return "שינוי/ הוספת זמינות ";
+        return "שינוי/ הוספת זמינות";
       default:
         return type;
     }
@@ -413,22 +433,21 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const term = filters.searchTerm.toLowerCase();
 
       const searchableText = `
-      ${item.address || ""} 
-      ${item.city || ""} 
-      ${item.date || ""} 
-      ${item.startTime || ""} 
-      ${item.endTime || ""} 
-      ${getActivityTypeDisplay(item.activityType) || ""} 
-      ${getStatusDisplay(item.status).text || ""}
-      ${getPaymentStatusDisplay(item.paymentStatus).text || ""}
-      ${
-        formatDisplayDateTime(
-          item.originalBooking?.created_at ||
-            item.originalSpot?.created_at ||
-            item.actionDate
-        ) || ""
-      }
-    `.toLowerCase();
+    ${item.address || ""} 
+    ${item.city || ""} 
+    ${item.date || ""} 
+    ${item.startTime || ""} 
+    ${item.endTime || ""} 
+    ${getActivityTypeDisplay(item.activityType, item) || ""} 
+    ${getStatusDisplay(item.status).text || ""}
+    ${getPaymentStatusDisplay(item.paymentStatus).text || ""}
+    ${formatDisplayDateTime(
+        item.originalBooking?.created_at ||
+        item.originalSpot?.created_at ||
+        item.actionDate
+      ) || ""
+        }
+  `.toLowerCase();
 
       const matchText = searchableText.includes(term);
 
@@ -438,20 +457,38 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const matchStatus =
         filters.status === "all" || filters.status === item.status;
 
-      const matchActivityType =
-        filters.activityType === "all" ||
-        filters.activityType === item.activityType;
+      // Special handling for activity type filtering
+      let matchActivityType = false;
 
-      const matchPaymentStatus =
-        filters.paymentStatus === "all" ||
-        filters.paymentStatus === item.paymentStatus;
+      if (filters.activityType === "all") {
+        matchActivityType = true;
+      }
+      else if (filters.activityType === "availability_building") {
+        // Match residential building availability items
+        matchActivityType = (
+          (item.activityType === "availability" &&
+            item.originalSpot &&
+            item.originalSpot.spot_type === "building")
+        );
+      }
+      else if (filters.activityType === "availability_regular") {
+        // Match regular availability items
+        matchActivityType = (
+          (item.activityType === "availability" &&
+            item.originalSpot &&
+            item.originalSpot.spot_type !== "building")
+        );
+      }
+      else {
+        // Default case - match the exact activity type
+        matchActivityType = (filters.activityType === item.activityType);
+      }
 
       return (
         matchText &&
         matchUsage &&
         matchStatus &&
-        matchActivityType &&
-        matchPaymentStatus
+        matchActivityType
       );
     })
     .sort((a, b) => {
@@ -530,6 +567,18 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
+  // Add an option for residential building activities
+  const activityTypeOptions = (
+    <>
+      <option value="all">הכל</option>
+      <option value="booking">הזמנת חניה</option>
+      <option value="rental">השכרת חניה</option>
+      <option value="publication">התחלת פעילות</option>
+      <option value="availability_regular">שינוי/ הוספת זמינות</option>
+      <option value="availability_building">פינוי חניה לשכן</option>
+    </>
+  );
+
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
@@ -549,24 +598,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
           <div className="flex flex-col items-center mb-8">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end max-w-6xl w-full">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  מונח חיפוש:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="searchTerm"
-                    placeholder="הקלד כאן"
-                    value={filters.searchTerm}
-                    onChange={handleFilterChange}
-                    className="w-full px-4 py-2 pl-10 pr-3 rounded-md border border-gray-300 text-sm"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
-              </div>
-
-              <div>
+              {/* Activity Type dropdown - rightmost */}
+              <div className="col-span-1 md:col-span-1 order-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   סוג פעילות:
                 </label>
@@ -576,17 +609,12 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   onChange={handleFilterChange}
                   className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm"
                 >
-                  <option value="all">הכל</option>
-                  <option value="booking">הזמנת חניה</option>
-                  <option value="rental">השכרת חניה</option>
-                  <option value="publication">התחלת פעילות</option>
-                  <option value="availability">
-                    שינוי/ הוספת זמינות לחניה פרטית{" "}
-                  </option>
+                  {activityTypeOptions}
                 </select>
               </div>
 
-              <div>
+              {/* Status dropdown - second from right */}
+              <div className="col-span-1 md:col-span-1 order-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   סטטוס:
                 </label>
@@ -605,37 +633,41 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  סטטוס תשלום:
-                </label>
-                <select
-                  name="paymentStatus"
-                  value={filters.paymentStatus}
-                  onChange={handleFilterChange}
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm"
-                >
-                  <option value="all">הכל</option>
-                  <option value="completed">שולם</option>
-                  <option value="pending">ממתין לתשלום</option>
-                </select>
-              </div>
+              {/* Search field and buttons - leftmost */}
+              <div className="col-span-2 md:col-span-4 order-3 flex items-end gap-2">
+                <div className="flex-grow">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    מונח חיפוש:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="searchTerm"
+                      placeholder="הקלד כאן"
+                      value={filters.searchTerm}
+                      onChange={handleFilterChange}
+                      className="w-full px-4 py-2 pl-10 pr-3 rounded-md border border-gray-300 text-sm"
+                    />
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  </div>
+                </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() =>
-                    setFilters((prev) => ({ ...prev, triggerSearch: true }))
-                  }
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm flex items-center gap-2"
-                >
-                  <FaSearch /> חפש
-                </button>
-                <button
-                  onClick={resetFilters}
-                  className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm flex items-center gap-2"
-                >
-                  <FaSync /> איפוס
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, triggerSearch: true }))
+                    }
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm flex items-center gap-2"
+                  >
+                    <FaSearch /> חפש
+                  </button>
+                  <button
+                    onClick={resetFilters}
+                    className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm flex items-center gap-2"
+                  >
+                    <FaSync /> איפוס
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -657,17 +689,14 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 >
                   שעת ביצוע
                 </div>
-                <div className="px-3 py-3 w-[35%] font-semibold text-center">
+                <div className="px-3 py-3 w-[40%] font-semibold text-center">
                   פרטים נוספים
                 </div>
                 <div className="px-3 py-3 w-[20%] font-semibold text-center">
                   סוג פעילות
                 </div>
-                <div className="px-3 py-3 w-[15%] font-semibold text-center">
+                <div className="px-3 py-3 w-[20%] font-semibold text-center">
                   סטטוס
-                </div>
-                <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                  תשלום
                 </div>
               </div>
 
@@ -678,8 +707,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   const paymentStatus = getPaymentStatusDisplay(
                     item.paymentStatus
                   );
-
                   const actionDateTime = item.rawActionDate || item.actionDate;
+                  const isPaid = item.isPaid;
 
                   return (
                     <div
@@ -692,25 +721,38 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                       <div className="px-3 py-3 w-[10%] text-center">
                         {formatDisplayTime(actionDateTime)}
                       </div>
-                      <div className="px-3 py-3 w-[35%] text-center">
+                      <div className="px-3 py-3 w-[40%] text-center">
                         {item.activityType !== "publication" ? (
                           <div className="text-sm leading-relaxed">
                             {(item.activityType === "booking" ||
                               item.activityType === "availability") && (
-                              <>
-                                <div>תאריך: {item.date}</div>
-                                <div>
-                                  שעות: {item.startTime}
-                                  {item.endTime !== "-" && ` - ${item.endTime}`}
-                                </div>
-                              </>
-                            )}
+                                <>
+                                  <div>תאריך: {item.date}</div>
+                                  <div>
+                                    שעות: {item.startTime}
+                                    {item.endTime !== "-" && ` - ${item.endTime}`}
+                                  </div>
+                                </>
+                              )}
                             {item.activityType === "booking" && (
                               <div>כתובת: {item.address}</div>
                             )}
+                            {isPaid && item.activityType === "booking" && (
+                              <div>
+                                מחיר: {item.price} ₪
+                                {item.showPaymentIcon && (
+                                  <FaMoneyBill className="text-green-600 mr-1 inline" />
+                                )}
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <div className="text-sm" />
+                          <div className="text-sm">
+                            {item.isPaid && (
+                              <div>מחיר שעתי: {item.price} ₪</div>
+                            )}
+                            <div>כתובת: {item.address}</div>
+                          </div>
                         )}
                       </div>
                       <div className="px-3 py-3 w-[20%]">
@@ -719,11 +761,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                             {getActivityIcon(item.icon)}
                           </span>
                           <span className="whitespace-nowrap">
-                            {getActivityTypeDisplay(item.activityType)}
+                            {getActivityTypeDisplay(item.activityType, item)}
                           </span>
                         </div>
                       </div>
-                      <div className="px-3 py-3 w-[15%] flex justify-center">
+                      <div className="px-3 py-3 w-[20%] flex justify-center">
                         {item.status === "booked" ? (
                           <div>
                             <span
@@ -741,20 +783,13 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                             >
                               {status.text}
                             </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="px-3 py-3 w-[10%] flex justify-center">
-                        {item.paymentStatus !== "n/a" && (
-                          <div className="flex items-center justify-center gap-1">
-                            {item.showPaymentIcon && (
-                              <FaMoneyBill className="text-green-600" />
+                            {isPaid && item.paymentStatus !== "n/a" && (
+                              <span
+                                className={`inline-block px-2 py-1 rounded-full text-xs ml-1 ${paymentStatus.class}`}
+                              >
+                                {paymentStatus.text}
+                              </span>
                             )}
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${paymentStatus.class}`}
-                            >
-                              {paymentStatus.text}
-                            </span>
                           </div>
                         )}
                       </div>
@@ -776,11 +811,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded-full transition ${
-                      currentPage === 1
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
+                    className={`px-3 py-1 rounded-full transition ${currentPage === 1
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                   >
                     הקודם
                   </button>
@@ -793,13 +827,12 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                         handlePageChange(pageNumber)
                       }
                       disabled={pageNumber === "..."}
-                      className={`px-4 py-1.5 rounded-full font-medium transition ${
-                        pageNumber === currentPage
-                          ? "bg-blue-700 text-white"
-                          : pageNumber === "..."
+                      className={`px-4 py-1.5 rounded-full font-medium transition ${pageNumber === currentPage
+                        ? "bg-blue-700 text-white"
+                        : pageNumber === "..."
                           ? "bg-transparent text-gray-400 cursor-default"
                           : "bg-gray-100 text-gray-700 hover:bg-blue-100"
-                      }`}
+                        }`}
                     >
                       {pageNumber}
                     </button>
@@ -808,11 +841,10 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded-full transition ${
-                      currentPage === totalPages
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
+                    className={`px-3 py-1 rounded-full transition ${currentPage === totalPages
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                   >
                     הבא
                   </button>

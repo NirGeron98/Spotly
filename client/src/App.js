@@ -20,9 +20,7 @@ import ActiveParkingReservations from "./components/pages/ActiveParkingReservati
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
+  const [isLoading, setIsLoading] = useState(true);  useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
     if (storedUser && token) {
@@ -33,9 +31,7 @@ function App() {
     setIsLoading(false);
   }, []);
 
-  if (isLoading) return null;
-
-  return (
+  if (isLoading) return null;  return (
     <Router>
         <Routes>
           <Route
