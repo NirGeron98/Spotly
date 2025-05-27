@@ -29,7 +29,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
     },
     {
       key: "activeReservations",
-      label: " הזמנות פעילות שביצעתי ",
+      label: "הזמנות פעילות שביצעתי",
       icon: <FaHistory className="text-lg" />,
       path: "/active-reservations",
       visible: true,
@@ -43,18 +43,20 @@ const Sidebar = ({ current, setCurrent, role }) => {
     },
   ];
 
-  // Modified releaseOption to always be visible regardless of role or mode
   const releaseOption = {
-    key: "releaseParking", // Changed from "release" to match the state in ReleaseParking component
+    key: "releaseParking",
     label: "ניהול החנייה שלי",
     icon: <FaRegWindowClose className="text-lg" />,
     path: "/release",
-    visible: true, // Always visible now
+    visible:
+      role === "user" ||
+      role === "private_prop_owner" ||
+      ((role === "building_resident" || role === "building_manager") &&
+        currentMode === "building"),
   };
 
   return (
     <>
-      {/* כפתור המבורגר למסכים קטנים */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 bg-indigo-800 text-white p-2 rounded"
         onClick={() => setIsOpen(!isOpen)}
@@ -63,21 +65,20 @@ const Sidebar = ({ current, setCurrent, role }) => {
       </button>
 
       <aside
-        className={`fixed top-[68px] bottom-[64px] z-40 bg-gradient-to-b from-indigo-900 to-blue-800 shadow-xl flex flex-col
-        w-[70vw] min-w-[180px] max-w-[250px] h-[calc(100vh-64px)]
+        className={`fixed top-14 sm:top-16 bottom-0 z-[60] bg-gradient-to-b from-indigo-900 to-blue-800 shadow-xl flex flex-col
+        w-[70vw] min-w-[180px] max-w-[250px]
         transform transition-transform duration-300
+        overflow-y-auto
         rtl:right-0 ltr:left-0
         lg:static lg:right-0 lg:translate-x-0 lg:flex lg:h-auto lg:w-[20vw] lg:min-w-[180px] lg:max-w-[250px] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* כותרת */}
         <div className="relative py-4 text-center border-b border-blue-700/30">
           <h2 className="font-bold text-white text-lg">ניווט מהיר</h2>
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-blue-400 rounded-full"></div>
         </div>
 
-        {/* כפתורים רגילים */}
         <nav className="flex flex-col px-3 py-4 overflow-y-auto flex-grow">
           {options.map(
             (opt) =>
@@ -114,7 +115,6 @@ const Sidebar = ({ current, setCurrent, role }) => {
           )}
         </nav>
 
-        {/* כפתור ניהול חנייה - למטה */}
         {releaseOption.visible && (
           <div className="px-3 py-2 border-t border-blue-700/30 bg-blue-900/30">
             <button
@@ -154,7 +154,6 @@ const Sidebar = ({ current, setCurrent, role }) => {
           </div>
         )}
 
-        {/* תחתית */}
         <div className="px-3 py-4 text-center text-blue-200 text-xs bg-indigo-900/30">
           <div className="w-10 h-0.5 mx-auto mb-2 bg-blue-400/30 rounded-full"></div>
           Spotly
