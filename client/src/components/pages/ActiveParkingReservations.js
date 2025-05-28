@@ -3,7 +3,7 @@ import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
+import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave, FaBuilding, FaUser } from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
@@ -11,6 +11,7 @@ const ActiveParkingTimer = ({
   activeBooking,
   timeRemaining,
   handleEndParking,
+  isResidentialSystem
 }) => {
   if (!activeBooking || !timeRemaining || !timeRemaining.isActive) return null;
 
@@ -21,7 +22,9 @@ const ActiveParkingTimer = ({
       <div
         className="rounded-xl shadow-xl p-6 mx-auto max-w-4xl transform hover:scale-105 transition-transform duration-300"
         style={{
-          background: "linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6)",
+          background: isResidentialSystem 
+            ? "linear-gradient(to right, #059669, #10b981, #34d399)" // Green gradient for residential
+            : "linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6)", // Blue gradient for paid
           backgroundSize: "200% 200%",
           animation: "15s ease infinite",
           animationName: "gradientShift",
@@ -74,38 +77,95 @@ const ActiveParkingTimer = ({
         <div className="flex flex-col md:flex-row items-center justify-between">
           {/* Left side: Booking info */}
           <div className="text-white mb-6 md:mb-0 md:w-1/2 text-center md:text-right">
-            <h3 className="text-xl font-bold mb-2">חנייה פעילה כעת</h3>
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">כתובת:</span>{" "}
-              {activeBooking.spot && activeBooking.spot.address
-                ? `${activeBooking.spot.address.city}, ${activeBooking.spot.address.street} ${activeBooking.spot.address.number}`
-                : "כתובת לא זמינה"}
-            </p>
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">תעריף:</span>{" "}
-              {activeBooking.base_rate !== undefined &&
-              activeBooking.base_rate !== null &&
-              activeBooking.base_rate > 0
-                ? `${activeBooking.base_rate} ₪/שעה`
-                : activeBooking.spot &&
-                  activeBooking.spot.hourly_price &&
-                  activeBooking.spot.hourly_price > 0
-                ? `${activeBooking.spot.hourly_price} ₪/שעה`
-                : "0 ₪/שעה"}
-            </p>
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">מיקום חנייה:</span>{" "}
-              {activeBooking.spot?.spot_number
-                ? `חנייה מספר ${activeBooking.spot.spot_number}`
-                : "חנייה פרטית"}
-            </p>
+            <div className="flex items-center justify-center md:justify-end mb-2">
+              {isResidentialSystem && <FaBuilding className="ml-2 text-xl" />}
+              <h3 className="text-xl font-bold">
+                {isResidentialSystem ? "חנייה פעילה בבניין" : "חנייה פעילה כעת"}
+              </h3>
+            </div>
+            
+            {isResidentialSystem ? (
+              // Residential building display
+              <>
+                <p className="mb-1 text-green-100">
+                  <span className="font-semibold">כתובת בניין:</span>{" "}
+                  {(() => {
+                    // Get user data for residential building address
+                    const storedUser = JSON.parse(localStorage.getItem("user"));
+                    if (storedUser?.address) {
+                      const userAddress = storedUser.address;
+                      const addressParts = [];
+                      if (userAddress.street && userAddress.number) {
+                        addressParts.push(`${userAddress.street} ${userAddress.number}`);
+                      }
+                      if (userAddress.city) {
+                        addressParts.push(userAddress.city);
+                      }
+                      return addressParts.join(', ') || "כתובת לא זמינה";
+                    }
+                    // Fallback to booking spot address
+                    return activeBooking.spot?.building_address
+                      ? `${activeBooking.spot.building_address.street} ${activeBooking.spot.building_address.number}, ${activeBooking.spot.building_address.city}`
+                      : activeBooking.spot?.address
+                      ? `${activeBooking.spot.address.street} ${activeBooking.spot.address.number}, ${activeBooking.spot.address.city}`
+                      : "כתובת לא זמינה";
+                  })()}
+                </p>
+                <p className="mb-1 text-green-100">
+                  <span className="font-semibold">חנייה מספר:</span>{" "}
+                  {activeBooking.spot?.parking_number || activeBooking.spot?.spot_number || "לא צוין"}
+                </p>
+                {(activeBooking.spot?.parking_floor !== undefined || activeBooking.spot?.floor !== undefined) && (
+                  <p className="mb-1 text-green-100">
+                    <span className="font-semibold">קומה:</span>{" "}
+                    {activeBooking.spot?.parking_floor || activeBooking.spot?.floor}
+                  </p>
+                )}
+                {activeBooking.spot?.owner_name && (
+                  <p className="mb-1 text-green-100">
+                    <span className="font-semibold">בעלים:</span>{" "}
+                    {activeBooking.spot.owner_name}
+                  </p>
+                )}
+              </>
+            ) : (
+              // Regular paid parking display
+              <>
+                <p className="mb-1 text-blue-100">
+                  <span className="font-semibold">כתובת:</span>{" "}
+                  {activeBooking.spot && activeBooking.spot.address
+                    ? `${activeBooking.spot.address.city}, ${activeBooking.spot.address.street} ${activeBooking.spot.address.number}`
+                    : "כתובת לא זמינה"}
+                </p>
+                <p className="mb-1 text-blue-100">
+                  <span className="font-semibold">תעריף:</span>{" "}
+                  {activeBooking.base_rate !== undefined &&
+                  activeBooking.base_rate !== null &&
+                  activeBooking.base_rate > 0
+                    ? `${activeBooking.base_rate} ₪/שעה`
+                    : activeBooking.spot &&
+                      activeBooking.spot.hourly_price &&
+                      activeBooking.spot.hourly_price > 0
+                    ? `${activeBooking.spot.hourly_price} ₪/שעה`
+                    : "0 ₪/שעה"}
+                </p>
+                <p className="mb-1 text-blue-100">
+                  <span className="font-semibold">מיקום חנייה:</span>{" "}
+                  {activeBooking.spot?.spot_number
+                    ? `חנייה מספר ${activeBooking.spot.spot_number}`
+                    : "חנייה פרטית"}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Center: Large Timer */}
           <div className="relative md:w-1/3 flex flex-col items-center">
             {/* Pulsing ring effect */}
             <div
-              className="absolute w-48 h-48 rounded-full bg-blue-400 opacity-30 mx-auto"
+              className={`absolute w-48 h-48 rounded-full opacity-30 mx-auto ${
+                isResidentialSystem ? "bg-green-400" : "bg-blue-400"
+              }`}
               style={{
                 animation: "3s infinite",
                 animationName: "pulseRing",
@@ -114,7 +174,9 @@ const ActiveParkingTimer = ({
 
             {/* Second pulse ring with delay */}
             <div
-              className="absolute w-52 h-52 rounded-full bg-indigo-400 opacity-20 mx-auto"
+              className={`absolute w-52 h-52 rounded-full opacity-20 mx-auto ${
+                isResidentialSystem ? "bg-emerald-400" : "bg-indigo-400"
+              }`}
               style={{
                 animation: "3s infinite",
                 animationName: "pulseRing",
@@ -162,19 +224,25 @@ const ActiveParkingTimer = ({
                 <div className="text-4xl font-bold text-white drop-shadow-md">
                   {hours}:{minutes.toString().padStart(2, "0")}
                 </div>
-                <div className="text-xs text-blue-100 mt-1">זמן נותר</div>
+                <div className="text-xs text-white opacity-90 mt-1">זמן נותר</div>
               </div>
             </div>
 
             {/* Animation elements */}
             <div className="absolute w-full h-full pointer-events-none">
-              <div className="absolute w-2 h-2 bg-blue-300 rounded-full top-10 left-10 animate-ping"></div>
+              <div className={`absolute w-2 h-2 rounded-full top-10 left-10 animate-ping ${
+                isResidentialSystem ? "bg-green-300" : "bg-blue-300"
+              }`}></div>
               <div
-                className="absolute w-3 h-3 bg-purple-300 rounded-full bottom-10 right-20 animate-ping"
+                className={`absolute w-3 h-3 rounded-full bottom-10 right-20 animate-ping ${
+                  isResidentialSystem ? "bg-emerald-300" : "bg-purple-300"
+                }`}
                 style={{ animationDelay: "0.5s" }}
               ></div>
               <div
-                className="absolute w-2 h-2 bg-indigo-300 rounded-full bottom-20 left-20 animate-ping"
+                className={`absolute w-2 h-2 rounded-full bottom-20 left-20 animate-ping ${
+                  isResidentialSystem ? "bg-teal-300" : "bg-indigo-300"
+                }`}
                 style={{ animationDelay: "0.8s" }}
               ></div>
             </div>
@@ -184,12 +252,21 @@ const ActiveParkingTimer = ({
           <div className="md:w-1/6 flex justify-center">
             <button
               onClick={() => handleEndParking(activeBooking)}
-              className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-indigo-600 font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="group relative overflow-hidden px-6 py-3 rounded-full bg-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              style={{
+                color: isResidentialSystem ? "#059669" : "#6366f1"
+              }}
             >
               <span className="relative z-10 group-hover:text-white transition-colors duration-300">
                 סיים חניה
               </span>
-              <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-x-0 group-hover:scale-x-100 origin-left"></span>
+              <span 
+                className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-x-0 group-hover:scale-x-100 origin-left ${
+                  isResidentialSystem 
+                    ? "bg-gradient-to-r from-green-400 to-emerald-500" 
+                    : "bg-gradient-to-r from-red-400 to-pink-500"
+                }`}
+              ></span>
               <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 animate-pulse"></span>
             </button>
           </div>
@@ -230,6 +307,9 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const role = user?.role || "user";
+
+  // Determine system type based on localStorage mode (set from Dashboard)
+  const isResidentialSystem = localStorage.getItem("mode") === "building";
 
   // Find active booking with timer
   const findActiveBookingWithTimer = useCallback(() => {
@@ -313,22 +393,35 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Debug the response data
       console.log("Bookings response:", response.data.data.bookings);
 
-      // The API already filters out cancelled bookings, so we just need the active ones
-      const activeBookings = response.data.data.bookings
-        .filter((booking) => booking.status === "active")
-        .map((booking) => {
-          console.log(`Booking ${booking._id} rate details:`, {
-            base_rate: booking.base_rate,
-            spot_hourly_price: booking.spot?.hourly_price,
-            payment_status: booking.payment_status,
-          });
-          return booking;
-        });
+      // Filter active bookings based on current system mode
+      const allActiveBookings = response.data.data.bookings
+        .filter((booking) => booking.status === "active");
 
-      setBookings(activeBookings);
+      // Filter bookings based on system mode
+      const filteredBookings = allActiveBookings.filter((booking) => {
+        // Check if booking has spot information
+        if (!booking.spot) {
+          console.warn("Booking without spot information:", booking._id);
+          return false;
+        }
+
+        const spotType = booking.spot.spot_type;
+        console.log(`Booking ${booking._id} - Spot type: ${spotType}, Current mode: ${isResidentialSystem ? 'building' : 'private'}`);
+
+        if (isResidentialSystem) {
+          // In residential building mode, only show building bookings
+          return spotType === "building";
+        } else {
+          // In private paid parking mode, only show private/paid bookings
+          return spotType === "private" || spotType !== "building";
+        }
+      });
+
+      console.log(`Filtered ${filteredBookings.length} bookings out of ${allActiveBookings.length} active bookings for mode: ${isResidentialSystem ? 'building' : 'private'}`);
+
+      setBookings(filteredBookings);
       setError(null);
     } catch (err) {
       console.error("Error fetching bookings:", err);
@@ -344,20 +437,17 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
 
-      // Changed from DELETE with body to PATCH with body
       await axios.patch(
         `/api/v1/bookings/${selectedBooking._id}`,
-        { status: "canceled" }, // Changed from "cancelled" to "canceled" to match the enum in your model
+        { status: "canceled" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Remove the cancelled booking from the local state immediately
       setBookings(
         bookings.filter((booking) => booking._id !== selectedBooking._id)
       );
       setCancelSuccess(true);
 
-      // Refresh bookings after cancellation to ensure everything is up to date
       setTimeout(() => {
         fetchActiveBookings();
         setCancelSuccess(false);
@@ -382,7 +472,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       const token = localStorage.getItem("token");
 
-      // Update booking status to "completed"
       await axios.patch(
         `/api/v1/bookings/${endingParkingBooking._id}`,
         {
@@ -392,16 +481,16 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Close the end parking modal
       setShowEndParkingModal(false);
 
-      // Dispatch custom event to trigger payment popup
-      const parkingEndedEvent = new CustomEvent("parkingEnded", {
-        detail: { bookingId: endingParkingBooking._id },
-      });
-      window.dispatchEvent(parkingEndedEvent);
+      // Only show payment popup for paid parking system (not residential)
+      if (!isResidentialSystem) {
+        const parkingEndedEvent = new CustomEvent("parkingEnded", {
+          detail: { bookingId: endingParkingBooking._id },
+        });
+        window.dispatchEvent(parkingEndedEvent);
+      }
 
-      // Refresh the bookings list
       fetchActiveBookings();
     } catch (err) {
       console.error("Error ending parking:", err);
@@ -410,12 +499,12 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const userTimezone = "Asia/Jerusalem"; // Define userTimezone
+  const userTimezone = "Asia/Jerusalem";
 
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return "N/A";
     try {
-      const date = parseISO(dateTimeString); // Assuming dateTimeString is UTC ISO from backend
+      const date = parseISO(dateTimeString);
       const zonedDate = toZonedTime(date, userTimezone);
       return format(zonedDate, "dd/MM/yyyy HH:mm", { timeZone: userTimezone });
     } catch (e) {
@@ -448,7 +537,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  // Calculate if a booking can be canceled (more than 1 hour before start time)
   const canBeCanceled = (startDatetime) => {
     const now = new Date();
     const bookingStart = new Date(startDatetime);
@@ -457,30 +545,24 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     return hourDifference > 1;
   };
 
-  // Calculate the final amount based on the actual duration
   const calculateFinalAmount = (booking) => {
     const startTime = new Date(booking.start_datetime);
-    const endTime = new Date(); // Now
+    const endTime = new Date();
     const durationHours = (endTime - startTime) / (1000 * 60 * 60);
-
-    // Round up to the nearest quarter hour
     const roundedDuration = Math.ceil(durationHours * 4) / 4;
 
     return (roundedDuration * booking.base_rate).toFixed(2);
   };
 
-  // Generate page numbers
   const getPageNumbers = () => {
     const pageNumbers = [];
-    const maxButtons = 5; // Maximum number of page buttons to show
+    const maxButtons = 5;
 
     if (totalPages <= maxButtons) {
-      // Show all pages if less than maxButtons
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
-      // Show limited page numbers with ellipsis
       if (currentPage <= 3) {
         for (let i = 1; i <= 4; i++) {
           pageNumbers.push(i);
@@ -539,6 +621,82 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
+  // Format residential parking info
+  const formatResidentialParkingInfo = (booking) => {
+    console.log("Formatting residential parking info for:", booking);
+    console.log("User data:", user);
+    
+    if (!booking.spot) {
+      return (
+        <div className="text-sm text-gray-500 text-center">
+          מידע לא זמין
+        </div>
+      );
+    }
+    
+    const parts = [];
+    const parkingDetails = [];
+    
+    // For residential building mode, use user's address (their building address)
+    if (user?.address) {
+      const userAddress = user.address;
+      if (userAddress.street || userAddress.number || userAddress.city) {
+        const addressParts = [];
+        if (userAddress.street && userAddress.number) {
+          addressParts.push(`${userAddress.street} ${userAddress.number}`);
+        }
+        if (userAddress.city) {
+          addressParts.push(userAddress.city);
+        }
+        parts.push(addressParts.join(', '));
+      } else {
+        parts.push("כתובת לא זמינה");
+      }
+    } else {
+      // Fallback to booking spot address if user address not available
+      const address = booking.spot.building_address || booking.spot.address;
+      if (address) {
+        if (address.street && address.number && address.city) {
+          parts.push(`${address.street} ${address.number}, ${address.city}`);
+        } else if (address.city) {
+          parts.push(address.city);
+        }
+      } else {
+        parts.push("כתובת לא זמינה");
+      }
+    }
+    
+    // Parking details from booking spot
+    if (booking.spot.parking_number || booking.spot.spot_number) {
+      const parkingNum = booking.spot.parking_number || booking.spot.spot_number;
+      parkingDetails.push(`חנייה מספר ${parkingNum}`);
+    }
+    
+    if (booking.spot.parking_floor !== undefined && booking.spot.parking_floor !== null) {
+      parkingDetails.push(`קומה ${booking.spot.parking_floor}`);
+    } else if (booking.spot.floor !== undefined && booking.spot.floor !== null) {
+      parkingDetails.push(`קומה ${booking.spot.floor}`);
+    }
+    
+    if (booking.spot.owner_name) {
+      parkingDetails.push(`בעלים: ${booking.spot.owner_name}`);
+    } else if (booking.spot.owner && booking.spot.owner.first_name) {
+      parkingDetails.push(`בעלים: ${booking.spot.owner.first_name} ${booking.spot.owner.last_name || ''}`);
+    }
+    
+    return (
+      <div className="text-sm text-center w-full">
+        <div className="font-medium text-gray-800">{parts.join(" ")}</div>
+        {parkingDetails.length > 0 && (
+          <div className="text-gray-600 mt-1">{parkingDetails.join(" • ")}</div>
+        )}
+        {parkingDetails.length === 0 && (
+          <div className="text-gray-500 mt-1">פרטי חניה לא זמינים</div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
@@ -550,12 +708,37 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
         <main className="flex-grow flex flex-col justify-start p-4 md:p-6 md:mr-5 mt-4 min-h-[75vh]">
-          <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
-            הזמנות חנייה פעילות
-          </h1>
-          <p className="text-gray-600 text-lg mb-8 text-center">
-            כאן תוכל לראות את ההזמנות הפעילות שלך
-          </p>
+          <div className="pt-[68px] mb-4">
+            <h1 className="text-3xl font-extrabold text-blue-700 mb-2 text-center">
+              הזמנות חנייה פעילות
+            </h1>
+            
+            {/* System type indicator */}
+            <div className="flex items-center justify-center mb-2">
+              {isResidentialSystem ? (
+                <div className="flex items-center text-green-600">
+                  <FaBuilding className="ml-2" />
+                  <span className="text-sm font-medium">
+                    מערכת ניהול חניות בבניין מגורים
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center text-blue-600">
+                  <FaMoneyBillWave className="ml-2" />
+                  <span className="text-sm font-medium">
+                    מערכת חניות בתשלום
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-gray-600 text-lg text-center">
+              {isResidentialSystem 
+                ? "כאן תוכל לראות את ההזמנות הפעילות שלך בבניין המגורים"
+                : "כאן תוכל לראות את ההזמנות הפעילות שלך"
+              }
+            </p>
+          </div>
 
           {cancelSuccess && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 relative text-center">
@@ -563,12 +746,13 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             </div>
           )}
 
-          {/* Add the ActiveParkingTimer component here */}
+          {/* Active Parking Timer */}
           {activeTimerBooking && timeRemaining[activeTimerBooking._id] && (
             <ActiveParkingTimer
               activeBooking={activeTimerBooking}
               timeRemaining={timeRemaining[activeTimerBooking._id]}
               handleEndParking={handleEndParking}
+              isResidentialSystem={isResidentialSystem}
             />
           )}
 
@@ -589,39 +773,45 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             </div>
           ) : bookings.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500 max-w-4xl mx-auto">
-              אין כרגע הזמנות פעילות להצגה.
+              {isResidentialSystem 
+                ? "אין כרגע הזמנות פעילות בבניין המגורים להצגה."
+                : "אין כרגע הזמנות פעילות להצגה."
+              }
             </div>
           ) : (
             <div
               className="overflow-x-auto bg-white rounded-lg shadow-md w-full max-w-[90rem] mx-auto flex flex-col"
               style={{ minHeight: "500px" }}
             >
-              {/* Table container */}
               <div className="w-full text-base text-right">
-                {/* Header row */}
+                {/* Header based on system type */}
                 <div className="flex bg-indigo-50 text-indigo-800 border-b">
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
                     סוג הזמנה
                   </div>
-                  <div className="px-3 py-3 w-[25%] font-semibold text-center">
-                    כתובת החניה
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[35%]' : 'w-[25%]'}`}>
+                    {isResidentialSystem ? "חניה" : "כתובת החניה"}
                   </div>
-                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[18%]' : 'w-[15%]'}`}>
                     זמן התחלה
                   </div>
-                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[18%]' : 'w-[15%]'}`}>
                     זמן סיום
                   </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                    תעריף
-                  </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                    סטטוס תשלום
-                  </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  {!isResidentialSystem && (
+                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                      תעריף
+                    </div>
+                  )}
+                  {!isResidentialSystem && (
+                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                      סטטוס תשלום
+                    </div>
+                  )}
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
                     זמן נותר
                   </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[15%]' : 'w-[10%]'}`}>
                     פעולות
                   </div>
                 </div>
@@ -636,56 +826,79 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                       isActive: false,
                     };
                     const status = getStatusDisplay(booking.status);
-                    const paymentStatus = getPaymentStatusDisplay(
-                      booking.payment_status
-                    );
+                    const paymentStatus = getPaymentStatusDisplay(booking.payment_status);
 
                     return (
                       <div
                         key={booking._id}
                         className="flex hover:bg-indigo-50 transition-colors duration-150"
                       >
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          {booking.booking_type === "parking"
-                            ? "חנייה"
-                            : "טעינה"}
+                        <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
+                          <div className="flex items-center justify-center gap-1">
+                            {isResidentialSystem ? (
+                              <FaBuilding className="text-green-600" />
+                            ) : (
+                              <FaMoneyBillWave className="text-blue-600" />
+                            )}
+                            <span>
+                              {booking.booking_type === "parking" ? "חנייה" : "טעינה"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="px-3 py-3 w-[25%] text-center">
-                          {booking.spot && booking.spot.address
-                            ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
-                            : "כתובת לא זמינה"}
+                        
+                        <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[35%]' : 'w-[25%]'}`}>
+                          <div className="flex items-center justify-center">
+                            {isResidentialSystem ? (
+                              formatResidentialParkingInfo(booking)
+                            ) : (
+                              <span>
+                                {booking.spot && booking.spot.address
+                                  ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
+                                  : "כתובת לא זמינה"}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="px-3 py-3 w-[15%] text-center">
+                        
+                        <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[18%]' : 'w-[15%]'}`}>
                           {formatDisplayDate(booking.start_datetime)}
                           <div className="text-xs text-gray-500">
                             {formatDisplayTime(booking.start_datetime)}
                           </div>
                         </div>
-                        <div className="px-3 py-3 w-[15%] text-center">
+                        
+                        <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[18%]' : 'w-[15%]'}`}>
                           {formatDisplayDate(booking.end_datetime)}
                           <div className="text-xs text-gray-500">
                             {formatDisplayTime(booking.end_datetime)}
                           </div>
                         </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          {booking.base_rate !== undefined &&
-                          booking.base_rate !== null &&
-                          booking.base_rate > 0
-                            ? `${booking.base_rate} ₪/שעה`
-                            : booking.spot &&
-                              booking.spot.hourly_price &&
-                              booking.spot.hourly_price > 0
-                            ? `${booking.spot.hourly_price} ₪/שעה`
-                            : "0 ₪/שעה"}
-                        </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
-                          >
-                            {paymentStatus.text}
-                          </span>
-                        </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
+                        
+                        {!isResidentialSystem && (
+                          <div className="px-3 py-3 w-[10%] text-center">
+                            {booking.base_rate !== undefined &&
+                            booking.base_rate !== null &&
+                            booking.base_rate > 0
+                              ? `${booking.base_rate} ₪/שעה`
+                              : booking.spot &&
+                                booking.spot.hourly_price &&
+                                booking.spot.hourly_price > 0
+                              ? `${booking.spot.hourly_price} ₪/שעה`
+                              : "0 ₪/שעה"}
+                          </div>
+                        )}
+                        
+                        {!isResidentialSystem && (
+                          <div className="px-3 py-3 w-[10%] text-center">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
+                            >
+                              {paymentStatus.text}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
                           {timer.isActive ? (
                             <div className="flex flex-col items-center">
                               <div className="relative w-12 h-12 mx-auto">
@@ -704,18 +917,17 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                       a 15.9155 15.9155 0 0 1 0 31.831
                                       a 15.9155 15.9155 0 0 1 0 -31.831"
                                     fill="none"
-                                    stroke="#3b82f6"
+                                    stroke={isResidentialSystem ? "#10b981" : "#3b82f6"}
                                     strokeWidth="3"
                                     strokeDasharray={`${timer.percentage}, 100`}
                                   />
                                 </svg>
                                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-sm font-medium">
-                                  <FaClock className="mx-auto text-blue-600" />
+                                  <FaClock className={`mx-auto ${isResidentialSystem ? "text-green-600" : "text-blue-600"}`} />
                                 </div>
                               </div>
                               <div className="text-sm font-medium mt-1">
-                                {timer.hours}:
-                                {timer.minutes.toString().padStart(2, "0")}
+                                {timer.hours}:{timer.minutes.toString().padStart(2, "0")}
                               </div>
                             </div>
                           ) : (
@@ -726,12 +938,17 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                             </div>
                           )}
                         </div>
-                        <div className="px-3 py-3 w-[10%] flex justify-center">
-                          <div className="flex flex-col space-y-2">
+                        
+                        <div className={`px-3 py-3 flex justify-center ${isResidentialSystem ? 'w-[15%]' : 'w-[10%]'}`}>
+                          <div className="flex flex-col space-y-2 items-center">
                             {timer.isActive && (
                               <button
                                 onClick={() => handleEndParking(booking)}
-                                className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs flex items-center justify-center"
+                                className={`text-white px-3 py-1.5 rounded text-xs flex items-center justify-center ${
+                                  isResidentialSystem 
+                                    ? "bg-green-600 hover:bg-green-700" 
+                                    : "bg-blue-600 hover:bg-blue-700"
+                                }`}
                               >
                                 <FaCheck className="ml-1" /> סיים חניה
                               </button>
@@ -743,7 +960,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                   setSelectedBooking(booking);
                                   setShowCancelModal(true);
                                 }}
-                                className="text-red-600 hover:text-red-900"
+                                className="text-red-600 hover:text-red-900 text-xs"
                               >
                                 בטל הזמנה
                               </button>
@@ -751,7 +968,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
                             {!canBeCanceled(booking.start_datetime) &&
                               !timer.isActive && (
-                                <span className="text-gray-400">
+                                <span className="text-gray-400 text-xs">
                                   לא ניתן לביטול
                                 </span>
                               )}
@@ -893,8 +1110,8 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         </div>
       )}
 
-      {/* Payment Summary Modal */}
-      {showPaymentSummary && endingParkingBooking && (
+      {/* Payment Summary Modal - Only for paid parking system */}
+      {showPaymentSummary && endingParkingBooking && !isResidentialSystem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div
             className="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-xl"

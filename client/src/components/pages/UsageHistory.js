@@ -5,7 +5,7 @@ import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import { USER_TIMEZONE } from "../utils/constants";
-import { parseISO, isValid } from "date-fns";
+import { parseISO, isValid, startOfDay } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import {
   FaSearch,
@@ -94,6 +94,22 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     setCurrentPage(1);
   }, [filters]);
 
+  // Helper function to fetch booking details for a specific schedule
+  const fetchBookingDetailsForSchedule = async (spotId, scheduleId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `/api/v1/bookings/spot/${spotId}/schedule/${scheduleId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data?.data?.booking || null;
+    } catch (error) {
+      console.error("Error fetching booking details:", error);
+      return null;
+    }
+  };
+
+  // Modified fetchAllUserActivity function with booking details fetching
   const fetchAllUserActivity = async () => {
     try {
       setLoading(true);
@@ -126,17 +142,37 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         // Check if it's a building spot (for cooperative/free parking)
         const isBuilding = b.spot?.spot_type === "building";
 
+        // Format address based on booking type
+        let address = "כתובת לא זמינה";
+
+        if (isBuilding) {
+          // For residential building bookings, use user's address
+          if (user?.address) {
+            const userAddress = user.address;
+            const addressParts = [];
+            if (userAddress.street && userAddress.number) {
+              addressParts.push(`${userAddress.street} ${userAddress.number}`);
+            }
+            if (userAddress.city) {
+              addressParts.push(userAddress.city);
+            }
+            address = addressParts.join(', ') || "כתובת לא זמינה";
+          }
+        } else {
+          // For regular paid parking, use spot's address
+          if (b.spot?.address) {
+            address = `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${b.spot.address.city || ""}`;
+          }
+        }
+
         return {
           id: b._id,
           date: formatDisplayDate(b.start_datetime),
           startTime: formatDisplayTime(b.start_datetime),
           endTime: formatDisplayTime(b.end_datetime),
           actionDate: b.created_at,
-          address: b.spot?.address
-            ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${b.spot.address.city || ""
-            }`
-            : "כתובת לא זמינה",
-          city: b.spot?.address?.city || "",
+          address: address,
+          city: isBuilding ? (user?.address?.city || "") : (b.spot?.address?.city || ""),
           price: b.final_amount || b.base_rate || 0,
           type: b.spot?.owner?.toString() === user._id ? "השכרה" : "הזמנה",
           status: b.status || "active",
@@ -145,20 +181,45 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           rawDate: isValid(startDate) ? startDate : null,
           rawActionDate: isValid(actionDate) ? actionDate : null,
           activityType:
-            b.spot?.owner?.toString() === user._id ? "rental" : "booking",
+            b.spot?.owner?.toString() === user._id ? "booking" : "booking",
           icon: isBuilding ? "FaBuilding" : (b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar"),
           showPaymentIcon:
             b.payment_status === "completed" && b.status === "completed",
-          isPaid: !isBuilding, // Add a flag for paid spots
+          isPaid: !isBuilding,
           originalBooking: b,
         };
       });
 
-      // Transform published spots into history items
-      const spotHistory = spots.flatMap((spot) => {
+      // Transform published spots into history items with booking details for booked schedules
+      const spotHistory = [];
+
+      for (const spot of spots) {
         // Safely parse spot creation date
         const spotDate = spot.created_at ? parseISO(spot.created_at) : null;
         const isBuilding = spot.spot_type === "building";
+
+        // Format address for published spots
+        let spotAddress = "כתובת לא זמינה";
+
+        if (isBuilding) {
+          // For residential building spots, use user's address
+          if (user?.address) {
+            const userAddress = user.address;
+            const addressParts = [];
+            if (userAddress.street && userAddress.number) {
+              addressParts.push(`${userAddress.street} ${userAddress.number}`);
+            }
+            if (userAddress.city) {
+              addressParts.push(userAddress.city);
+            }
+            spotAddress = addressParts.join(', ') || "כתובת לא זמינה";
+          }
+        } else {
+          // For regular spots, use spot's address
+          if (spot.address) {
+            spotAddress = `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""}`;
+          }
+        }
 
         const spotEntry = {
           id: spot._id,
@@ -167,91 +228,116 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           endTime: "-",
           actionDate: spot.created_at,
           rawActionDate: isValid(spotDate) ? spotDate : null,
-          address: spot.address
-            ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
-            }`
-            : "כתובת לא זמינה",
-          city: spot.address?.city || "",
+          address: spotAddress,
+          city: isBuilding ? (user?.address?.city || "") : (spot.address?.city || ""),
           price: spot.hourly_rate || 0,
           type: "פרסום חניה",
           status: "active",
           paymentStatus: "n/a",
           rawDate: isValid(spotDate) ? spotDate : null,
-          rawActionDate: isValid(spotDate) ? spotDate : null,
           activityType: "publication",
-          icon: isBuilding ? "FaBuilding" : "FaMapMarkerAlt", // Use building icon for residential spots
+          icon: isBuilding ? "FaBuilding" : "FaMapMarkerAlt",
           showPaymentIcon: false,
-          isPaid: !isBuilding, // Add a flag for paid spots
+          isPaid: !isBuilding,
           originalSpot: spot,
         };
 
-        const scheduleEntries = (spot.availability_schedule || []).map(
-          (schedule) => {
-            let scheduleDate = null;
-            try {
-              if (schedule.date) {
-                scheduleDate = parseISO(schedule.date);
-                if (!isValid(scheduleDate)) scheduleDate = null;
+        spotHistory.push(spotEntry);
+
+        // Process schedule entries with proper booking details
+        for (const schedule of (spot.availability_schedule || [])) {
+          let scheduleDate = null;
+          let scheduleStartTime = "N/A";
+          let scheduleEndTime = "N/A";
+
+          // Parse the start_datetime and end_datetime from the schedule
+          try {
+            if (schedule.start_datetime) {
+              const startDateTime = parseISO(schedule.start_datetime);
+              if (isValid(startDateTime)) {
+                const zonedStart = toZonedTime(startDateTime, USER_TIMEZONE);
+                scheduleDate = startOfDay(zonedStart);
+                scheduleStartTime = format(zonedStart, "HH:mm", { timeZone: USER_TIMEZONE });
               }
-            } catch (err) {
-              console.error("Error parsing schedule date:", err);
             }
 
-            let scheduleActionDate = null;
+            if (schedule.end_datetime) {
+              const endDateTime = parseISO(schedule.end_datetime);
+              if (isValid(endDateTime)) {
+                const zonedEnd = toZonedTime(endDateTime, USER_TIMEZONE);
+                scheduleEndTime = format(zonedEnd, "HH:mm", { timeZone: USER_TIMEZONE });
+              }
+            }
+          } catch (err) {
+            console.error("Error parsing schedule datetime:", err, schedule);
+          }
+
+          let scheduleActionDate = null;
+          let actualActionDate = null;
+
+          // If the schedule is booked, fetch booking details to get the correct execution date
+          if (schedule.is_available === false || schedule.booking_id) {
+            try {
+              const bookingDetails = await fetchBookingDetailsForSchedule(spot._id, schedule._id);
+              if (bookingDetails && bookingDetails.created_at) {
+                const bookingDate = parseISO(bookingDetails.created_at);
+                if (isValid(bookingDate)) {
+                  scheduleActionDate = bookingDate;
+                  actualActionDate = bookingDetails.created_at;
+                }
+              }
+            } catch (error) {
+              console.error("Error fetching booking details for schedule:", error);
+            }
+          }
+
+          // Fallback to schedule creation date if booking date not available
+          if (!scheduleActionDate) {
             try {
               if (schedule.created_at) {
                 scheduleActionDate = parseISO(schedule.created_at);
+                actualActionDate = schedule.created_at;
                 if (!isValid(scheduleActionDate)) {
                   scheduleActionDate = spotDate;
+                  actualActionDate = spot.created_at;
                 }
               } else {
                 scheduleActionDate = spotDate;
+                actualActionDate = spot.created_at;
               }
             } catch (err) {
               console.error("Error parsing schedule action date:", err);
               scheduleActionDate = spotDate;
+              actualActionDate = spot.created_at;
             }
-
-            const formatTime = (timeStr) => {
-              if (!timeStr || timeStr === "-") return "-";
-              if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-
-              const [hours, minutes] = timeStr.split(":").map(Number);
-              return `${hours.toString().padStart(2, "0")}:${minutes
-                .toString()
-                .padStart(2, "0")}`;
-            };
-
-            return {
-              id: `${spot._id}-${schedule._id}`,
-              date: schedule.date ? formatDisplayDate(schedule.date) : "N/A",
-              startTime: formatTime(schedule.start_time),
-              endTime: formatTime(schedule.end_time),
-              address: spot.address
-                ? `${spot.address.street || ""} ${spot.address.number || ""}, ${spot.address.city || ""
-                }`
-                : "כתובת לא זמינה",
-              city: spot.address?.city || "",
-              price: spot.hourly_rate || 0,
-              type: isBuilding ? "פינוי חניה" : "זמינות חניה",
-              status: schedule.is_available ? "available" : "booked",
-              paymentStatus: "n/a",
-              rawDate: scheduleDate,
-              rawActionDate: scheduleActionDate,
-              actionDate: schedule.created_at || spot.created_at,
-              activityType: "availability",
-              icon: isBuilding ? "FaBuilding" : "FaCalendarAlt", // Use building icon for residential spots
-              showPaymentIcon: false,
-              isPaid: !isBuilding, // Add a flag for paid spots
-              originalSchedule: schedule,
-              originalSpot: spot,
-              scheduleId: schedule._id,
-            };
           }
-        );
 
-        return [spotEntry, ...scheduleEntries];
-      });
+          const scheduleEntry = {
+            id: `${spot._id}-${schedule._id}`,
+            date: scheduleDate ? formatDisplayDate(scheduleDate) : "N/A",
+            startTime: scheduleStartTime,
+            endTime: scheduleEndTime,
+            address: spotAddress,
+            city: isBuilding ? (user?.address?.city || "") : (spot.address?.city || ""),
+            price: spot.hourly_rate || 0,
+            type: isBuilding ? "פינוי חניה" : "זמינות חניה",
+            status: (schedule.is_available === false || schedule.booking_id) ? "booked" : "available",
+            paymentStatus: "n/a",
+            rawDate: scheduleDate,
+            rawActionDate: scheduleActionDate,
+            actionDate: actualActionDate, // Use the correct action date
+            activityType: "availability",
+            icon: isBuilding ? "FaBuilding" : "FaCalendarAlt",
+            showPaymentIcon: false,
+            isPaid: !isBuilding,
+            originalSchedule: schedule,
+            originalSpot: spot,
+            scheduleId: schedule._id,
+          };
+
+          spotHistory.push(scheduleEntry);
+        }
+      }
 
       // Combine all history items and sort by date
       const combinedHistory = [...bookingHistory, ...spotHistory];
@@ -358,8 +444,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     switch (type) {
       case "booking":
         return "ביצוע הזמנה";
-      case "rental":
-        return "השכרת חניה";
       case "publication":
         return "התחלת פעילות";
       case "availability":
@@ -572,7 +656,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     <>
       <option value="all">הכל</option>
       <option value="booking">הזמנת חניה</option>
-      <option value="rental">השכרת חניה</option>
       <option value="publication">התחלת פעילות</option>
       <option value="availability_regular">שינוי/ הוספת זמינות</option>
       <option value="availability_building">פינוי חניה לשכן</option>
@@ -724,34 +807,51 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                       <div className="px-3 py-3 w-[40%] text-center">
                         {item.activityType !== "publication" ? (
                           <div className="text-sm leading-relaxed">
-                            {(item.activityType === "booking" ||
-                              item.activityType === "availability") && (
-                                <>
-                                  <div>תאריך: {item.date}</div>
-                                  <div>
-                                    שעות: {item.startTime}
-                                    {item.endTime !== "-" && ` - ${item.endTime}`}
-                                  </div>
-                                </>
-                              )}
+                            {/* For booking activities - show booking details */}
                             {item.activityType === "booking" && (
-                              <div>כתובת: {item.address}</div>
-                            )}
-                            {isPaid && item.activityType === "booking" && (
-                              <div>
-                                מחיר: {item.price} ₪
-                                {item.showPaymentIcon && (
-                                  <FaMoneyBill className="text-green-600 mr-1 inline" />
+                              <>
+                                <div>תאריך הזמנה: {item.date}</div>
+                                <div>
+                                  שעות הזמנה: {item.startTime}
+                                  {item.endTime !== "-" && ` - ${item.endTime}`}
+                                </div>
+                                <div>כתובת: {item.address}</div>
+                                {isPaid && (
+                                  <div>
+                                    תעריף: {item.price} ש"ח לשעה
+                                    {item.showPaymentIcon && (
+                                      <FaMoneyBill className="text-green-600 mr-1 inline" />
+                                    )}
+                                  </div>
                                 )}
-                              </div>
+                              </>
+                            )}
+
+                            {/* For availability activities - show original availability details */}
+                            {item.activityType === "availability" && (
+                              <>
+                                <div>תאריך פינוי: {item.date}</div>
+                                <div>
+                                  שעות פינוי: {item.startTime}
+                                  {item.endTime !== "-" && ` - ${item.endTime}`}
+                                </div>
+                                {/* Show hourly rate for regular parking */}
+                                {item.originalSpot &&
+                                  item.originalSpot.spot_type !== "building" &&
+                                  item.isPaid && item.activityType !== "availability" && (
+                                    <div>מחיר שעתי: {item.price} ₪</div>
+                                  )}
+                              </>
                             )}
                           </div>
                         ) : (
                           <div className="text-sm">
-                            {item.isPaid && (
-                              <div>מחיר שעתי: {item.price} ₪</div>
+                            {item.isPaid && item.activityType !== "publication" && (
+                              <div className="text-sm">
+                                <div>מחיר שעתי: {item.price} ₪</div>
+                                <div>כתובת: {item.address}</div>
+                              </div>
                             )}
-                            <div>כתובת: {item.address}</div>
                           </div>
                         )}
                       </div>
