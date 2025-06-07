@@ -57,13 +57,25 @@ const Sidebar = ({ current, setCurrent, role }) => {
 
   return (
     <>
+      {/* Mobile Sidebar Toggle Button */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 bg-indigo-800 text-white p-2 rounded"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label="פתח תפריט צד"
       >
         <FaBars className="text-xl" />
       </button>
 
+      {/* Modal Overlay for mobile sidebar */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 block lg:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-label="סגור תפריט צד"
+        ></div>
+      )}
+
+      {/* Sidebar Drawer */}
       <aside
         className={`fixed top-14 sm:top-16 bottom-0 z-[60] bg-gradient-to-b from-indigo-900 to-blue-800 shadow-xl flex flex-col
         w-[70vw] min-w-[180px] max-w-[250px]
@@ -73,6 +85,11 @@ const Sidebar = ({ current, setCurrent, role }) => {
         lg:static lg:right-0 lg:translate-x-0 lg:flex lg:h-auto lg:w-[20vw] lg:min-w-[180px] lg:max-w-[250px] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={isOpen ? { touchAction: 'none' } : {}}
+        onClick={e => e.stopPropagation()}
+        tabIndex={-1}
+        aria-modal={isOpen ? "true" : undefined}
+        role="dialog"
       >
         <div className="relative py-4 text-center border-b border-blue-700/30">
           <h2 className="font-bold text-white text-lg">ניווט מהיר</h2>

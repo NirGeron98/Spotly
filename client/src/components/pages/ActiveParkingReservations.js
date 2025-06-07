@@ -784,8 +784,8 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               style={{ minHeight: "500px" }}
             >
               <div className="w-full text-base text-right">
-                {/* Header based on system type */}
-                <div className="flex bg-indigo-50 text-indigo-800 border-b">
+                {/* Desktop Table Header - only on sm+ */}
+                <div className="hidden sm:flex bg-indigo-50 text-indigo-800 border-b">
                   <div className={`px-3 py-3 font-semibold text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
                     סוג הזמנה
                   </div>
@@ -816,8 +816,93 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                   </div>
                 </div>
 
-                {/* Table body */}
+                {/* Table body: mobile cards and desktop rows */}
                 <div className="divide-y">
+                  {/* Mobile Card Layout - only on mobile */}
+                  <div className="block sm:hidden">
+                    {currentBookings.map((booking) => {
+                      const timer = timeRemaining[booking._id] || {
+                        hours: 0,
+                        minutes: 0,
+                        percentage: 0,
+                        isActive: false,
+                      };
+                      const status = getStatusDisplay(booking.status);
+                      const paymentStatus = getPaymentStatusDisplay(booking.payment_status);
+                      return (
+                        <div
+                          key={booking._id}
+                          className="bg-white rounded-xl shadow p-4 mb-4 flex flex-col gap-2 border border-gray-100"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            {isResidentialSystem ? (
+                              <FaBuilding className="text-green-600" />
+                            ) : (
+                              <FaMoneyBillWave className="text-blue-600" />
+                            )}
+                            <span className="font-semibold text-base">
+                              {booking.booking_type === "parking" ? "חנייה" : "טעינה"}
+                            </span>
+                            <span className={`ml-auto px-2 py-1 rounded-full text-xs font-semibold ${status.class}`}>{status.text}</span>
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            <span className="font-bold">{isResidentialSystem ? "חניה" : "כתובת החניה"}:</span> {isResidentialSystem ? formatResidentialParkingInfo(booking) : (booking.spot && booking.spot.address ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}` : "כתובת לא זמינה")}
+                          </div>
+                          <div className="flex gap-2 text-sm">
+                            <div>
+                              <span className="font-bold">התחלה:</span> {formatDisplayDate(booking.start_datetime)} {formatDisplayTime(booking.start_datetime)}
+                            </div>
+                            <div>
+                              <span className="font-bold">סיום:</span> {formatDisplayDate(booking.end_datetime)} {formatDisplayTime(booking.end_datetime)}
+                            </div>
+                          </div>
+                          {!isResidentialSystem && (
+                            <div className="text-sm">
+                              <span className="font-bold">תעריף:</span> {booking.base_rate !== undefined && booking.base_rate !== null && booking.base_rate > 0 ? `${booking.base_rate} ₪/שעה` : booking.spot && booking.spot.hourly_price && booking.spot.hourly_price > 0 ? `${booking.spot.hourly_price} ₪/שעה` : "0 ₪/שעה"}
+                            </div>
+                          )}
+                          {!isResidentialSystem && (
+                            <div className="text-sm">
+                              <span className="font-bold">סטטוס תשלום:</span> <span className={`px-2 py-1 rounded-full text-xs font-semibold ${paymentStatus.class}`}>{paymentStatus.text}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-bold">זמן נותר:</span>
+                            {timer.isActive ? (
+                              <span className="font-mono">{timer.hours}:{timer.minutes.toString().padStart(2, "0")}</span>
+                            ) : (
+                              <span className="text-gray-400">{new Date(booking.start_datetime) > now ? "לא התחיל" : "הסתיים"}</span>
+                            )}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            {timer.isActive && (
+                              <button
+                                onClick={() => handleEndParking(booking)}
+                                className={`flex-1 text-white px-3 py-2 rounded text-xs flex items-center justify-center ${isResidentialSystem ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                              >
+                                <FaCheck className="ml-1" /> סיים חניה
+                              </button>
+                            )}
+                            {canBeCanceled(booking.start_datetime) && (
+                              <button
+                                onClick={() => {
+                                  setSelectedBooking(booking);
+                                  setShowCancelModal(true);
+                                }}
+                                className="flex-1 text-red-600 hover:text-red-900 text-xs border border-red-200 rounded px-3 py-2"
+                              >
+                                בטל הזמנה
+                              </button>
+                            )}
+                            {!canBeCanceled(booking.start_datetime) && !timer.isActive && (
+                              <span className="flex-1 text-gray-400 text-xs text-center">לא ניתן לביטול</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Desktop Table Rows - only on sm+ */}
                   {currentBookings.map((booking) => {
                     const timer = timeRemaining[booking._id] || {
                       hours: 0,
@@ -831,7 +916,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                     return (
                       <div
                         key={booking._id}
-                        className="flex hover:bg-indigo-50 transition-colors duration-150"
+                        className="hidden sm:flex hover:bg-indigo-50 transition-colors duration-150"
                       >
                         <div className={`px-3 py-3 text-center ${isResidentialSystem ? 'w-[12%]' : 'w-[10%]'}`}>
                           <div className="flex items-center justify-center gap-1">

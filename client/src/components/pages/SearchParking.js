@@ -844,9 +844,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
               )}
 
               {/* Filter Button and Search Button */}
-              <div className="md:col-span-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 mt-2">
+              <div className={`md:col-span-4 flex flex-row justify-between items-center gap-3 mt-2`}>
                 {/* Left buttons - Only show preferences in regular mode */}
-                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="flex flex-row gap-2 w-full md:w-auto">
                   {!isBuildingMode && (
                     <button
                       type="button"
@@ -868,7 +868,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                     }`}
                 >
                   <FaSearch />
-                  {isBuildingMode ? "חפש ויזמן חניה" : "חפש חניה"}
+                  {isBuildingMode ? "חפש והזמן חניה" : "חפש חניה"}
                 </button>
               </div>
             </form>

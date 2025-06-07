@@ -103,54 +103,53 @@ const Navbar = ({ loggedIn, setLoggedIn, activePage }) => {
         </a>
 
         {/* כפתורים */}
-        <div className="flex items-center gap-2 sm:gap-4">          {loggedIn ? (
-            <>              <button
-                onClick={handleHomeClick}
-                className={linkStyle("/")}
-              >
-                <FaHome className="ml-1.5 text-lg" />
-                דף הבית
-              </button>
-
-              <button
-                onClick={() => navigate("/profile")}
-                className={linkStyle("/profile")}
-              >
-                <FaUser className="ml-1.5 text-lg" />
-                ניהול פרופיל
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center px-3 py-2 rounded-full text-sm sm:text-base font-medium text-red-600 border border-gray-300 hover:bg-red-50 hover:border-red-400 transition-all duration-300"
-              >
-                <FaSignOutAlt className="ml-1.5 text-lg" />
-                התנתקות
-              </button>
-            </>          ) : (
+        <div className="flex items-center gap-2 sm:gap-4">
+          {loggedIn ? (
             <>
               <button
                 onClick={handleHomeClick}
-                className={linkStyle("/")}
+                className={linkStyle("/") + " flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium min-w-fit"}
               >
-                <FaHome className="ml-1.5 text-lg" />
-                דף הבית
+                <FaHome className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">דף הבית</span>
               </button>
-
+              <button
+                onClick={() => navigate("/profile")}
+                className={linkStyle("/profile") + " flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium min-w-fit"}
+              >
+                <FaUser className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">ניהול פרופיל</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium text-red-600 border border-gray-300 hover:bg-red-50 hover:border-red-400 transition-all duration-300 min-w-fit"
+              >
+                <FaSignOutAlt className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">התנתקות</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleHomeClick}
+                className={linkStyle("/") + " flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium min-w-fit"}
+              >
+                <FaHome className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">דף הבית</span>
+              </button>
               <button
                 onClick={() => navigate("/login")}
-                className={linkStyle("/login")}
+                className={linkStyle("/login") + " flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium min-w-fit"}
               >
-                <FaSignInAlt className="ml-1.5 text-lg" />
-                התחברות
+                <FaSignInAlt className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">התחברות</span>
               </button>
-
               <button
                 onClick={() => navigate("/signup")}
-                className={linkStyle("/signup")}
+                className={linkStyle("/signup") + " flex items-center justify-center px-3 py-2 rounded-full text-sm sm:text-base font-medium min-w-fit"}
               >
-                <FaUserPlus className="ml-1.5 text-lg" />
-                הרשמה
+                <FaUserPlus className="ml-0 sm:ml-1.5 text-lg" />
+                <span className="hidden sm:inline">הרשמה</span>
               </button>
             </>
           )}
