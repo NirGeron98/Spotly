@@ -435,10 +435,12 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
   }
 });
 
+//=======================================================================================================
+
 exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
-  // 1. First verify user role is building_resident
-  if (req.user.role !== 'building_resident') {
-    return next(new AppError('Only building residents can search for building spots', 403));
+  // 1. First verify user role is building_resident or building_manager
+  if (!['building_resident', 'building_manager'].includes(req.user.role)) {
+    return next(new AppError('Only building residents and managers can search for building spots', 403));
   }
 
   const { building_id, start_datetime, end_datetime } = req.body;

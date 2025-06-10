@@ -464,33 +464,108 @@ exports.findAvailableBuildingSpot = async (
   endTime,
   userId
 ) => {
-  // 1. First verify the user is actually a resident of this building
+  // 1. Input validation
+  if (!buildingId || !startTime || !endTime || !userId) {
+    throw new AppError('Missing required parameters', 400);
+  }
+
+  if (!(startTime instanceof Date) || !(endTime instanceof Date)) {
+    throw new AppError('Start and end times must be valid dates', 400);
+  }
+
+  if (endTime <= startTime) {
+    throw new AppError('End time must be after start time', 400);
+  }
+
+  // 2. Verify user is a resident of this building
   const user = await User.findById(userId).populate('resident_building');
   if (!user || !user.resident_building || user.resident_building._id.toString() !== buildingId) {
     throw new AppError('You can only look for spots in your registered building', 403);
   }
 
-  // 2. Get all spots in the user's building
+  // 3. Get all spots in the user's building (excluding spots owned by the user)
   const buildingSpots = await ParkingSpot.find({
     building: buildingId,
     spot_type: "building",
-  });
+    owner: { $ne: userId } // Exclude spots owned by the requesting user
+  }).sort({ floor: 1, spot_number: 1 }); // Sort by floor and spot number for consistency
 
-  // 3. Check each spot until we find the first available one for the requested time
+  if (!buildingSpots.length) {
+    return null; // No available spots in this building
+  }
+
+  // 4. Find all available spots and calculate their time waste
+  const availableSpots = [];
   for (const spot of buildingSpots) {
-    const isAvailable = await exports.isSpotAvailableForBooking(
-      spot._id,
-      startTime,
-      endTime
-    );
+    try {
+      const isAvailable = await exports.isSpotAvailableForBooking(
+        spot._id,
+        startTime,
+        endTime
+      );
 
-    if (isAvailable.available) {
-      return spot;  // Return the first available spot we find
+      if (isAvailable.available) {
+        // Find existing bookings around the requested time slot
+        const adjacentBookings = await Booking.find({
+          parkingSpot: spot._id,
+          status: { $in: ["confirmed", "active"] },
+          $or: [
+            { endTime: { $lte: startTime } },  // bookings ending before our start
+            { startTime: { $gte: endTime } }   // bookings starting after our end
+          ]
+        }).sort({ startTime: 1 });
+
+        // Calculate total time waste (gaps between bookings)
+        let timeWaste = 0;
+        
+        // Calculate gap with previous booking
+        const prevBooking = adjacentBookings.find(b => b.endTime <= startTime);
+        if (prevBooking) {
+          const gap = startTime.getTime() - prevBooking.endTime.getTime();
+          timeWaste += Math.max(0, gap); // Ensure non-negative
+        }
+
+        // Calculate gap with next booking
+        const nextBooking = adjacentBookings.find(b => b.startTime >= endTime);
+        if (nextBooking) {
+          const gap = nextBooking.startTime.getTime() - endTime.getTime();
+          timeWaste += Math.max(0, gap); // Ensure non-negative
+        }
+
+        availableSpots.push({
+          spot,
+          timeWaste,
+          floor: spot.floor,
+          spotNumber: spot.spot_number
+        });
+      }
+    } catch (error) {
+      console.error(`Error checking spot ${spot._id}:`, error);
+      // Continue checking other spots
+      continue;
     }
   }
 
-  // No available spots found
-  return null;
+  if (availableSpots.length === 0) {
+    return null;  // No available spots found
+  }
+
+  // 5. Sort spots by time waste (primary) and floor/spot number (secondary)
+  availableSpots.sort((a, b) => {
+    // First sort by time waste
+    if (a.timeWaste !== b.timeWaste) {
+      return a.timeWaste - b.timeWaste;
+    }
+    // If time waste is equal, sort by floor
+    if (a.floor !== b.floor) {
+      return a.floor - b.floor;
+    }
+    // If floor is equal, sort by spot number
+    return a.spotNumber.localeCompare(b.spotNumber);
+  });
+
+  // Return the best spot
+  return availableSpots[0].spot;
 };
 
 /**
