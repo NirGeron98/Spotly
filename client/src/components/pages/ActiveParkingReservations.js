@@ -217,7 +217,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   const [activeTimerBooking, setActiveTimerBooking] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const bookingsPerPage = 10;
+  const bookingsPerPage = 5; // Updated to show up to 5 bookings per page
 
   const indexOfLastBooking = currentPage * bookingsPerPage;
   const indexOfFirstBooking = indexOfLastBooking - bookingsPerPage;
