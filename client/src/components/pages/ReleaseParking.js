@@ -63,36 +63,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const getRoundedTime = (date = new Date()) => {
     const minutes = date.getMinutes();
     const roundedMinutes = Math.ceil(minutes / 15) * 15;
-
     if (roundedMinutes === 60) {
       date.setHours(date.getHours() + 1);
       date.setMinutes(0);
     } else {
       date.setMinutes(roundedMinutes);
     }
-
-    date.setSeconds(0);
-    date.setMilliseconds(0);
     return date;
   };
 
-  const getEndTimeWithCap = (startDate) => {
-    const end = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-    if (end.getDate() !== startDate.getDate()) {
-      return "23:59";
-    }
-    return format(end, "HH:mm");
-  };
-
   const now = getRoundedTime(new Date());
-  const defaultStartTime = format(now, "HH:mm");
-  const defaultEndTime = getEndTimeWithCap(now);
+  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
-    startTime: defaultStartTime,
-    endTime: defaultEndTime,
-    type: "השכרה רגילה",
+    startTime: format(now, "HH:mm"),
+    endTime:
+      format(
+        twoHoursLater > new Date().setHours(23, 59)
+          ? new Date().setHours(23, 59)
+          : twoHoursLater,
+        "HH:mm"
+      ),
+    type: "השהכרה רגילה",
   });
 
   const getStartOfWeek = (date) => {
@@ -872,33 +865,57 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
               <div className="flex gap-4 mb-4">
                 <div className="flex-1">
-                  <label className="font-semibold">שעת התחלה</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    שעת התחלה
+                  </label>
                   <select
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
                   >
-                    {generateTimeOptions().map((timeString) => (
-                      <option key={timeString} value={timeString}>
-                        {timeString}
-                      </option>
-                    ))}
+                    {Array.from({ length: 72 }).map((_, i) => {
+                      const hours = Math.floor(i / 4) + 6;
+                      const minutes = (i % 4) * 15;
+                      const timeString = `${hours
+                        .toString()
+                        .padStart(2, "0")}:${minutes
+                        .toString()
+                        .padStart(2, "0")}`;
+                      return (
+                        <option key={i} value={timeString}>
+                          {timeString}
+                        </option>
+                      );
+                    })}
+                    <option value="23:59">23:59</option>
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="font-semibold">שעת סיום</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    שעת סיום
+                  </label>
                   <select
                     name="endTime"
                     value={formData.endTime}
                     onChange={handleChange}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
                   >
-                    {generateTimeOptions().map((timeString) => (
-                      <option key={timeString} value={timeString}>
-                        {timeString}
-                      </option>
-                    ))}
+                    {Array.from({ length: 72 }).map((_, i) => {
+                      const hours = Math.floor(i / 4) + 6;
+                      const minutes = (i % 4) * 15;
+                      const timeString = `${hours
+                        .toString()
+                        .padStart(2, "0")}:${minutes
+                        .toString()
+                        .padStart(2, "0")}`;
+                      return (
+                        <option key={i} value={timeString}>
+                          {timeString}
+                        </option>
+                      );
+                    })}
+                    <option value="23:59">23:59</option>
                   </select>
                 </div>
               </div>
@@ -1169,13 +1186,23 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         name="startTime"
                         value={quickAddData.startTime}
                         onChange={handleQuickAddChange}
-                        className="w-full border rounded px-3 py-2"
+                        className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
                       >
-                        {generateTimeOptions().map((timeString) => (
-                          <option key={timeString} value={timeString}>
-                            {timeString}
-                          </option>
-                        ))}
+                        {Array.from({ length: 72 }).map((_, i) => {
+                          const hours = Math.floor(i / 4) + 6;
+                          const minutes = (i % 4) * 15;
+                          const timeString = `${hours
+                            .toString()
+                            .padStart(2, "0")}:${minutes
+                            .toString()
+                            .padStart(2, "0")}`;
+                          return (
+                            <option key={i} value={timeString}>
+                              {timeString}
+                            </option>
+                          );
+                        })}
+                        <option value="23:59">23:59</option>
                       </select>
                     </div>
                     <div className="w-1/2">
@@ -1184,13 +1211,23 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         name="endTime"
                         value={quickAddData.endTime}
                         onChange={handleQuickAddChange}
-                        className="w-full border rounded px-3 py-2"
+                        className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
                       >
-                        {generateTimeOptions().map((timeString) => (
-                          <option key={timeString} value={timeString}>
-                            {timeString}
-                          </option>
-                        ))}
+                        {Array.from({ length: 72 }).map((_, i) => {
+                          const hours = Math.floor(i / 4) + 6;
+                          const minutes = (i % 4) * 15;
+                          const timeString = `${hours
+                            .toString()
+                            .padStart(2, "0")}:${minutes
+                            .toString()
+                            .padStart(2, "0")}`;
+                          return (
+                            <option key={i} value={timeString}>
+                              {timeString}
+                            </option>
+                          );
+                        })}
+                        <option value="23:59">23:59</option>
                       </select>
                     </div>
                   </div>

@@ -77,7 +77,13 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     longitude: null,
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: format(now, "HH:mm"),
-    endTime: format(twoHoursLater, "HH:mm"),
+    endTime:
+      format(
+        twoHoursLater > new Date().setHours(23, 59)
+          ? new Date().setHours(23, 59)
+          : twoHoursLater,
+        "HH:mm"
+      ),
     maxPrice: 50,
     is_charging_station: false,
     charger_type: "",
@@ -510,8 +516,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 rounded-md border border-gray-300"
                 >
-                  {Array.from({ length: 96 }).map((_, i) => {
-                    const hours = Math.floor(i / 4);
+                  {Array.from({ length: 72 }).map((_, i) => {
+                    const hours = Math.floor(i / 4) + 6;
                     const minutes = (i % 4) * 15;
                     const timeString = `${hours
                       .toString()
@@ -524,6 +530,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                       </option>
                     );
                   })}
+                  <option value="23:59">23:59</option>
                 </select>
               </div>
 
@@ -538,8 +545,8 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 rounded-md border border-gray-300"
                 >
-                  {Array.from({ length: 96 }).map((_, i) => {
-                    const hours = Math.floor(i / 4);
+                  {Array.from({ length: 72 }).map((_, i) => {
+                    const hours = Math.floor(i / 4) + 6;
                     const minutes = (i % 4) * 15;
                     const timeString = `${hours
                       .toString()
@@ -552,6 +559,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                       </option>
                     );
                   })}
+                  <option value="23:59">23:59</option>
                 </select>
               </div>
 

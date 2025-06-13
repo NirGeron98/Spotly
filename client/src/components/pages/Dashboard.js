@@ -79,7 +79,7 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
                   primary={false}
                   onClick={() => {
                     localStorage.setItem("mode", "building");
-                    navigate("/search-parking");
+                    navigate("/residential-parking-search");
                   }}
                 />
               </div>

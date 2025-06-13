@@ -16,6 +16,7 @@ import SearchParking from "./components/pages/SearchParking";
 import UsageHistory from "./components/pages/UsageHistory";
 import ReleaseParking from "./components/pages/ReleaseParking";
 import ActiveParkingReservations from "./components/pages/ActiveParkingReservations";
+import ResidentialParkingSearch from "./components/pages/ResidentialParkingSearch";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -141,6 +142,10 @@ function App() {
                 <Navigate to="/login" />
               )
             }
+          />
+          <Route
+            path="/residential-parking-search"
+            element={<ResidentialParkingSearch loggedIn={loggedIn} setLoggedIn={setLoggedIn} />}
           />
         </Routes>
     </Router>

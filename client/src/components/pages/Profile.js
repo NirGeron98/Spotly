@@ -6,15 +6,21 @@ import { userService } from "../../services/userService";
 const Profile = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול פרופיל | Spotly";
 
+  // State for the user data from the server/storage
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : null;
   });
 
+  // New state to hold form data only during editing
+  const [formData, setFormData] = useState(null);
+
   const [loading, setLoading] = useState(!user);
   const [message, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // State for password change form
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -38,32 +44,54 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, []); // Run only once on component mount
+
+  const handleStartEditing = () => {
+    setMessage("");
+    setIsEditing(true);
+    // Initialize formData with current user details when editing starts
+    setFormData({
+      fullName: `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      phone_number: user.phone_number,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setMessage("");
+    setFormData(null); // Discard changes by clearing formData
+  };
 
   const handleSaveProfile = async () => {
+    // Logic now uses data from the 'formData' state
     try {
-      const [first_name, ...rest] =
-        `${user.first_name} ${user.last_name}`.split(" ");
+      const [first_name, ...rest] = formData.fullName.trim().split(" ");
       const last_name = rest.join(" ");
-      const email = user.email;
-      const phone_number = user.phone_number;
 
-      if (!/^\d{10}$/.test(phone_number)) {
+      if (!first_name) {
+        return setMessage({ type: "error", text: "שם מלא הוא שדה חובה" });
+      }
+
+      if (!/^\d{10}$/.test(formData.phone_number)) {
         return setMessage({
           type: "error",
           text: "מספר טלפון חייב להכיל בדיוק 10 ספרות",
         });
       }
 
-      await userService.updateMe({
+      // Prepare data for API call from formData
+      const updatedData = {
         first_name,
         last_name,
-        email,
-        phone_number,
+        email: formData.email,
+        phone_number: formData.phone_number,
         ...(user.role === "private_prop_owner" && {
           default_parking_price: user.default_parking_price,
         }),
-      });
+      };
+
+      await userService.updateMe(updatedData);
 
       if (user.role === "private_prop_owner") {
         const spotsRes = await userService.getMySpots();
@@ -78,18 +106,22 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
         }
       }
 
-      setIsEditing(false);
-      setMessage({ type: "success", text: "הפרטים עודכנו בהצלחה ✅" });
-
+      // Prepare the new user object for the main state
       const updatedUser = {
         ...user,
         first_name,
         last_name,
-        email,
-        phone_number,
+        email: formData.email,
+        phone_number: formData.phone_number,
       };
+
+      // Update main state and localStorage
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      setIsEditing(false);
+      setMessage({ type: "success", text: "הפרטים עודכנו בהצלחה ✅" });
+      setFormData(null); // Clear temporary form data
     } catch (err) {
       console.error("❌ Update error:", err);
       setMessage({ type: "error", text: "שגיאה בעדכון הפרטים" });
@@ -100,18 +132,15 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
     if (!currentPassword || !newPassword || !confirmNewPassword) {
       return setMessage({ type: "error", text: "יש למלא את כל השדות" });
     }
-
     if (newPassword !== confirmNewPassword) {
       return setMessage({ type: "error", text: "הסיסמאות אינן תואמות" });
     }
-
     try {
       await userService.updatePassword({
         passwordCurrent: currentPassword,
         password: newPassword,
         passwordConfirm: confirmNewPassword,
       });
-
       setMessage({ type: "success", text: "הסיסמה עודכנה בהצלחה ✅" });
       setIsChangingPassword(false);
       setCurrentPassword("");
@@ -123,26 +152,57 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  if (loading) return <div className="text-center py-10">טוען פרופיל...</div>;
+  const handleFormInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        טוען פרופיל...
+      </div>
+    );
 
   return (
-    <div className="pt-[68px] min-h-screen flex flex-col" dir="rtl">
+    <div className="pt-[68px] min-h-screen flex flex-col bg-gray-50" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
-      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-blue-50 py-16">
-        <div className="container mx-auto px-6">
-          <div className="max-w-xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-            <div className="p-8">
-              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-                ניהול פרופיל
-              </h2>
+      <main className="flex-1 py-12 sm:py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="p-6 sm:p-8">
+              {!isChangingPassword ? (
+                <>
+                  <div className="flex flex-col items-center text-center mb-8">
+                    <div className="flex items-center justify-center h-24 w-24 mb-4 rounded-full bg-blue-100 text-blue-500">
+                      <span className="text-4xl font-bold">
+                        {user?.first_name?.charAt(0)}
+                      </span>
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-900">
+                      {`${user.first_name} ${user.last_name}`}
+                    </h2>
+                    <p className="text-md text-gray-500 mt-1">{user.email}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900">
+                    שינוי סיסמה
+                  </h2>
+                  <p className="text-md text-gray-500 mt-1">
+                    שמור על חשבונך מאובטח
+                  </p>
+                </div>
+              )}
 
               {message && (
                 <div
-                  className={`border px-4 py-3 rounded mb-4 ${
+                  className={`border text-center px-4 py-3 rounded-lg mb-6 ${
                     message.type === "error"
-                      ? "bg-red-100 border-red-400 text-red-700"
-                      : "bg-green-100 border-green-400 text-green-700"
+                      ? "bg-red-50 border-red-300 text-red-800"
+                      : "bg-green-50 border-green-300 text-green-800"
                   }`}
                   role="alert"
                 >
@@ -151,147 +211,148 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
               )}
 
               {!isChangingPassword ? (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       שם מלא
                     </label>
                     <input
                       type="text"
-                      value={`${user.first_name} ${user.last_name}`}
-                      onChange={(e) => {
-                        const [first_name, ...rest] = e.target.value.split(" ");
-                        const last_name = rest.join(" ");
-                        setUser((prev) => ({ ...prev, first_name, last_name }));
-                      }}
-                      disabled={!isEditing}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
+                      name="fullName"
+                      value={
                         isEditing
-                          ? "focus:ring-2 focus:ring-blue-500"
-                          : "bg-gray-100 cursor-not-allowed"
+                          ? formData.fullName
+                          : `${user.first_name} ${user.last_name}`
+                      }
+                      onChange={handleFormInputChange}
+                      disabled={!isEditing}
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-300 ${
+                        isEditing
+                          ? "bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-50 border-transparent text-gray-800 font-medium cursor-not-allowed"
                       }`}
                     />
                   </div>
 
-                  <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       אימייל
                     </label>
                     <input
                       type="email"
-                      value={user.email}
-                      onChange={(e) =>
-                        setUser((prev) => ({ ...prev, email: e.target.value }))
-                      }
+                      name="email"
+                      value={isEditing ? formData.email : user.email}
+                      onChange={handleFormInputChange}
                       disabled={!isEditing}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-300 ${
                         isEditing
-                          ? "focus:ring-2 focus:ring-blue-500"
-                          : "bg-gray-100 cursor-not-allowed"
+                          ? "bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-50 border-transparent text-gray-800 font-medium cursor-not-allowed"
                       }`}
                     />
                   </div>
 
-                  <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       מספר טלפון
                     </label>
                     <input
-                      type="tel"
                       dir="rtl"
-                      value={user.phone_number}
-                      onChange={(e) =>
-                        setUser((prev) => ({
-                          ...prev,
-                          phone_number: e.target.value,
-                        }))
+                      type="tel"
+                      name="phone_number"
+                      value={
+                        isEditing ? formData.phone_number : user.phone_number
                       }
+                      onChange={handleFormInputChange}
                       disabled={!isEditing}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-300 ${
                         isEditing
-                          ? "focus:ring-2 focus:ring-blue-500"
-                          : "bg-gray-100 cursor-not-allowed"
+                          ? "bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          : "bg-gray-50 border-transparent text-gray-800 font-medium cursor-not-allowed"
                       }`}
                     />
                   </div>
 
-                  <div className="flex gap-4">
+                  <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3">
                     {isEditing ? (
-                      <button
-                        onClick={handleSaveProfile}
-                        className="w-1/2 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
-                      >
-                        שמירה
-                      </button>
+                      <>
+                        <button
+                          onClick={handleSaveProfile}
+                          className="w-full flex-1 bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 order-1 sm:order-2"
+                        >
+                          שמירת שינויים
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="w-full flex-1 bg-gray-200 text-gray-800 font-bold py-2.5 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 order-2 sm:order-1"
+                        >
+                          ביטול
+                        </button>
+                      </>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setMessage("");
-                          setIsEditing(true);
-                        }}
-                        className="w-1/2 bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-300"
-                      >
-                        עריכה
-                      </button>
+                      <>
+                        <button
+                          onClick={handleStartEditing}
+                          className="w-full sm:w-auto flex-1 bg-blue-50 text-blue-700 font-bold py-2.5 px-4 rounded-lg hover:bg-blue-100 transition-colors duration-300"
+                        >
+                          עריכת פרטים
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMessage("");
+                            setIsEditing(false);
+                            setIsChangingPassword(true);
+                          }}
+                          className="w-full sm:w-auto flex-1 text-gray-700 font-bold py-2.5 px-4 rounded-lg hover:bg-gray-100 border border-gray-300 transition-colors duration-300"
+                        >
+                          שינוי סיסמה
+                        </button>
+                      </>
                     )}
-
-                    <button
-                      onClick={() => {
-                        setMessage("");
-                        setIsChangingPassword(true);
-                      }}
-                      className="w-1/2 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-200"
-                    >
-                      שינוי סיסמה
-                    </button>
                   </div>
-                </>
+                </div>
               ) : (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       סיסמה נוכחית
                     </label>
                     <input
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-
-                  <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       סיסמה חדשה
                     </label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-
-                  <div className="mb-6">
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       אימות סיסמה חדשה
                     </label>
                     <input
                       type="password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-
-                  <div className="flex gap-4">
+                  <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={handleUpdatePassword}
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700"
+                      className="w-full flex-1 bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300"
                     >
-                      שמירת סיסמה
+                      עדכון סיסמה
                     </button>
-
                     <button
                       onClick={() => {
                         setIsChangingPassword(false);
@@ -300,12 +361,12 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
                         setNewPassword("");
                         setConfirmNewPassword("");
                       }}
-                      className="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-400"
+                      className="w-full flex-1 bg-gray-200 text-gray-800 font-bold py-2.5 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300"
                     >
                       חזרה
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
