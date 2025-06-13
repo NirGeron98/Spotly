@@ -7,8 +7,7 @@ import Popup from "../shared/Popup";
 import AddressMapSelector from "../shared/AddressMapSelector";
 import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
 import { USER_TIMEZONE } from "../utils/constants";
-import { format, parseISO, isValid } from "date-fns";
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { format, } from "date-fns";
 import {
   FaSearch,
   FaSync,
@@ -16,7 +15,6 @@ import {
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaClock,
-  FaFilter,
   FaArrowUp,
   FaArrowDown,
   FaBolt,
@@ -57,40 +55,45 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [searching, setSearching] = useState(false);
 
   const getRoundedTime = (date = new Date()) => {
+    date.setSeconds(0, 0);
     const minutes = date.getMinutes();
     const roundedMinutes = Math.ceil(minutes / 15) * 15;
     if (roundedMinutes === 60) {
-      date.setHours(date.getHours() + 1);
-      date.setMinutes(0);
+      date.setHours(date.getHours() + 1, 0);
     } else {
       date.setMinutes(roundedMinutes);
     }
+
+    if (date.getHours() < 6) {
+      date.setHours(6, 0, 0, 0);
+    }
+
     return date;
   };
 
-  const now = getRoundedTime(new Date());
-  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const getEndTime = (startDate) => {
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+    const maxEnd = new Date(startDate);
+    maxEnd.setHours(23, 59, 0, 0);
+    return endDate > maxEnd ? maxEnd : endDate;
+  };
 
-  const [searchParams, setSearchParams] = useState({
-    address: "",
-    latitude: null,
-    longitude: null,
-    date: format(new Date(), "yyyy-MM-dd"),
-    startTime: format(now, "HH:mm"),
-    endTime:
-      format(
-        twoHoursLater > new Date().setHours(23, 59)
-          ? new Date().setHours(23, 59)
-          : twoHoursLater,
-        "HH:mm"
-      ),
-    maxPrice: 50,
-    is_charging_station: false,
-    charger_type: "",
+  const [searchParams, setSearchParams] = useState(() => {
+    const now = getRoundedTime();
+    const end = getEndTime(now);
+
+    return {
+      address: "",
+      latitude: null,
+      longitude: null,
+      date: format(new Date(), "yyyy-MM-dd"),
+      startTime: format(now, "HH:mm"),
+      endTime: format(end, "HH:mm"),
+      maxPrice: 50,
+      is_charging_station: false,
+      charger_type: "",
+    };
   });
-
-  // Filter panel state
-  const [showFilters, setShowFilters] = useState(false);
 
   // Charger types from your model
   const chargerTypes = [
@@ -187,10 +190,24 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setSearchParams((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+
+    if (name === "startTime") {
+      const [hours, minutes] = value.split(":").map(Number);
+      const startDateTime = new Date();
+      startDateTime.setHours(hours, minutes, 0, 0);
+      const endTime = getEndTime(startDateTime);
+
+      setSearchParams((prev) => ({
+        ...prev,
+        startTime: value,
+        endTime: format(endTime, "HH:mm"),
+      }));
+    } else {
+      setSearchParams((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    }
   };
 
   const searchParkingSpots = async (e) => {
@@ -302,15 +319,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     });
   };
 
-  const resetFilters = () => {
-    setSearchParams({
-      ...searchParams,
-      maxPrice: "",
-      is_charging_station: false,
-      charger_type: "",
-    });
-  };
-
   const handleBookParking = async (spotId) => {
     try {
       const token = localStorage.getItem("token");
@@ -388,17 +396,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         type: "error",
       });
     }
-  };
-
-  const getSortIcon = (field) => {
-    if (searchParams.sortBy === field) {
-      return searchParams.sortOrder === "asc" ? (
-        <FaArrowUp className="text-blue-600 ml-1" />
-      ) : (
-        <FaArrowDown className="text-blue-600 ml-1" />
-      );
-    }
-    return null;
   };
 
   // Format address function

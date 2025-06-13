@@ -36,10 +36,16 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   const isActive = (path) => {
     if (path === "/") {
       const user = JSON.parse(localStorage.getItem("user"));
-      if (user?.role === "building_resident" && location.pathname === "/dashboard") {
+      if (
+        user?.role === "building_resident" &&
+        location.pathname === "/dashboard"
+      ) {
         return true;
       }
-      if (["private_prop_owner", "user"].includes(user?.role) && location.pathname === "/search-parking") {
+      if (
+        ["private_prop_owner", "user"].includes(user?.role) &&
+        location.pathname === "/search-parking"
+      ) {
         return true;
       }
     }
@@ -63,16 +69,16 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-14 sm:h-16">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-        {/* לוגו */}
-        <a href="#" onClick={handleLogoClick} className="flex items-center gap-2">
+        {/* Logo */}
+        <button onClick={handleLogoClick} className="flex items-center gap-2">
           <img
             src="/assets/spotlyLogo.jpeg"
             alt="Spotly Logo"
             className="h-10 sm:h-12 w-auto"
           />
-        </a>
+        </button>
 
-        {/* כפתורים */}
+        {/* Buttons */}
         <div className="flex items-center gap-2 sm:gap-4">
           {loggedIn ? (
             <>

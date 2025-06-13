@@ -43,12 +43,11 @@ const AddressMapSelector = ({
   const [mapVisible, setMapVisible] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const [popupAddress, setPopupAddress] = useState(address);
-  const [popupVisible, setPopupVisible] = useState(false);
+  const [, setPopupVisible] = useState(false);
   const [popupData, setPopupData] = useState(null);
 
   const mapRef = useRef(null);
   const markerRef = useRef(null);
-  const streetInputRef = useRef(null);
 
   const handleFeedback = (message, type = "info") => {
     if (type === "map") {
@@ -169,7 +168,6 @@ const AddressMapSelector = ({
   };
 
   const handlePopupMapSearch = async () => {
-    // בדיקה שיש מספר בית לפני חיפוש
     if (!popupAddress.number) {
       setFeedback("❌ יש להזין מספר בית");
       return;

@@ -100,7 +100,7 @@ const Popup = ({
                   onClick={onClose}
                   className="px-5 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
                 >
-                  ביטול
+                  סגור
                 </button>
                 <button
                   onClick={onConfirm}

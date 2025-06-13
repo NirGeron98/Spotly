@@ -16,6 +16,7 @@ import {
   FaMapMarkerAlt,
   FaMoneyBill,
   FaInfoCircle,
+  FaBuilding,
 } from "react-icons/fa";
 
 const UsageHistory = ({ loggedIn, setLoggedIn }) => {
@@ -98,6 +99,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      const mode = localStorage.getItem("mode"); // Retrieve the user's current mode
 
       // Fetch user's bookings (either as customer or as owner)
       const bookingsResponse = await axios.get(
@@ -117,39 +119,48 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const spots = spotsResponse.data?.data?.parkingSpots || [];
 
       // Transform bookings into history items
-      const bookingHistory = bookings.map((b) => {
-        // Safely parse dates with validation
-        const startDate = b.start_datetime ? parseISO(b.start_datetime) : null;
-        const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
-        const actionDate = b.created_at ? parseISO(b.created_at) : null;
+      const bookingHistory = bookings
+        .filter((b) => {
+          if (mode === "building") {
+            return b.booking_type === "building";
+          } else if (mode === "paid") {
+            return b.booking_type === "parking";
+          }
+          return false;
+        })
+        .map((b) => {
+          // Safely parse dates with validation
+          const startDate = b.start_datetime ? parseISO(b.start_datetime) : null;
+          const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
+          const actionDate = b.created_at ? parseISO(b.created_at) : null;
 
-        return {
-          id: b._id,
-          date: formatDisplayDate(b.start_datetime),
-          startTime: formatDisplayTime(b.start_datetime),
-          endTime: formatDisplayTime(b.end_datetime),
-          actionDate: b.created_at,
-          address: b.spot?.address
-            ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
-                b.spot.address.city || ""
-              }`
-            : "כתובת לא זמינה",
-          city: b.spot?.address?.city || "",
-          price: b.final_amount || b.base_rate || 0,
-          type: b.spot?.owner?.toString() === user._id ? "השכרה" : "הזמנה",
-          status: b.status || "active",
-          paymentStatus: b.payment_status || "pending",
-          bookingType: b.booking_type || "parking",
-          rawDate: isValid(startDate) ? startDate : null,
-          rawActionDate: isValid(actionDate) ? actionDate : null,
-          activityType:
-            b.spot?.owner?.toString() === user._id ? "rental" : "booking",
-          icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
-          showPaymentIcon:
-            b.payment_status === "completed" && b.status === "completed",
-          originalBooking: b,
-        };
-      });
+          return {
+            id: b._id,
+            date: formatDisplayDate(b.start_datetime),
+            startTime: formatDisplayTime(b.start_datetime),
+            endTime: formatDisplayTime(b.end_datetime),
+            actionDate: b.created_at,
+            address: b.spot?.address
+              ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
+                  b.spot.address.city || ""
+                }`
+              : "כתובת לא זמינה",
+            city: b.spot?.address?.city || "",
+            price: b.final_amount || b.base_rate || 0,
+            type: b.spot?.owner?.toString() === user._id ? "השכרה" : "הזמנה",
+            status: b.status || "active",
+            paymentStatus: b.payment_status || "pending",
+            bookingType: b.booking_type || "parking",
+            rawDate: isValid(startDate) ? startDate : null,
+            rawActionDate: isValid(actionDate) ? actionDate : null,
+            activityType:
+              b.spot?.owner?.toString() === user._id ? "rental" : "booking",
+            icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
+            showPaymentIcon:
+              b.payment_status === "completed" && b.status === "completed",
+            originalBooking: b,
+          };
+        });
 
       // Transform published spots into history items
       const spotHistory = spots.flatMap((spot) => {
@@ -212,7 +223,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               if (!timeStr || timeStr === "-") return "-";
               if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
 
-              const [hours, minutes] = timeStr.split(":").map(Number);
+              const [hours, minutes] = timeStr.split(":" ).map(Number);
               return `${hours.toString().padStart(2, "0")}:${minutes
                 .toString()
                 .padStart(2, "0")}`;
@@ -476,7 +487,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const valB = b[sortField] || "";
 
       return sortOrder === "asc"
-        ? valA.toString().localeCompare(valB.toString())
+        ? valA.toString().localeCompare(valA.toString())
         : valB.toString().localeCompare(valA.toString());
     });
 
@@ -541,11 +552,26 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         <main className="flex-grow p-4 md:p-6 md:mr-5 mt-12">
           <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
-            היסטוריית פעילות
+            היסטוריית שימוש
           </h1>
           <p className="text-gray-600 text-lg mb-8 text-center">
             כאן תוכל לצפות בכל הפעילויות שלך במערכת
           </p>
+
+          {/* Display mode-specific icon with spacing */}
+          <div className="flex items-center justify-center mb-4">
+            {localStorage.getItem("mode") === "building" ? (
+              <div className="flex items-center bg-green-100 text-green-800 px-4 py-2 rounded shadow-md">
+                <FaBuilding className="h-6 w-6 ml-3" />
+                <span>מציג נתונים עבור מסלול בניין מגורים</span>
+              </div>
+            ) : (
+              <div className="flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded shadow-md">
+                <FaCar className="h-6 w-6 ml-3" />
+                <span>מציג נתונים עבור מסלול חניות פרטיות</span>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col items-center mb-8">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end max-w-6xl w-full">
@@ -605,22 +631,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  סטטוס תשלום:
-                </label>
-                <select
-                  name="paymentStatus"
-                  value={filters.paymentStatus}
-                  onChange={handleFilterChange}
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm"
-                >
-                  <option value="all">הכל</option>
-                  <option value="completed">שולם</option>
-                  <option value="pending">ממתין לתשלום</option>
-                </select>
-              </div>
-
               <div className="flex gap-2">
                 <button
                   onClick={() =>
@@ -665,9 +675,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                 </div>
                 <div className="px-3 py-3 w-[15%] font-semibold text-center">
                   סטטוס
-                </div>
-                <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                  תשלום
                 </div>
               </div>
 
@@ -744,20 +751,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
                           </div>
                         )}
                       </div>
-                      <div className="px-3 py-3 w-[10%] flex justify-center">
-                        {item.paymentStatus !== "n/a" && (
-                          <div className="flex items-center justify-center gap-1">
-                            {item.showPaymentIcon && (
-                              <FaMoneyBill className="text-green-600" />
-                            )}
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${paymentStatus.class}`}
-                            >
-                              {paymentStatus.text}
-                            </span>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   );
                 })}
@@ -827,8 +820,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
             )}
 
             {loading && (
-              <div className="text-center py-4 text-gray-500">
-                טוען היסטוריית...
+              <div className="text-center py-4 text-gray-500 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700 mr-2"></div>
+                <span>טוען היסטוריית שימוש...</span>
               </div>
             )}
           </div>

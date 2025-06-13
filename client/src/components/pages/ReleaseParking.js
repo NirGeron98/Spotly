@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
-import { FaCog, FaTrash, FaUser, FaInfoCircle } from "react-icons/fa";
+import { FaCog, FaTrash, FaUser } from "react-icons/fa";
 import { format, fromZonedTime, toZonedTime } from "date-fns-tz";
 import {
   startOfDay,
@@ -19,10 +18,8 @@ import { USER_TIMEZONE } from "../utils/constants";
 
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול החנייה שלי | Spotly";
-  const navigate = useNavigate();
   const [current, setCurrent] = useState("releaseParking");
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [user, ] = useState(null);
   const [parkingSlots, setParkingSlots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
   const [popupData, setPopupData] = useState({
@@ -33,12 +30,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   });
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [showQuickAddPopup, setShowQuickAddPopup] = useState(false);
-  const [quickAddData, setQuickAddData] = useState({
-    date: format(new Date(), "yyyy-MM-dd"),
-    startTime: "",
-    endTime: "",
-    type: "השכרה רגילה",
-  });
   const [newPrice, setNewPrice] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [isBuildingMode, setIsBuildingMode] = useState(false);
@@ -61,31 +52,45 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   );
 
   const getRoundedTime = (date = new Date()) => {
+    date.setSeconds(0, 0);
     const minutes = date.getMinutes();
     const roundedMinutes = Math.ceil(minutes / 15) * 15;
+
     if (roundedMinutes === 60) {
-      date.setHours(date.getHours() + 1);
-      date.setMinutes(0);
+      date.setHours(date.getHours() + 1, 0);
     } else {
       date.setMinutes(roundedMinutes);
     }
+
+    if (date.getHours() < 6) {
+      date.setHours(6, 0, 0, 0);
+    }
+
     return date;
   };
 
-  const now = getRoundedTime(new Date());
-  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const getEndTime = (startDate) => {
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // +2h
+    const maxEnd = new Date(startDate);
+    maxEnd.setHours(23, 59, 0, 0);
+    return endDate > maxEnd ? maxEnd : endDate;
+  };
+
+  const now = getRoundedTime();
+  const twoHoursLater = getEndTime(now);
 
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: format(now, "HH:mm"),
-    endTime:
-      format(
-        twoHoursLater > new Date().setHours(23, 59)
-          ? new Date().setHours(23, 59)
-          : twoHoursLater,
-        "HH:mm"
-      ),
-    type: "השהכרה רגילה",
+    endTime: format(twoHoursLater, "HH:mm"),
+    type: "השכרה רגילה",
+  });
+
+  const [quickAddData, setQuickAddData] = useState({
+    date: format(new Date(), "yyyy-MM-dd"),
+    startTime: format(now, "HH:mm"),
+    endTime: format(twoHoursLater, "HH:mm"),
+    type: "השכרה רגילה",
   });
 
   const getStartOfWeek = (date) => {
@@ -426,10 +431,25 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  if (name === "startTime") {
+    const [hours, minutes] = value.split(":").map(Number);
+    const newStart = new Date();
+    newStart.setHours(hours, minutes, 0, 0);
+    const newEnd = getEndTime(newStart);
+
+    setFormData((prev) => ({
+      ...prev,
+      startTime: value,
+      endTime: format(newEnd, "HH:mm"),
+    }));
+  } else {
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  }
+};
+
 
   const handleQuickAddChange = (e) => {
     const { name, value } = e.target;

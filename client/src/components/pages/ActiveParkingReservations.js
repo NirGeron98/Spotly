@@ -3,9 +3,16 @@ import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
+import {
+  FaClock,
+  FaCheck,
+  FaCarSide,
+  FaMoneyBillWave,
+  FaTrash,
+} from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
+import Popup from "../shared/Popup"; // Import the Popup component
 
 const ActiveParkingTimer = ({
   activeBooking,
@@ -316,9 +323,18 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       // Debug the response data
       console.log("Bookings response:", response.data.data.bookings);
 
-      // The API already filters out cancelled bookings, so we just need the active ones
+      // Filter bookings to include only those that are upcoming or in progress
       const activeBookings = response.data.data.bookings
-        .filter((booking) => booking.status === "active")
+        .filter((booking) => {
+          const now = new Date();
+          const startTime = new Date(booking.start_datetime);
+          const endTime = new Date(booking.end_datetime);
+
+          return (
+            booking.status === "active" &&
+            (now < endTime || (now >= startTime && now < endTime))
+          );
+        })
         .map((booking) => {
           console.log(`Booking ${booking._id} rate details:`, {
             base_rate: booking.base_rate,
@@ -558,9 +574,12 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
           </p>
 
           {cancelSuccess && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 relative text-center">
-              <span className="block sm:inline">ההזמנה בוטלה בהצלחה!</span>
-            </div>
+            <Popup
+              title="הצלחה"
+              description="ההזמנה בוטלה בהצלחה!"
+              type="success"
+              onClose={() => setCancelSuccess(false)}
+            />
           )}
 
           {/* Add the ActiveParkingTimer component here */}
@@ -635,7 +654,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                       percentage: 0,
                       isActive: false,
                     };
-                    const status = getStatusDisplay(booking.status);
                     const paymentStatus = getPaymentStatusDisplay(
                       booking.payment_status
                     );
@@ -743,9 +761,9 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                   setSelectedBooking(booking);
                                   setShowCancelModal(true);
                                 }}
-                                className="text-red-600 hover:text-red-900"
+                                className="flex items-center justify-center bg-red-600 text-white px-3 py-1.5 rounded text-xs hover:bg-red-700 transition-all duration-300"
                               >
-                                בטל הזמנה
+                                ביטול
                               </button>
                             )}
 
@@ -832,33 +850,13 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div
-            className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              אישור ביטול הזמנה
-            </h3>
-            <p className="mb-6 text-gray-600">
-              האם אתה בטוח שברצונך לבטל את ההזמנה?
-            </p>
-            <div className="flex justify-center space-x-4 space-x-reverse">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded"
-              >
-                חזור
-              </button>
-              <button
-                onClick={handleCancelBooking}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
-              >
-                בטל הזמנה
-              </button>
-            </div>
-          </div>
-        </div>
+        <Popup
+          title="אישור ביטול הזמנה"
+          description="האם אתה בטוח שברצונך לבטל את ההזמנה?"
+          type="error"
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={handleCancelBooking}
+        />
       )}
 
       {/* End Parking Confirmation Modal */}
@@ -878,7 +876,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             <div className="flex justify-center space-x-4 space-x-reverse">
               <button
                 onClick={() => setShowEndParkingModal(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded text-lg"
               >
                 ביטול
               </button>

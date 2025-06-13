@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../shared/Footer";
 import Navbar from "../shared/Navbar";
@@ -221,7 +221,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       let message = "אירעה שגיאה. ודא שכל השדות מולאו כראוי ונסה שוב.";
 
       if (err.response?.data?.error?.code === 11000) {
-        const { keyPattern, keyValue } = err.response.data.error;
+        const { keyPattern, } = err.response.data.error;
 
         if (keyPattern?.email) {
           message = "האימייל כבר קיים במערכת.";
