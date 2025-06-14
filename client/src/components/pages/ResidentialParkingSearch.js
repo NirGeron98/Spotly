@@ -6,12 +6,23 @@ import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import Sidebar from "../shared/Sidebar";
 import { format } from "date-fns";
-import {
-  FaSearch,
-} from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 
 const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה בבניין מגורים | Spotly";
+
+  const messages = {
+    successTitle: "נמצאה חניה והוזמנה בהצלחה",
+    successDescription: "החנייה הוזמנה בהצלחה לטווח הזמן שבחרת.",
+    acceptedTitle: "אין חניה זמינה כעת",
+    acceptedDescription:
+      "הבקשה שלך נקלטה ותיבחן אוטומטית. תקבל עדכון כשתוקצה לך חניה.",
+    unexpectedTitle: "שגיאה",
+    unexpectedDescription: "התגובה מהשרת לא הייתה צפויה.",
+    errorTitle: "שגיאה",
+    errorDescription: "אירעה שגיאה בלתי צפויה בעת שליחת הבקשה.",
+    bookingError: "אירעה שגיאה בעת ניסיון להזמין את החנייה.",
+  };
 
   const getRoundedTime = () => {
     const now = new Date();
@@ -82,63 +93,11 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const handleConfirmReservation = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        "/api/v1/bookings",
-        {
-          spot: foundSpot._id,
-          booking_type: searchParams.is_charging_station
-            ? "charging"
-            : "parking",
-          start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
-          end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setFoundSpot(null);
-      setPopupData({
-        title: "הזמנה בוצעה בהצלחה",
-        description: (
-          <div className="text-right text-gray-800 space-y-3 text-sm leading-relaxed">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">📅 תאריך ההזמנה:</span>
-              <span>{searchParams.date}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="font-medium">🕒 שעת התחלה:</span>
-              <span>{searchParams.startTime}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="font-medium">🕓 שעת סיום:</span>
-              <span>{searchParams.endTime}</span>
-            </div>
-          </div>
-        ),
-        type: "success",
-      });
-    } catch (error) {
-      console.error("Failed to create booking", error);
-      setPopupData({
-        title: "שגיאה בהזמנה",
-        description:
-          error?.response?.data?.message ||
-          "אירעה שגיאה בעת ניסיון להזמין את החנייה.",
-        type: "error",
-      });
-    }
-  };
-
   const searchParkingSpots = async (e) => {
     e.preventDefault();
     setPopupData(null);
+    setFoundSpot(null);
+
     try {
       const token = localStorage.getItem("token");
       const user = JSON.parse(localStorage.getItem("user"));
@@ -149,8 +108,6 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
           building_id: user.resident_building,
           start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
           end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
-          is_charging_station: searchParams.is_charging_station,
-          charger_type: searchParams.charger_type || undefined,
         },
         {
           headers: {
@@ -163,74 +120,53 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       const spot = response.data?.data?.spot;
 
       if (status === "success" && spot) {
+        // Immediate booking success – spot allocated now
         setFoundSpot(spot);
         setPopupData({
-          title: "נמצאה חניה מתאימה!",
-          type: "confirm",
-          onConfirm: handleConfirmReservation,
+          title: messages.successTitle,
+          type: "success",
           description: (
-            <div className="text-center space-y-5 text-sm text-gray-800 leading-relaxed">
-              <div className="flex justify-center">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-2xl font-bold">
-                  P
-                </div>
+            <div className="text-right text-gray-800 space-y-3 text-sm leading-relaxed">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">📍 מספר חנייה:</span>
+                <span>{spot.spot_number || "לא ידוע"}</span>
               </div>
-
-              <p className="text-sm text-gray-600">
-                המערכת מצאה עבורך חניה פנויה בבניין
-              </p>
-
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-right space-y-3 text-sm text-gray-700">
-                <div className="flex justify-between">
-                  <span className="font-medium"># מספר חניה:</span>
-                  <span>{spot.spot_number || "לא ידוע"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">📅 תאריך:</span>
-                  <span>{searchParams.date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">🕓 שעות:</span>
-                  <span>
-                    {searchParams.startTime} - {searchParams.endTime}
-                  </span>
-                </div>
-                {spot.is_charging_station && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">⚡ עמדת טעינה:</span>
-                    <span>כן</span>
-                  </div>
-                )}
+              <div className="flex justify-between items-center">
+                <span className="font-medium">📅 תאריך ההזמנה:</span>
+                <span>{searchParams.date}</span>
               </div>
-              <div className="pt-2 text-sm font-medium text-gray-700">
-                האם ברצונך להזמין את החנייה הזאת?
+              <div className="flex justify-between items-center">
+                <span className="font-medium">🕒 שעת התחלה:</span>
+                <span>{searchParams.startTime}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">🕓 שעת סיום:</span>
+                <span>{searchParams.endTime}</span>
               </div>
             </div>
           ),
         });
-      } else if (
-        status === "fallback" &&
-        response.data?.data?.parkingSpots?.length > 0
-      ) {
+      } else if (status === "accepted") {
+        setFoundSpot(null); // clean up just in case
+        // User was added to batch or waiting queue
         setPopupData({
-          title: "לא נמצאה חניה בבניין",
-          description: "מצאנו לך חניות פרטיות בסביבה הקרובה.",
+          title: messages.acceptedTitle,
+          description: messages.acceptedDescription,
           type: "info",
         });
       } else {
+        // Unexpected format
         setPopupData({
-          title: "לא נמצאו חניות",
-          description: "לא נמצאה חניה זמינה בבניין שלך לטווח הזמנים שבחרת.",
-          type: "info",
+          title: messages.unexpectedTitle,
+          description: messages.unexpectedDescription,
+          type: "error",
         });
       }
     } catch (err) {
-      console.error("שגיאה בחיפוש:", err);
+      console.error("Parking request error:", err);
       setPopupData({
-        title: "שגיאה",
-        description: err.response?.data?.message?.includes("No available spots")
-          ? "לא נמצאה חניה זמינה בבניין שלך לטווח הזמנים שבחרת."
-          : "התרחשה שגיאה בלתי צפויה",
+        title: messages.errorTitle,
+        description: err.response?.data?.message || messages.errorDescription,
         type: "error",
       });
     }

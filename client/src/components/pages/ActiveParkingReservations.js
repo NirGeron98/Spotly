@@ -3,15 +3,10 @@ import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import {
-  FaClock,
-  FaCheck,
-  FaCarSide,
-  FaMoneyBillWave,
-} from "react-icons/fa";
+import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
-import Popup from "../shared/Popup"; 
+import Popup from "../shared/Popup";
 
 const ActiveParkingTimer = ({
   activeBooking,
@@ -815,9 +810,10 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                             {timer.isActive && (
                               <button
                                 onClick={() => handleEndParking(booking)}
-                                className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs flex items-center justify-center"
+                                className="bg-blue-600 text-white px-4 py-1 rounded text-xs mx-auto hover:bg-blue-700 transition-all duration-300 w-32 flex items-center justify-center"
                               >
-                                <FaCheck className="ml-1" /> סיים חניה
+                                סיים חניה
+                                <FaCheck className="mr-1" />
                               </button>
                             )}
 
@@ -948,7 +944,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               </button>
               <button
                 onClick={confirmEndParking}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                className="bg-רק-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
               >
                 סיים חניה
               </button>
