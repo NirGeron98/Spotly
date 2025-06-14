@@ -1,5 +1,5 @@
 // ResidentialParkingSearch.jsx
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Footer from "../shared/Footer";
@@ -8,11 +8,6 @@ import Sidebar from "../shared/Sidebar";
 import { format } from "date-fns";
 import {
   FaSearch,
-  FaParking,
-  FaBolt,
-  FaCalendarAlt,
-  FaClock,
-  FaHashtag,
 } from "react-icons/fa";
 
 const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
@@ -31,7 +26,7 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     }
 
     if (now.getHours() < 6) {
-      now.setHours(6, 0, 0, 0); 
+      now.setHours(6, 0, 0, 0);
     }
 
     return now;
@@ -58,13 +53,6 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
 
   const [popupData, setPopupData] = useState(null);
   const [foundSpot, setFoundSpot] = useState(null);
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleString("he-IL", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  };
 
   const chargerTypes = [
     { id: "Type 1", label: "סוג 1" },
@@ -177,42 +165,48 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       if (status === "success" && spot) {
         setFoundSpot(spot);
         setPopupData({
-          title: "נמצאה חניה מתאימה",
+          title: "נמצאה חניה מתאימה!",
+          type: "confirm",
+          onConfirm: handleConfirmReservation,
           description: (
-            <div className="text-right space-y-3 text-sm text-gray-800 leading-relaxed">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">מספר חניה:</span>
-                <span className="flex items-center gap-1">
-                  <FaHashtag />
-                  {spot.spot_number || "לא ידוע"}
-                </span>
+            <div className="text-center space-y-5 text-sm text-gray-800 leading-relaxed">
+              <div className="flex justify-center">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-2xl font-bold">
+                  P
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">תאריך:</span>
-                <span className="flex items-center gap-1">
-                  <FaCalendarAlt />
-                  {searchParams.date}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">שעות:</span>
-                <span className="flex items-center gap-1">
-                  <FaClock />
-                  {searchParams.startTime} - {searchParams.endTime}
-                </span>
-              </div>
-              {spot.is_charging_station && (
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">כולל עמדת טעינה:</span>
-                  <span className="flex items-center gap-1">
-                    <FaBolt />
-                    כן
+
+              <p className="text-sm text-gray-600">
+                המערכת מצאה עבורך חניה פנויה בבניין
+              </p>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-right space-y-3 text-sm text-gray-700">
+                <div className="flex justify-between">
+                  <span className="font-medium"># מספר חניה:</span>
+                  <span>{spot.spot_number || "לא ידוע"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">📅 תאריך:</span>
+                  <span>{searchParams.date}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">🕓 שעות:</span>
+                  <span>
+                    {searchParams.startTime} - {searchParams.endTime}
                   </span>
                 </div>
-              )}
+                {spot.is_charging_station && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">⚡ עמדת טעינה:</span>
+                    <span>כן</span>
+                  </div>
+                )}
+              </div>
+              <div className="pt-2 text-sm font-medium text-gray-700">
+                האם ברצונך להזמין את החנייה הזאת?
+              </div>
             </div>
           ),
-          type: "info",
         });
       } else if (
         status === "fallback" &&
@@ -399,8 +393,13 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
           title={popupData.title}
           description={popupData.description}
           type={popupData.type || "info"}
-          onClose={() => setPopupData(null)}
-          onConfirm={foundSpot ? handleConfirmReservation : undefined}
+          onClose={() => {
+            setPopupData(null);
+            setFoundSpot(null);
+          }}
+          onConfirm={
+            popupData.type === "confirm" ? popupData.onConfirm : undefined
+          }
         />
       )}
     </div>

@@ -1107,9 +1107,9 @@ const handleChange = (e) => {
                                       height: `${
                                         isExpanded
                                           ? "auto"
-                                          : Math.max(height, 20)
+                                          : Math.max(height, 30)
                                       }px`,
-                                      minHeight: `${Math.max(height, 20)}px`,
+                                       minHeight: "30px",
                                     }}
                                   >
                                     <div className="flex justify-between items-start">

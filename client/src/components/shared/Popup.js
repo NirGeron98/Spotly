@@ -114,7 +114,7 @@ const Popup = ({
                 onClick={onClose}
                 className={`px-5 py-2.5 text-white rounded-lg transition font-medium ${getButtonClass()} shadow-md`}
               >
-                אישור
+                סגור
               </button>
             )}
           </div>

@@ -14,7 +14,6 @@ import {
   FaCar,
   FaCalendarAlt,
   FaMapMarkerAlt,
-  FaMoneyBill,
   FaInfoCircle,
   FaBuilding,
 } from "react-icons/fa";
@@ -130,7 +129,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         })
         .map((b) => {
           // Safely parse dates with validation
-          const startDate = b.start_datetime ? parseISO(b.start_datetime) : null;
+          const startDate = b.start_datetime
+            ? parseISO(b.start_datetime)
+            : null;
           const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
           const actionDate = b.created_at ? parseISO(b.created_at) : null;
 
@@ -141,9 +142,9 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
             endTime: formatDisplayTime(b.end_datetime),
             actionDate: b.created_at,
             address: b.spot?.address
-              ? `${b.spot.address.street || ""} ${b.spot.address.number || ""}, ${
-                  b.spot.address.city || ""
-                }`
+              ? `${b.spot.address.street || ""} ${
+                  b.spot.address.number || ""
+                }, ${b.spot.address.city || ""}`
               : "כתובת לא זמינה",
             city: b.spot?.address?.city || "",
             price: b.final_amount || b.base_rate || 0,
@@ -155,7 +156,8 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
             rawActionDate: isValid(actionDate) ? actionDate : null,
             activityType:
               b.spot?.owner?.toString() === user._id ? "rental" : "booking",
-            icon: b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
+            icon:
+              b.spot?.owner?.toString() === user._id ? "FaParking" : "FaCar",
             showPaymentIcon:
               b.payment_status === "completed" && b.status === "completed",
             originalBooking: b,
@@ -194,46 +196,40 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         const scheduleEntries = (spot.availability_schedule || []).map(
           (schedule) => {
-            let scheduleDate = null;
-            try {
-              if (schedule.date) {
-                scheduleDate = parseISO(schedule.date);
-                if (!isValid(scheduleDate)) scheduleDate = null;
+            let scheduleActionDate = spotDate;
+            if (schedule.start_datetime) {
+              const candidate = parseISO(schedule.start_datetime);
+              if (isValid(candidate)) {
+                scheduleActionDate = candidate;
               }
-            } catch (err) {
-              console.error("Error parsing schedule date:", err);
             }
 
-            let scheduleActionDate = null;
-            try {
-              if (schedule.created_at) {
-                scheduleActionDate = parseISO(schedule.created_at);
-                if (!isValid(scheduleActionDate)) {
-                  scheduleActionDate = spotDate;
-                }
-              } else {
-                scheduleActionDate = spotDate;
+            const formatTime = (isoString) => {
+              try {
+                if (!isoString) return "-";
+                const date = parseISO(isoString);
+                if (!isValid(date)) return "-";
+                const zoned = toZonedTime(date, USER_TIMEZONE);
+                return format(zoned, "HH:mm", { timeZone: USER_TIMEZONE });
+              } catch {
+                return "-";
               }
-            } catch (err) {
-              console.error("Error parsing schedule action date:", err);
-              scheduleActionDate = spotDate;
-            }
-
-            const formatTime = (timeStr) => {
-              if (!timeStr || timeStr === "-") return "-";
-              if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-
-              const [hours, minutes] = timeStr.split(":" ).map(Number);
-              return `${hours.toString().padStart(2, "0")}:${minutes
-                .toString()
-                .padStart(2, "0")}`;
             };
+
+            console.log("✅ FIXED SCHEDULE DEBUG:", {
+              schedule,
+              start_datetime: schedule.start_datetime,
+              end_datetime: schedule.end_datetime,
+              scheduleActionDate,
+            });
 
             return {
               id: `${spot._id}-${schedule._id}`,
-              date: schedule.date ? formatDisplayDate(schedule.date) : "N/A",
-              startTime: formatTime(schedule.start_time),
-              endTime: formatTime(schedule.end_time),
+              date: schedule.start_datetime
+                ? formatDisplayDate(schedule.start_datetime)
+                : "N/A",
+              startTime: formatTime(schedule.start_datetime),
+              endTime: formatTime(schedule.end_datetime),
               address: spot.address
                 ? `${spot.address.street || ""} ${spot.address.number || ""}, ${
                     spot.address.city || ""
@@ -244,9 +240,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               type: "זמינות חניה",
               status: schedule.is_available ? "available" : "booked",
               paymentStatus: "n/a",
-              rawDate: scheduleDate,
+              rawDate: schedule.start_datetime
+                ? parseISO(schedule.start_datetime)
+                : null,
+              actionDate: scheduleActionDate,
               rawActionDate: scheduleActionDate,
-              actionDate: schedule.created_at || spot.created_at,
               activityType: "availability",
               icon: "FaCalendarAlt",
               showPaymentIcon: false,

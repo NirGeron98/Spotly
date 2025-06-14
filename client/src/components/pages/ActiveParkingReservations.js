@@ -8,11 +8,10 @@ import {
   FaCheck,
   FaCarSide,
   FaMoneyBillWave,
-  FaTrash,
 } from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
-import Popup from "../shared/Popup"; // Import the Popup component
+import Popup from "../shared/Popup"; 
 
 const ActiveParkingTimer = ({
   activeBooking,
@@ -82,12 +81,21 @@ const ActiveParkingTimer = ({
           {/* Left side: Booking info */}
           <div className="text-white mb-6 md:mb-0 md:w-1/2 text-center md:text-right">
             <h3 className="text-xl font-bold mb-2">חנייה פעילה כעת</h3>
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">כתובת:</span>{" "}
-              {activeBooking.spot && activeBooking.spot.address
-                ? `${activeBooking.spot.address.city}, ${activeBooking.spot.address.street} ${activeBooking.spot.address.number}`
-                : "כתובת לא זמינה"}
-            </p>
+            {localStorage.getItem("mode") !== "building" && (
+              <p className="mb-1 text-blue-100">
+                <span className="font-semibold">תעריף:</span>{" "}
+                {activeBooking.base_rate !== undefined &&
+                activeBooking.base_rate !== null &&
+                activeBooking.base_rate > 0
+                  ? `${activeBooking.base_rate} ₪/שעה`
+                  : activeBooking.spot &&
+                    activeBooking.spot.hourly_price &&
+                    activeBooking.spot.hourly_price > 0
+                  ? `${activeBooking.spot.hourly_price} ₪/שעה`
+                  : "0 ₪/שעה"}
+              </p>
+            )}
+
             <p className="mb-1 text-blue-100">
               <span className="font-semibold">תעריף:</span>{" "}
               {activeBooking.base_rate !== undefined &&
@@ -209,6 +217,8 @@ const ActiveParkingTimer = ({
 const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   document.title = "הזמנות חנייה פעילות | Spotly";
 
+  const storedMode = localStorage.getItem("mode") || "regular";
+
   const [current, setCurrent] = useState("activeReservations");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -315,32 +325,35 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      const storedMode = localStorage.getItem("mode");
 
       const response = await axios.get("/api/v1/bookings/user/my-bookings", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Debug the response data
-      console.log("Bookings response:", response.data.data.bookings);
-
-      // Filter bookings to include only those that are upcoming or in progress
       const activeBookings = response.data.data.bookings
         .filter((booking) => {
           const now = new Date();
           const startTime = new Date(booking.start_datetime);
           const endTime = new Date(booking.end_datetime);
 
-          return (
+          const isActive =
             booking.status === "active" &&
-            (now < endTime || (now >= startTime && now < endTime))
+            (now < endTime || (now >= startTime && now < endTime));
+
+          const isBuildingMode = storedMode === "building";
+          const isBuildingBooking =
+            booking.spot?.spot_type === "building" ||
+            booking.spot?.spot_type === "regular";
+          const isPrivateBooking = booking.spot?.spot_type === "private";
+
+          return (
+            isActive &&
+            ((isBuildingMode && isBuildingBooking) ||
+              (!isBuildingMode && isPrivateBooking))
           );
         })
         .map((booking) => {
-          console.log(`Booking ${booking._id} rate details:`, {
-            base_rate: booking.base_rate,
-            spot_hourly_price: booking.spot?.hourly_price,
-            payment_status: booking.payment_status,
-          });
           return booking;
         });
 
@@ -582,14 +595,15 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             />
           )}
 
-          {/* Add the ActiveParkingTimer component here */}
-          {activeTimerBooking && timeRemaining[activeTimerBooking._id] && (
-            <ActiveParkingTimer
-              activeBooking={activeTimerBooking}
-              timeRemaining={timeRemaining[activeTimerBooking._id]}
-              handleEndParking={handleEndParking}
-            />
-          )}
+          {activeTimerBooking &&
+            timeRemaining[activeTimerBooking._id] &&
+            timeRemaining[activeTimerBooking._id].isActive && (
+              <ActiveParkingTimer
+                activeBooking={activeTimerBooking}
+                timeRemaining={timeRemaining[activeTimerBooking._id]}
+                handleEndParking={handleEndParking}
+              />
+            )}
 
           {loading ? (
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
@@ -631,16 +645,28 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                   <div className="px-3 py-3 w-[15%] font-semibold text-center">
                     זמן סיום
                   </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                    תעריף
-                  </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                    סטטוס תשלום
-                  </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  {storedMode !== "building" && (
+                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                      תעריף
+                    </div>
+                  )}
+                  {storedMode !== "building" && (
+                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                      סטטוס תשלום
+                    </div>
+                  )}
+                  <div
+                    className={`px-3 py-3 font-semibold text-center ${
+                      storedMode === "building" ? "w-[15%]" : "w-[10%]"
+                    }`}
+                  >
                     זמן נותר
                   </div>
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
+                  <div
+                    className={`px-3 py-3 font-semibold text-center ${
+                      storedMode === "building" ? "w-[15%]" : "w-[10%]"
+                    }`}
+                  >
                     פעולות
                   </div>
                 </div>
@@ -669,10 +695,37 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                             : "טעינה"}
                         </div>
                         <div className="px-3 py-3 w-[25%] text-center">
-                          {booking.spot && booking.spot.address
-                            ? `${booking.spot.address.city}, ${booking.spot.address.street} ${booking.spot.address.number}`
-                            : "כתובת לא זמינה"}
+                          <div className="flex flex-col items-center justify-center">
+                            {/* Check if full address (street + city) is available */}
+                            {booking.spot?.address?.street &&
+                            booking.spot?.address?.city ? (
+                              <>
+                                {/* Show full address */}
+                                <span>
+                                  {`${booking.spot.address.city}, ${
+                                    booking.spot.address.street
+                                  } ${booking.spot.address.number || ""}`}
+                                </span>
+
+                                {/* Show spot number under the address, if available */}
+                                {booking.spot.spot_number && (
+                                  <span className="text-sm text-gray-500 mt-1">
+                                    חנייה מספר {booking.spot.spot_number}
+                                  </span>
+                                )}
+                              </>
+                            ) : booking.spot?.spot_number ? (
+                              // If only spot number is available (e.g. in building mode), show it alone
+                              <span className="text-sm text-gray-500">
+                                חנייה מספר {booking.spot.spot_number}
+                              </span>
+                            ) : (
+                              // Fallback: if there's no address and no spot number
+                              <span>כתובת לא זמינה</span>
+                            )}
+                          </div>
                         </div>
+
                         <div className="px-3 py-3 w-[15%] text-center">
                           {formatDisplayDate(booking.start_datetime)}
                           <div className="text-xs text-gray-500">
@@ -685,25 +738,34 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                             {formatDisplayTime(booking.end_datetime)}
                           </div>
                         </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          {booking.base_rate !== undefined &&
-                          booking.base_rate !== null &&
-                          booking.base_rate > 0
-                            ? `${booking.base_rate} ₪/שעה`
-                            : booking.spot &&
-                              booking.spot.hourly_price &&
-                              booking.spot.hourly_price > 0
-                            ? `${booking.spot.hourly_price} ₪/שעה`
-                            : "0 ₪/שעה"}
-                        </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
-                          >
-                            {paymentStatus.text}
-                          </span>
-                        </div>
-                        <div className="px-3 py-3 w-[10%] text-center">
+                        {storedMode !== "building" && (
+                          <div className="px-3 py-3 w-[10%] text-center">
+                            {booking.base_rate !== undefined &&
+                            booking.base_rate !== null &&
+                            booking.base_rate > 0
+                              ? `${booking.base_rate} ₪/שעה`
+                              : booking.spot &&
+                                booking.spot.hourly_price &&
+                                booking.spot.hourly_price > 0
+                              ? `${booking.spot.hourly_price} ₪/שעה`
+                              : "0 ₪/שעה"}
+                          </div>
+                        )}
+
+                        {storedMode !== "building" && (
+                          <div className="px-3 py-3 w-[10%] text-center">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
+                            >
+                              {paymentStatus.text}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`px-3 py-3 font-semibold text-center ${
+                            storedMode === "building" ? "w-[15%]" : "w-[10%]"
+                          }`}
+                        >
                           {timer.isActive ? (
                             <div className="flex flex-col items-center">
                               <div className="relative w-12 h-12 mx-auto">
@@ -744,7 +806,11 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                             </div>
                           )}
                         </div>
-                        <div className="px-3 py-3 w-[10%] flex justify-center">
+                        <div
+                          className={`px-3 py-3 font-semibold text-center ${
+                            storedMode === "building" ? "w-[15%]" : "w-[10%]"
+                          }`}
+                        >
                           <div className="flex flex-col space-y-2">
                             {timer.isActive && (
                               <button
@@ -761,7 +827,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                   setSelectedBooking(booking);
                                   setShowCancelModal(true);
                                 }}
-                                className="flex items-center justify-center bg-red-600 text-white px-3 py-1.5 rounded text-xs hover:bg-red-700 transition-all duration-300"
+                                className="bg-red-600 text-white px-4 py-1 rounded text-xs mx-auto hover:bg-red-700 transition-all duration-300"
                               >
                                 ביטול
                               </button>
