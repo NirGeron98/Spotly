@@ -14,29 +14,46 @@ exports.getBooking = factory.getOne(Booking);
 exports.cancelBooking = catchAsync(async (req, res, next) => {
   const bookingId = req.params.id;
   const userId = req.user.id;
-  
+
   try {
-    const canceledBooking = await bookingService.cancelBooking(bookingId, userId);
-    
+    const canceledBooking = await bookingService.cancelBooking(
+      bookingId,
+      userId
+    );
+
     res.status(200).json({
-      status: 'success',
-      message: 'Booking successfully cancelled',
+      status: "success",
+      message: "Booking successfully cancelled",
       data: {
-        booking: canceledBooking
-      }
+        booking: canceledBooking,
+      },
     });
   } catch (error) {
-    return next(error instanceof AppError ? error : new AppError(error.message, 400));
+    return next(
+      error instanceof AppError ? error : new AppError(error.message, 400)
+    );
   }
 });
 
 exports.createBooking = catchAsync(async (req, res, next) => {
-  const { spot: spotId, start_datetime, end_datetime, booking_type, base_rate_override, timezone } = req.body;
+  const {
+    spot: spotId,
+    start_datetime,
+    end_datetime,
+    booking_type,
+    base_rate_override,
+    timezone,
+  } = req.body;
   const userId = req.user.id;
 
   // 1. Required field validation
   if (!spotId || !start_datetime || !end_datetime) {
-    return next(new AppError("Spot ID, start datetime, and end datetime are required.", 400));
+    return next(
+      new AppError(
+        "Spot ID, start datetime, and end datetime are required.",
+        400
+      )
+    );
   }
 
   // 2. Parse and validate datetime format
@@ -48,44 +65,57 @@ exports.createBooking = catchAsync(async (req, res, next) => {
       throw new Error("Invalid date format");
     }
   } catch (e) {
-    return next(new AppError("Invalid datetime format. Please use ISO 8601 format.", 400));
+    return next(
+      new AppError("Invalid datetime format. Please use ISO 8601 format.", 400)
+    );
   }
 
   // 3. Logical validation
   if (bookingEnd <= bookingStart) {
-    return next(new AppError("End datetime must be after start datetime.", 400));
+    return next(
+      new AppError("End datetime must be after start datetime.", 400)
+    );
   }
 
   // 4. Call booking service
   try {
     const bookingDetails = { booking_type, base_rate_override };
     const newBooking = await bookingService.createBooking(
-      userId, spotId, bookingStart, bookingEnd, bookingDetails, timezone
+      userId,
+      spotId,
+      bookingStart,
+      bookingEnd,
+      bookingDetails,
+      timezone
     );
 
     res.status(201).json({
       status: "success",
-      data: { booking: newBooking }
+      data: { booking: newBooking },
     });
   } catch (error) {
-    return next(error instanceof AppError ? error : new AppError(error.message, 400));
+    return next(
+      error instanceof AppError ? error : new AppError(error.message, 400)
+    );
   }
 });
 
 exports.updateBooking = catchAsync(async (req, res, next) => {
   try {
     const booking = await bookingService.updateBooking(
-      req.params.id, 
-      req.body, 
+      req.params.id,
+      req.body,
       req.user.id
     );
-    
+
     res.status(200).json({
       status: "success",
-      data: { booking }
+      data: { booking },
     });
   } catch (error) {
-    return next(error instanceof AppError ? error : new AppError(error.message, 400));
+    return next(
+      error instanceof AppError ? error : new AppError(error.message, 400)
+    );
   }
 });
 

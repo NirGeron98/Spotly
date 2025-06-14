@@ -36,13 +36,19 @@ exports.createBooking = async (
   requestedStartTimeUTC,
   requestedEndTimeUTC,
   bookingDetails = {},
-  timezone
+  timezone,
+  options = {}
 ) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isNewSession = !options.session;
+  const session = isNewSession
+    ? await mongoose.startSession()
+    : options.session;
   let newBookingDocument = null;
 
   try {
+    if (isNewSession) {
+      session.startTransaction();
+    }
     // 1. Fetch the parking spot within the transaction
     const spot = await ParkingSpot.findById(spotId).session(session);
     if (!spot) {
@@ -132,15 +138,21 @@ exports.createBooking = async (
     // If splitting creates fragments that could immediately merge with *other existing* fragments, then run:
     // await parkingSpotService.optimizeAvailabilitySchedules(spotId, { session });
 
-    await session.commitTransaction();
+    if (isNewSession) {
+      await session.commitTransaction();
+    }
     return newBookingDocument;
   } catch (error) {
-    await session.abortTransaction();
+    if (isNewSession) {
+      await session.abortTransaction();
+    }
     console.error("Error in createBooking service:", error);
     if (error instanceof AppError) throw error; // Re-throw AppError instances
     throw new AppError(`Failed to create booking: ${error.message}`, 500); // Wrap other errors
   } finally {
-    session.endSession();
+    if (isNewSession) {
+      session.endSession();
+    }
   }
 };
 /**
@@ -150,12 +162,18 @@ exports.createBooking = async (
  * @param {string} userId - The ID of the user attempting to cancel (for permission check).
  * @returns {Promise<Booking>} The updated (canceled) booking document.
  */
-exports.cancelBooking = async (bookingId, userId) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  let canceledBookingDoc = null;
+exports.cancelBooking = async (bookingId, userId, options = {}) => {
+  // If a session is provided in options, use it; otherwise, create a new session
+  const isNewSession = !options.session;
+  const session = isNewSession
+    ? await mongoose.startSession()
+    : options.session;
 
+  let canceledBookingDoc = null;
   try {
+    if (isNewSession) {
+      session.startTransaction();
+    }
     // 1. Find the booking and populate spot details to get schedule info
     const booking = await Booking.findById(bookingId).session(session);
 
@@ -253,16 +271,21 @@ exports.cancelBooking = async (bookingId, userId) => {
       );
     }
     canceledBookingDoc = await booking.save({ session });
-
-    await session.commitTransaction();
+    if (isNewSession) {
+      await session.commitTransaction();
+    }
     return canceledBookingDoc;
   } catch (error) {
-    await session.abortTransaction();
+    if (isNewSession) {
+      await session.abortTransaction();
+    }
     console.error("Error in cancelBooking service:", error);
     if (error instanceof AppError) throw error;
     throw new AppError(`Failed to cancel booking: ${error.message}`, 500);
   } finally {
-    session.endSession();
+    if (isNewSession) {
+      session.endSession();
+    }
   }
 };
 

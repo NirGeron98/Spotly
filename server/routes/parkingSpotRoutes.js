@@ -1,11 +1,20 @@
 const express = require("express");
 const parkingSpotController = require("../controllers/parkingSpotController");
 const authController = require("../controllers/authController");
+const { runBatchAllocation } = require("../services/batchAllocationService");
 
 const router = express.Router();
 
 // Protect all routes after this middleware
 router.use(authController.protect);
+
+router.get("/building/run-test-batch", async (req, res) => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  await runBatchAllocation(tomorrow);
+  res.send("Batch job executed for testing.");
+});
 
 router.get("/my-spots", parkingSpotController.getMyParkingSpots);
 
@@ -18,9 +27,9 @@ router.get("/building/:buildingId", parkingSpotController.getBuildingSpots);
 
 // Route for building residents to find available spots
 router.post(
-  '/building/find-available',
-  authController.restrictTo('building_resident'), // Explicitly restrict to building residents
-  parkingSpotController.findBuildingSpotForResident
+  "/building/find-available",
+  authController.restrictTo("building_resident"), // Explicitly restrict to building residents
+  parkingSpotController.handleBuildingParkingRequest
 );
 
 router

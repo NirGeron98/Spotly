@@ -5,7 +5,9 @@ const AppError = require("../utils/appError");
 const parkingSpotService = require("../services/parkingSpotService");
 const parkingFinder = require("../services/spotFinderService");
 const Booking = require("../models/bookingModel");
+const ParkingRequest = require("../models/parkingRequestModel");
 const mongoose = require("mongoose");
+const bookingService = require("../services/bookingService");
 const { parseISO, isValid, isBefore } = require("date-fns"); // Import necessary functions
 
 // Get & Create use factory
@@ -437,8 +439,10 @@ exports.findOptimalParkingSpots = catchAsync(async (req, res, next) => {
 
 exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
   // 1. First verify user role is building_resident
-  if (req.user.role !== 'building_resident') {
-    return next(new AppError('Only building residents can search for building spots', 403));
+  if (req.user.role !== "building_resident") {
+    return next(
+      new AppError("Only building residents can search for building spots", 403)
+    );
   }
 
   const { building_id, start_datetime, end_datetime } = req.body;
@@ -446,7 +450,12 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
 
   // 2. Validate required parameters
   if (!building_id || !start_datetime || !end_datetime) {
-    return next(new AppError('Building ID, start datetime, and end datetime are required', 400));
+    return next(
+      new AppError(
+        "Building ID, start datetime, and end datetime are required",
+        400
+      )
+    );
   }
 
   // 3. Parse and validate dates
@@ -458,11 +467,15 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
       throw new Error("Invalid date format");
     }
   } catch (e) {
-    return next(new AppError('Invalid datetime format. Please use ISO 8601 format.', 400));
+    return next(
+      new AppError("Invalid datetime format. Please use ISO 8601 format.", 400)
+    );
   }
 
   if (bookingEnd <= bookingStart) {
-    return next(new AppError('End datetime must be after start datetime.', 400));
+    return next(
+      new AppError("End datetime must be after start datetime.", 400)
+    );
   }
 
   try {
@@ -475,16 +488,21 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
     );
 
     if (!availableSpot) {
-      return next(new AppError('No available spots found in your building for the requested time period', 404));
+      return next(
+        new AppError(
+          "No available spots found in your building for the requested time period",
+          404
+        )
+      );
     }
 
     // 5. Create a booking using the booking service
-    const bookingService = require('../services/bookingService');
+    const bookingService = require("../services/bookingService");
     const bookingDetails = {
-      booking_type: 'parking',
-      booking_source: 'resident_building_allocation',
-      status: 'active',
-      payment_status: 'not_required' // Building spots don't require payment
+      booking_type: "parking",
+      booking_source: "resident_building_allocation",
+      status: "active",
+      payment_status: "not_required", // Building spots don't require payment
     };
 
     const booking = await bookingService.createBooking(
@@ -497,18 +515,129 @@ exports.findBuildingSpotForResident = catchAsync(async (req, res, next) => {
 
     // 6. Return both the spot and booking details
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         spot: availableSpot,
         booking: booking,
         start_datetime: bookingStart,
-        end_datetime: bookingEnd
-      }
+        end_datetime: bookingEnd,
+      },
     });
   } catch (error) {
     if (error.statusCode === 403) {
-      return next(new AppError('You can only search for spots in your own building', 403));
+      return next(
+        new AppError("You can only search for spots in your own building", 403)
+      );
     }
     throw error;
+  }
+});
+
+exports.handleBuildingParkingRequest = catchAsync(async (req, res, next) => {
+  // 1. Validate input
+  const { building_id, start_datetime, end_datetime } = req.body;
+  if (!building_id || !start_datetime || !end_datetime) {
+    return next(
+      new AppError(
+        "Building ID, start datetime, and end datetime are required",
+        400
+      )
+    );
+  }
+
+  const requestedStartTime = new Date(start_datetime);
+  const requestedEndTime = new Date(end_datetime);
+  if (requestedEndTime <= requestedStartTime) {
+    return next(
+      new AppError("End datetime must be after start datetime.", 400)
+    );
+  }
+
+  const today = new Date();
+  // Normalize 'today' to the very beginning of the day for a clean date-only comparison
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+
+  // *** THIS IS THE FIX ***
+  // Restructure to a clear if/else if/else flow to ensure only one path is taken.
+
+  // A. Check if the request is for a past date
+  if (requestedStartTime < startOfToday) {
+    return next(
+      new AppError("Cannot request a parking spot for a past date.", 400)
+    );
+  }
+
+  // B. Check if the request is for today
+  const isForToday = requestedStartTime.toDateString() === today.toDateString();
+  if (isForToday) {
+    // TIER 2 LOGIC: Handle immediate requests
+    try {
+      const availableSpot = await parkingSpotService.findAvailableBuildingSpot(
+        building_id,
+        requestedStartTime,
+        requestedEndTime,
+        req.user.id
+      );
+
+      if (availableSpot) {
+        // Instantly book if available
+        await bookingService.createBooking(
+          req.user.id,
+          availableSpot._id,
+          requestedStartTime,
+          requestedEndTime,
+          {
+            booking_type: "parking",
+            booking_source: "resident_building_allocation",
+            status: "active",
+            payment_status: "not_applicable",
+          },
+          req.user.timezone || "UTC"
+        );
+        return res.status(201).json({
+          status: "success",
+          message: "Spot allocated successfully!",
+          data: { spot: availableSpot },
+        });
+      } else {
+        // Add to waiting queue if no spots are free
+        const newQueueRequest = new ParkingRequest({
+          userId: req.user.id,
+          buildingId: building_id,
+          start_datetime: requestedStartTime,
+          end_datetime: requestedEndTime,
+          status: "waiting_queue",
+        });
+        await newQueueRequest.save();
+        return res.status(202).json({
+          status: "accepted",
+          message:
+            "All spots are currently full. You have been added to the priority waitlist and will be notified if a spot becomes available.",
+        });
+      }
+    } catch (error) {
+      return next(error);
+    }
+  } else {
+    // C. If not for the past and not for today, it must be for the future
+    // TIER 1 LOGIC: Handle advance requests
+    const newRequest = new ParkingRequest({
+      userId: req.user.id,
+      buildingId: building_id,
+      start_datetime: requestedStartTime,
+      end_datetime: requestedEndTime,
+      status: "pending_batch",
+    });
+    await newRequest.save();
+
+    return res.status(202).json({
+      status: "accepted",
+      message:
+        "Your advance request has been submitted and will be processed tonight. You will be notified of the outcome.",
+    });
   }
 });
