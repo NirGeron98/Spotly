@@ -44,7 +44,7 @@ const Profile = ({ loggedIn, setLoggedIn }) => {
     } else {
       setLoading(false);
     }
-  }, []); // Run only once on component mount
+  }, [user]); // Run only once on component mount
 
   const handleStartEditing = () => {
     setMessage("");

@@ -19,15 +19,26 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
     const canceledBooking = await bookingService.cancelBooking(
       bookingId,
       userId
-    );
-
-    res.status(200).json({
+    );    // Prepare response data
+    const responseData = {
       status: "success",
       message: "Booking successfully cancelled",
       data: {
         booking: canceledBooking,
-      },
-    });
+      }
+    };
+
+    // Add payment info for private spot rentals
+    if (canceledBooking.booking_source === "private_spot_rental" && canceledBooking.actual_end_datetime) {
+      responseData.data.payment = {
+        original_amount: canceledBooking.original_amount,
+        final_amount: canceledBooking.final_amount,
+        refund_amount: canceledBooking.refund_amount || 0,
+        payment_status: canceledBooking.payment_status
+      };
+    }
+
+    res.status(200).json(responseData);
   } catch (error) {
     return next(
       error instanceof AppError ? error : new AppError(error.message, 400)

@@ -163,11 +163,8 @@ exports.createBooking = async (
  * @returns {Promise<Booking>} The updated (canceled) booking document.
  */
 exports.cancelBooking = async (bookingId, userId, options = {}) => {
-  // If a session is provided in options, use it; otherwise, create a new session
+  const session = options.session || await mongoose.startSession();
   const isNewSession = !options.session;
-  const session = isNewSession
-    ? await mongoose.startSession()
-    : options.session;
 
   let canceledBookingDoc = null;
   try {
@@ -175,14 +172,15 @@ exports.cancelBooking = async (bookingId, userId, options = {}) => {
       session.startTransaction();
     }
     // 1. Find the booking and populate spot details to get schedule info
-    const booking = await Booking.findById(bookingId).session(session);
+    const booking = await Booking.findById(bookingId)
+      .populate('spot')
+      .session(session);
 
     if (!booking) {
       throw new AppError("Booking not found.", 404);
     }
 
     // 2. Authorization: Check if the user owns the booking or has rights to cancel
-    // (Add role-based cancellation if needed, e.g., admin)
     if (booking.user.toString() !== userId) {
       throw new AppError(
         "You do not have permission to cancel this booking.",
@@ -190,98 +188,102 @@ exports.cancelBooking = async (bookingId, userId, options = {}) => {
       );
     }
 
-    // 3. Check if booking can be canceled (e.g., not already started or canceled)
+    // 3. Check booking status
     if (booking.status === "canceled") {
       throw new AppError("Booking is already canceled.", 400);
     }
     if (booking.status === "completed") {
       throw new AppError("Cannot cancel a completed booking.", 400);
     }
-    // Add any other cancellation policy checks (e.g., cancellation window)
+
     const now = new Date();
-    if (booking.start_datetime <= now && booking.status === "active") {
-      // Check if current time is past booking start
-      // throw new AppError("Cannot cancel a booking that has already started or is in the past.", 400);
-      // Depending on policy, you might allow cancellation of active bookings for a partial refund, etc.
-      // For now, strict: cannot cancel if started.
-    }
+    const isActiveBooking = booking.start_datetime <= now && now < booking.end_datetime;
 
-    // 4. Restore the availability schedule slot that was tied to this booking
-    // The `booking.schedule` should hold the _id of the `availability_schedule` subdocument
-    // that was created or modified to represent the booked period.
+    // 4. Handle the availability restoration based on cancellation timing
     if (!booking.schedule) {
-      // This case needs careful consideration. If a booking exists without a direct schedule link,
-      // it implies a different availability management strategy was used for this booking,
-      // or data is inconsistent.
-      // For the current design (where `booking.schedule` links to the specific booked slot),
-      // this would be an anomaly.
-      // As a fallback, we might need to create a new availability window based on booking times.
-      console.warn(
-        `Booking ${bookingId} does not have a direct schedule link. Attempting to create availability.`
-      );
-      // Fallback: Create a new availability window for the booked period
-      const spot = await ParkingSpot.findById(booking.spot._id).session(
-        session
-      ); // Ensure spot is fetched if not populated fully
-      if (!spot)
-        throw new AppError(
-          "Associated parking spot not found for booking.",
-          404
-        );
+      // Create new availability for the remaining time slot
+      const spot = await ParkingSpot.findById(booking.spot._id).session(session);
+      if (!spot) {
+        throw new AppError("Associated parking spot not found.", 404);
+      }
 
+      // If canceling during active use, create availability from now until end time
+      const availabilityStartTime = isActiveBooking ? now : booking.start_datetime;
+      
       spot.availability_schedule.push({
         _id: new mongoose.Types.ObjectId(),
-        start_datetime: booking.start_datetime,
+        start_datetime: availabilityStartTime,
         end_datetime: booking.end_datetime,
         is_available: true,
-        type:
-          booking.booking_type === "charging"
-            ? "טעינה לרכב חשמלי"
-            : "השכרה רגילה", // Infer type
+        type: booking.booking_type === "charging" ? "טעינה לרכב חשמלי" : "השכרה רגילה",
         booking_id: null,
       });
-      // No need to save spot here, optimizeAvailabilitySchedules will do it.
+
+      await spot.save({ session });
     } else {
-      // This is the primary path: the booking has a schedule ID.
-      // This ID refers to the schedule entry that *is* the booking slot.
+      // This is the primary path: the booking has a schedule ID
       await parkingSpotService.restoreSchedule(
-        booking.spot._id.toString(), // spotId
-        booking.schedule.toString(), // bookedScheduleId
-        { session }
+        booking.spot._id.toString(),
+        booking.schedule.toString(),
+        { 
+          session,
+          currentTime: isActiveBooking ? now : null // Pass current time if canceling mid-use
+        }
       );
     }
 
-    // 5. Optimize the availability schedule for the spot (merges restored slot with adjacent ones)
-    // This is crucial to keep the schedule clean and prevent fragmentation.
+    // 5. Optimize the availability schedule
     await parkingSpotService.optimizeAvailabilitySchedules(
       booking.spot._id.toString(),
-      {
-        session,
-      }
-    );
-
-    // 6. Update the booking status
+      { session }
+    );    // 6. Update the booking status, end time, and handle payment recalculation for private spots
     booking.status = "canceled";
-    // Handle payment refunds if applicable (this would be a separate service call)
-    if (booking.payment_status === "completed" && booking.final_amount > 0) {
-      // booking.payment_status = "refunded"; // Or "pending_refund"
-      // Integrate with payment gateway for actual refund
-      console.log(
-        `Booking ${bookingId} was paid. Placeholder for refund logic.`
-      );
+    if (isActiveBooking) {
+      booking.actual_end_datetime = now;
+
+      // Handle payment recalculation only for private spots
+      if (booking.booking_source === "private_spot_rental") {
+        // Calculate actual usage duration in hours
+        const actualUsageHours = (now - booking.start_datetime) / (1000 * 60 * 60);
+        const originalHours = (booking.end_datetime - booking.start_datetime) / (1000 * 60 * 60);
+        
+        // Recalculate the final amount based on actual usage
+        const hourlyRate = booking.final_amount / originalHours;
+        const newAmount = hourlyRate * actualUsageHours;
+        
+        // Update the booking with new amount
+        booking.final_amount = Math.round(newAmount * 100) / 100; // Round to 2 decimal places
+        
+        // If they already paid, calculate refund amount
+        if (booking.payment_status === "completed") {
+          const refundAmount = Math.round((booking.original_amount - newAmount) * 100) / 100;
+          booking.refund_amount = refundAmount > 0 ? refundAmount : 0;
+          booking.payment_status = "pending_refund";
+        }
+
+        console.log(`Booking ${booking._id} recalculated:
+          Original duration: ${originalHours.toFixed(2)} hours
+          Actual duration: ${actualUsageHours.toFixed(2)} hours
+          Original amount: ${booking.original_amount}
+          New amount: ${booking.final_amount}
+          Refund amount: ${booking.refund_amount || 0}
+        `);
+      }
     }
+    
     canceledBookingDoc = await booking.save({ session });
+
     if (isNewSession) {
       await session.commitTransaction();
     }
+
     return canceledBookingDoc;
   } catch (error) {
     if (isNewSession) {
       await session.abortTransaction();
     }
     console.error("Error in cancelBooking service:", error);
-    if (error instanceof AppError) throw error;
-    throw new AppError(`Failed to cancel booking: ${error.message}`, 500);
+    throw error;
   } finally {
     if (isNewSession) {
       session.endSession();

@@ -28,7 +28,7 @@ const ActiveParkingTimer = ({
           animationName: "gradientShift",
         }}
       >
-        <style jsx>{`
+        <style>{`
           @keyframes gradientShift {
             0% {
               background-position: 0% 50%;
@@ -362,42 +362,38 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const handleCancelBooking = async () => {
-    if (!selectedBooking) return;
+  const deleteBookingRequest = async (bookingId, token) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/v1/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      throw new Error("Error canceling booking");
+    }
+  };
+
+  const handleEndParking = async (booking) => {
+    if (!booking) return;
+    const token = localStorage.getItem("token");
 
     try {
-      const token = localStorage.getItem("token");
+      await deleteBookingRequest(booking._id, token);
 
-      // Changed from DELETE with body to PATCH with body
-      await axios.patch(
-        `/api/v1/bookings/${selectedBooking._id}`,
-        { status: "canceled" }, // Changed from "cancelled" to "canceled" to match the enum in your model
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Remove the cancelled booking from the local state immediately
-      setBookings(
-        bookings.filter((booking) => booking._id !== selectedBooking._id)
+      setBookings((prevBookings) =>
+        prevBookings.filter((item) => item._id !== booking._id)
       );
       setCancelSuccess(true);
 
-      // Refresh bookings after cancellation to ensure everything is up to date
       setTimeout(() => {
         fetchActiveBookings();
         setCancelSuccess(false);
       }, 2000);
 
       setShowCancelModal(false);
-      setSelectedBooking(null);
     } catch (err) {
       console.error("Error canceling booking:", err);
       setError("אירעה שגיאה בביטול ההזמנה. נסה שוב מאוחר יותר.");
     }
-  };
-
-  const handleEndParking = (booking) => {
-    setEndingParkingBooking(booking);
-    setShowEndParkingModal(true);
   };
 
   const confirmEndParking = async () => {
@@ -495,58 +491,38 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
   // Generate page numbers
   const getPageNumbers = () => {
-    const pageNumbers = [];
-    const maxButtons = 5; // Maximum number of page buttons to show
+    const maxButtons = 5;
 
     if (totalPages <= maxButtons) {
-      // Show all pages if less than maxButtons
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-      }
-    } else {
-      // Show limited page numbers with ellipsis
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) {
-          pageNumbers.push(i);
-        }
-        pageNumbers.push("...");
-        pageNumbers.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pageNumbers.push(1);
-        pageNumbers.push("...");
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pageNumbers.push(i);
-        }
-      } else {
-        pageNumbers.push(1);
-        pageNumbers.push("...");
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-          pageNumbers.push(i);
-        }
-        pageNumbers.push("...");
-        pageNumbers.push(totalPages);
-      }
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
 
-    return pageNumbers;
+    if (currentPage <= 3) {
+      return [...Array(4).keys()].map((i) => i + 1).concat(["...", totalPages]);
+    }
+
+    if (currentPage >= totalPages - 2) {
+      return [
+        1,
+        "...",
+        ...Array.from({ length: 3 }, (_, i) => totalPages - 3 + i),
+      ];
+    }
+
+    return [
+      1,
+      "...",
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      "...",
+      totalPages,
+    ];
   };
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
-    }
-  };
-
-  const getStatusDisplay = (status) => {
-    switch (status) {
-      case "active":
-        return { text: "פעיל", class: "bg-green-100 text-green-800" };
-      case "completed":
-        return { text: "הושלם", class: "bg-blue-100 text-blue-800" };
-      case "cancelled":
-        return { text: "בוטל", class: "bg-red-100 text-red-800" };
-      default:
-        return { text: status, class: "bg-gray-100 text-gray-800" };
     }
   };
 
@@ -917,7 +893,41 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
           description="האם אתה בטוח שברצונך לבטל את ההזמנה?"
           type="error"
           onClose={() => setShowCancelModal(false)}
-          onConfirm={handleCancelBooking}
+          onConfirm={async () => {
+            if (!selectedBooking) return;
+
+            try {
+              const token = localStorage.getItem("token");
+
+              // שולחים בקשה למחוק את ההזמנה מהשרת עם מזהה ההזמנה
+              await axios.delete(
+                `http://localhost:5000/api/v1/bookings/${selectedBooking._id}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              // עדכון הממשק אחרי שמחיקת ההזמנה הצליחה
+              setBookings(
+                bookings.filter((item) => item._id !== selectedBooking._id)
+              );
+              setCancelSuccess(true);
+
+              // טוענים מחדש את ההזמנות אחרי המחיקה
+              setTimeout(() => {
+                fetchActiveBookings();
+                setCancelSuccess(false);
+              }, 2000);
+
+              setShowCancelModal(false); // סוגרים את המודל אחרי ביטול ההזמנה
+              setSelectedBooking(null); // מאפסים את ההזמנה שנבחרה
+            } catch (err) {
+              console.error("Error canceling booking:", err);
+              setError("אירעה שגיאה בביטול ההזמנה. נסה שוב מאוחר יותר.");
+            }
+          }}
         />
       )}
 
@@ -944,7 +954,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               </button>
               <button
                 onClick={confirmEndParking}
-                className="bg-רק-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
               >
                 סיים חניה
               </button>

@@ -287,7 +287,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     } finally {
       setLoadingSpots(false);
     }
-  }, [USER_TIMEZONE]);
+  }, []);
 
   useEffect(() => {
     fetchMySpots();
@@ -690,21 +690,6 @@ const handleChange = (e) => {
 
   const goToCurrentWeek = () => {
     setStartOfWeekDate(getStartOfWeek(new Date()));
-  };
-
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 6; hour < 24; hour++) {
-      for (let quarter = 0; quarter < 4; quarter++) {
-        const minutes = quarter * 15;
-        const time = `${hour.toString().padStart(2, "0")}:${minutes
-          .toString()
-          .padStart(2, "0")}`;
-        options.push(time);
-      }
-    }
-    options.push("23:59");
-    return options;
   };
 
   const handleMouseDown = (e, dayIndex) => {

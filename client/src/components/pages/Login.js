@@ -27,6 +27,10 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
       const res = await authService.login({ email, password });
       const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
       localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem(
+        "mode",
+        user.role === "building_resident" ? "building" : "regular"
+      );
       setLoggedIn(true);
 
       if (user.role === "user" || user.role === "private_prop_owner") {
@@ -47,15 +51,26 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   };
 
   return (
-    <div className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100" dir="rtl">
-      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
+    <div
+      className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100"
+      dir="rtl"
+    >
+      <Navbar
+        loggedIn={loggedIn}
+        setLoggedIn={setLoggedIn}
+        isRegistering={isRegistering}
+      />
       <main className="flex-1 relative z-10 py-20">
         <div className="container mx-auto px-6">
           <div className="max-w-2xl mx-auto w-full">
             <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-3xl shadow-2xl px-10 py-14 transition-all duration-500">
               <div className="text-center mb-8">
-                <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">ברוך שובך!</h1>
-                <p className="text-blue-700 font-medium text-base sm:text-lg">התחבר למערכת כדי לנהל ולמצוא חניות</p>
+                <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">
+                  ברוך שובך!
+                </h1>
+                <p className="text-blue-700 font-medium text-base sm:text-lg">
+                  התחבר למערכת כדי לנהל ולמצוא חניות
+                </p>
               </div>
 
               {error && (
@@ -68,7 +83,9 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">אימייל</label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-2">
+                    אימייל
+                  </label>
                   <input
                     type="email"
                     value={email}
@@ -80,7 +97,9 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">סיסמה</label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-2">
+                    סיסמה
+                  </label>
                   <input
                     type="password"
                     value={password}
@@ -112,7 +131,9 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
               <div className="mt-8 flex items-center">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
-                <span className="px-4 text-sm text-blue-600 font-medium">או</span>
+                <span className="px-4 text-sm text-blue-600 font-medium">
+                  או
+                </span>
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
               </div>
 

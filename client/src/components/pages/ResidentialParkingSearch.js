@@ -1,4 +1,3 @@
-// ResidentialParkingSearch.jsx
 import { useState } from "react";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
@@ -6,10 +5,41 @@ import Footer from "../shared/Footer";
 import Popup from "../shared/Popup";
 import Sidebar from "../shared/Sidebar";
 import { format } from "date-fns";
-import { FaSearch } from "react-icons/fa";
+import { geocodeAddress } from "../utils/geocoding";
+import { FaSearch, FaParking } from "react-icons/fa";
 
 const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה בבניין מגורים | Spotly";
+
+  const generateBookingSummary = (spot, searchParams) => (
+    <div className="text-right text-gray-800 space-y-3 text-sm leading-relaxed">
+      <div className="flex justify-between items-center">
+        <span className="font-medium">📍 מספר חנייה:</span>
+        <span>{spot.spot_number || "לא ידוע"}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="font-medium">📅 תאריך ההזמנה:</span>
+        <span>{searchParams.date}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="font-medium">🕒 שעת התחלה:</span>
+        <span>{searchParams.startTime}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="font-medium">🕓 שעת סיום:</span>
+        <span>{searchParams.endTime}</span>
+      </div>
+    </div>
+  );
+
+  const calculateHours = () => {
+    const [startH, startM] = searchParams.startTime.split(":").map(Number);
+    const [endH, endM] = searchParams.endTime.split(":").map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const diff = endMinutes - startMinutes;
+    return Math.max(1, Math.ceil(diff / 60));
+  };
 
   const messages = {
     successTitle: "נמצאה חניה והוזמנה בהצלחה",
@@ -22,6 +52,136 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     errorTitle: "שגיאה",
     errorDescription: "אירעה שגיאה בלתי צפויה בעת שליחת הבקשה.",
     bookingError: "אירעה שגיאה בעת ניסיון להזמין את החנייה.",
+  };
+
+  const [fallbackResults, setFallbackResults] = useState([]);
+  const [, setLoading] = useState(false);
+
+  const runPrivateParkingFallback = async () => {
+    console.log("🚀 Starting fallback for private parking");
+
+    try {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      console.log("👤 User from localStorage:", user);
+
+      // Step 1: Determining building ID
+      let buildingId = user?.resident_building;
+      if (!buildingId && user?.managed_buildings?.length > 0) {
+        buildingId = user.managed_buildings[0];
+        console.log("🏢 Using managed building:", buildingId);
+      }
+
+      if (!buildingId) {
+        console.error("❌ Building ID not found");
+        setPopupData({
+          title: "מיקום לא זמין",
+          description: "לא נמצא בניין רשום עבור המשתמש.",
+          type: "error",
+        });
+        return;
+      }
+
+      console.log("🏢 Selected building ID:", buildingId);
+
+      // Step 2: Fetching building information
+      const buildingResponse = await axios.get(
+        `/api/v1/buildings/${buildingId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("✅ Response from server for building:", buildingResponse.data);
+
+      const building = buildingResponse.data?.data?.data;
+      if (!building?.address) {
+        console.error("❌ No address exists for building");
+        setPopupData({
+          title: "מיקום לא זמין",
+          description: "לא קיימת כתובת לבניין.",
+          type: "error",
+        });
+        return;
+      }
+
+      console.log("📍 Building address:", building.address);
+
+      // Step 3: Converting address to coordinates
+      const geoResult = await geocodeAddress(building.address);
+      console.log("🗺️ Result from geocodeAddress:", geoResult);
+
+      if (!geoResult.success) {
+        setPopupData({
+          title: "כתובת לא תקינה",
+          description: geoResult.message || "שגיאה בהמרת כתובת לקואורדינטות.",
+          type: "error",
+        });
+        return;
+      }
+
+      const { latitude, longitude } = geoResult;
+
+      // Step 4: Preparing the request
+      const requestBody = {
+        latitude,
+        longitude,
+        date: searchParams.date,
+        startTime: searchParams.startTime,
+        endTime: searchParams.endTime,
+        maxPrice: 1000,
+        maxDistanceKm: 5, // Increased to 5
+        is_charging_station: searchParams.is_charging_station,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ...(searchParams.charger_type
+          ? { charger_type: searchParams.charger_type }
+          : {}),
+      };
+
+      console.log("📤 Request to /private/find-optimal:", requestBody);
+
+      // Step 5: Sending the request
+      const response = await axios.post(
+        "/api/v1/parking-spots/private/find-optimal",
+        requestBody,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log("📥 Response from /private/find-optimal:", response.data);
+
+      const rawData = response.data?.data;
+      const status = response.data?.status;
+
+      console.log("Status:", status);
+      console.log("Raw data:", rawData);
+
+      const data = response.data?.data;
+      console.log("📬 Full content of data:", response.data?.data);
+      const spots =
+        data?.spots ?? data?.options ?? (data?.spot ? [data.spot] : []);
+
+      console.log("📦 All parking spots received:", spots);
+
+      if (spots?.length > 0) {
+        setFallbackResults(spots);
+      } else {
+        setPopupData({
+          title: "לא נמצאה חניה פרטית זמינה",
+          description: "ניסינו לחפש חניה פרטית בסביבה אך לא נמצאה זמינות כרגע.",
+          type: "info",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error during fallback:", error);
+
+      if (error.response) {
+        console.log("🔴 error.response.data:", error.response.data);
+      }
+
+      setPopupData({
+        title: "שגיאה",
+        description: "אירעה שגיאה בעת ניסיון לחפש חניה פרטית.",
+        type: "error",
+      });
+    }
   };
 
   const getRoundedTime = () => {
@@ -73,6 +233,44 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     { id: "Other", label: "אחר" },
   ];
 
+  const handleConfirmReservation = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        "/api/v1/bookings",
+        {
+          spot: foundSpot._id,
+          booking_type: "parking",
+          start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
+          end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setPopupData({
+        title: "הזמנה בוצעה בהצלחה",
+        type: "success",
+        description: generateBookingSummary(foundSpot, searchParams),
+      });
+
+      setFoundSpot(null);
+    } catch (error) {
+      console.error("Failed to confirm private parking booking", error);
+      setPopupData({
+        title: "שגיאה",
+        type: "error",
+        description:
+          error.response?.data?.message ||
+          "אירעה שגיאה בעת ניסיון להזמין את החניה הפרטית.",
+      });
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSearchParams((prev) => ({
@@ -95,13 +293,15 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
 
   const searchParkingSpots = async (e) => {
     e.preventDefault();
-    setPopupData(null);
-    setFoundSpot(null);
+    setPopupData(null); // Reset popup data
+    setFoundSpot(null); // Reset found spot
+    setLoading(true); // Start loading
 
     try {
       const token = localStorage.getItem("token");
       const user = JSON.parse(localStorage.getItem("user"));
 
+      // Send the request to the backend
       const response = await axios.post(
         "/api/v1/parking-spots/building/find-available",
         {
@@ -116,59 +316,68 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
         }
       );
 
-      const status = response.data?.status;
-      const spot = response.data?.data?.spot;
+      console.log("Response data:", response.data); // Log the response for debugging
 
-      if (status === "success" && spot) {
-        // Immediate booking success – spot allocated now
-        setFoundSpot(spot);
-        setPopupData({
-          title: messages.successTitle,
-          type: "success",
-          description: (
-            <div className="text-right text-gray-800 space-y-3 text-sm leading-relaxed">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">📍 מספר חנייה:</span>
-                <span>{spot.spot_number || "לא ידוע"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">📅 תאריך ההזמנה:</span>
-                <span>{searchParams.date}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">🕒 שעת התחלה:</span>
-                <span>{searchParams.startTime}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium">🕓 שעת סיום:</span>
-                <span>{searchParams.endTime}</span>
-              </div>
-            </div>
-          ),
-        });
-      } else if (status === "accepted") {
-        setFoundSpot(null); // clean up just in case
-        // User was added to batch or waiting queue
-        setPopupData({
-          title: messages.acceptedTitle,
-          description: messages.acceptedDescription,
-          type: "info",
-        });
-      } else {
-        // Unexpected format
-        setPopupData({
-          title: messages.unexpectedTitle,
-          description: messages.unexpectedDescription,
-          type: "error",
-        });
+      const rawData = response.data?.data;
+      const status = response.data?.status;
+
+      const spots =
+        rawData?.spots ??
+        rawData?.options ??
+        (rawData?.spot ? [rawData.spot] : []);
+
+      // If status is "accepted", check if the request is for today or future date
+      if (status === "accepted") {
+        const isTodayRequest =
+          searchParams.date === new Date().toISOString().split("T")[0];
+
+        if (isTodayRequest && spots.length > 0) {
+          const spot = spots[0];
+          setFoundSpot(spot);
+          setPopupData({
+            title: "החניה הוקצתה בהצלחה",
+            type: "success",
+            description: generateBookingSummary(spot, searchParams),
+          });
+        } else {
+          setPopupData({
+            title: messages.acceptedTitle,
+            description: messages.acceptedDescription,
+            type: "info",
+          });
+        }
+        return;
       }
+
+      // If no spots found, offer private parking search
+      if (status !== "success" || !spots || spots.length === 0) {
+        setPopupData({
+          title: "לא נמצאה חניה",
+          description:
+            "לא נמצאה חניה זמינה בבניין שלך לטווח הזמנים שבחרת. האם תרצה לחפש חניה פרטית בתשלום?",
+          type: "info",
+          onConfirm: runPrivateParkingFallback, // Run private parking search on confirmation
+        });
+        return;
+      }
+
+      // If spots are found, show success message and display spot
+      const spot = spots[0];
+      setFoundSpot(spot);
+      setPopupData({
+        title: "החניות נמצאו בהצלחה",
+        type: "success",
+        description: generateBookingSummary(spot, searchParams),
+      });
     } catch (err) {
       console.error("Parking request error:", err);
       setPopupData({
-        title: messages.errorTitle,
-        description: err.response?.data?.message || messages.errorDescription,
+        title: "שגיאה",
+        description: err.response?.data?.message || "אירעה שגיאה בלתי צפויה",
         type: "error",
       });
+    } finally {
+      setLoading(false); // Stop loading
     }
   };
 
@@ -320,6 +529,64 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
               </div>
             </form>
           </div>
+
+          {fallbackResults.length > 0 && (
+            <div className="mt-10 max-w-6xl mx-auto">
+              <h2 className="text-xl font-bold text-blue-800 mb-4 text-center">
+                נמצאו {fallbackResults.length} חניות פרטיות זמינות
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {fallbackResults.map((spot) => (
+                  <div
+                    key={spot._id}
+                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    {/* Header image or icon */}
+                    <div className="h-40 bg-gray-100 flex items-center justify-center relative">
+                      <FaParking className="text-blue-400 text-5xl" />
+                      {/* Total duration badge */}
+                      <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm shadow-sm">
+                        סה"כ: {calculateHours()} שעות
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4 text-right">
+                      <h3 className="text-md font-bold text-gray-800 mb-1">
+                        {spot.address?.street} {spot.address?.number},{" "}
+                        {spot.address?.city}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {searchParams.startTime} - {searchParams.endTime}
+                      </p>
+                      {spot.distance_km && (
+                        <p className="text-sm text-gray-500 mb-2">
+                          מרחק: {spot.distance_km.toFixed(1)} ק"מ
+                        </p>
+                      )}
+                      <button
+                        onClick={() => {
+                          setFoundSpot(spot);
+                          setPopupData({
+                            title: "אישור הזמנה",
+                            type: "confirm",
+                            description: generateBookingSummary(
+                              spot,
+                              searchParams
+                            ),
+                            onConfirm: handleConfirmReservation,
+                          });
+                        }}
+                        className="mt-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded w-full flex justify-center items-center gap-2"
+                      >
+                        <FaParking /> הזמן חניה
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </main>
       </div>
       <Footer />

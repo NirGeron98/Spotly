@@ -87,7 +87,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
   useEffect(() => {
     fetchAllUserActivity();
-  }, []);
+  }, [fetchAllUserActivity]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -132,7 +132,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           const startDate = b.start_datetime
             ? parseISO(b.start_datetime)
             : null;
-          const endDate = b.end_datetime ? parseISO(b.end_datetime) : null;
           const actionDate = b.created_at ? parseISO(b.created_at) : null;
 
           return {
@@ -680,9 +679,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               <div className="divide-y">
                 {currentItems.map((item, index) => {
                   const status = getStatusDisplay(item.status);
-                  const paymentStatus = getPaymentStatusDisplay(
-                    item.paymentStatus
-                  );
 
                   const actionDateTime = item.rawActionDate || item.actionDate;
 

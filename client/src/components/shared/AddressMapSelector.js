@@ -49,63 +49,7 @@ const AddressMapSelector = ({
   const mapRef = useRef(null);
   const markerRef = useRef(null);
 
-  const handleFeedback = (message, type = "info") => {
-    if (type === "map") {
-      setFeedback(message);
-    } else {
-      setPopupData({ title: "הודעה", description: message, type });
-    }
-  };
-
-  useEffect(() => {
-    if (popupData) {
-      const timer = setTimeout(() => setPopupData(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [popupData]);
-
-  useEffect(() => {
-    loadGoogleMaps(GOOGLE_API_KEY)
-      .then(() => setGoogleReady(true))
-      .catch((err) => {
-        console.error("Failed to load Google Maps:", err);
-        setFeedback("❌ שגיאה בטעינת Google Maps");
-      });
-  }, []);
-
-  useEffect(() => {
-    if (mapVisible && googleReady) {
-      setTimeout(initializeMap, 300);
-    }
-  }, [mapVisible, googleReady]);
-
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setSelectedPosition({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-      },
-      () => setSelectedPosition(defaultPosition)
-    );
-  }, []);
-
-  useEffect(() => {
-    if (mapVisible) {
-      setPopupAddress(address);
-    }
-  }, [mapVisible]);
-
-  useEffect(() => {
-    if (feedback) {
-      setPopupVisible(true);
-      const timer = setTimeout(() => setPopupVisible(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedback]);
-
-  const handleReverseGeocode = useCallback(
+    const handleReverseGeocode = useCallback(
     async (latlng, force = false, updatePopupFields = false) => {
       try {
         const res = await fetch(
@@ -154,8 +98,103 @@ const AddressMapSelector = ({
         setFeedback("❌ שגיאה בהשלמת כתובת");
       }
     },
-    [address.number, setAddress, setFeedback]
+    [address, setAddress, setFeedback]
   );
+
+    const initializeMap = useCallback(() => {
+    const map = new window.google.maps.Map(document.getElementById("map"), {
+      center: selectedPosition,
+      zoom: 16,
+    });
+
+    const marker = new window.google.maps.Marker({
+      position: selectedPosition,
+      map,
+      draggable: true,
+    });
+
+    map.addListener("click", async (e) => {
+      const latlng = {
+        lat: e.latLng.lat(),
+        lng: e.latLng.lng(),
+      };
+      marker.setPosition(latlng);
+      setSelectedPosition(latlng);
+      setFeedback("✅ מיקום עודכן ידנית במפה");
+
+      await handleReverseGeocode(latlng, false, true);
+    });
+
+    marker.addListener("dragend", async (e) => {
+      const latlng = {
+        lat: e.latLng.lat(),
+        lng: e.latLng.lng(),
+      };
+      setSelectedPosition(latlng);
+      setFeedback("✅ מיקום נגרר ידנית");
+
+      await handleReverseGeocode(latlng, false, true);
+    });
+
+    mapRef.current = map;
+    markerRef.current = marker;
+  }, [selectedPosition, setFeedback, handleReverseGeocode]);
+
+  const handleFeedback = (message, type = "info") => {
+    if (type === "map") {
+      setFeedback(message);
+    } else {
+      setPopupData({ title: "הודעה", description: message, type });
+    }
+  };
+
+  useEffect(() => {
+    if (popupData) {
+      const timer = setTimeout(() => setPopupData(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [popupData]);
+
+  useEffect(() => {
+    loadGoogleMaps(GOOGLE_API_KEY)
+      .then(() => setGoogleReady(true))
+      .catch((err) => {
+        console.error("Failed to load Google Maps:", err);
+        setFeedback("❌ שגיאה בטעינת Google Maps");
+      });
+  }, [setFeedback]);
+
+useEffect(() => {
+  if (mapVisible && googleReady) {
+    setTimeout(initializeMap, 300);
+  }
+}, [mapVisible, googleReady, initializeMap]);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setSelectedPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      () => setSelectedPosition(defaultPosition)
+    );
+  }, []);
+
+  useEffect(() => {
+    if (mapVisible) {
+      setPopupAddress(address);
+    }
+  }, [mapVisible, address]);
+
+  useEffect(() => {
+    if (feedback) {
+      setPopupVisible(true);
+      const timer = setTimeout(() => setPopupVisible(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -263,45 +302,6 @@ const AddressMapSelector = ({
     } finally {
       setSearching(false);
     }
-  };
-
-  const initializeMap = () => {
-    const map = new window.google.maps.Map(document.getElementById("map"), {
-      center: selectedPosition,
-      zoom: 16,
-    });
-
-    const marker = new window.google.maps.Marker({
-      position: selectedPosition,
-      map,
-      draggable: true,
-    });
-
-    map.addListener("click", async (e) => {
-      const latlng = {
-        lat: e.latLng.lat(),
-        lng: e.latLng.lng(),
-      };
-      marker.setPosition(latlng);
-      setSelectedPosition(latlng);
-      setFeedback("✅ מיקום עודכן ידנית במפה");
-
-      await handleReverseGeocode(latlng, false, true);
-    });
-
-    marker.addListener("dragend", async (e) => {
-      const latlng = {
-        lat: e.latLng.lat(),
-        lng: e.latLng.lng(),
-      };
-      setSelectedPosition(latlng);
-      setFeedback("✅ מיקום נגרר ידנית");
-
-      await handleReverseGeocode(latlng, false, true);
-    });
-
-    mapRef.current = map;
-    markerRef.current = marker;
   };
 
   return (

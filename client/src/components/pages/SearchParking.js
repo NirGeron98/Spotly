@@ -122,7 +122,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
     // Fetch user preferences when component mounts
     fetchUserPreferences();
-  }, []);
+  }, [sortParkingSpots]);
 
   // Update search params when address changes
   useEffect(() => {

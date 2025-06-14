@@ -199,6 +199,10 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         response?.data?.data;
 
       localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem(
+        "mode",
+        user.role === "building_resident" ? "building" : "regular"
+      );
       setLoggedIn(true);
       setSuccess("נרשמת בהצלחה! מעביר אותך לדף הבית...");
 
@@ -220,7 +224,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       let message = "אירעה שגיאה. ודא שכל השדות מולאו כראוי ונסה שוב.";
 
       if (err.response?.data?.error?.code === 11000) {
-        const { keyPattern, } = err.response.data.error;
+        const { keyPattern } = err.response.data.error;
 
         if (keyPattern?.email) {
           message = "האימייל כבר קיים במערכת.";

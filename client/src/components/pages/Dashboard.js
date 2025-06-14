@@ -52,15 +52,16 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
 
           {role === "building_resident" && (
             <div className="flex justify-center gap-6">
-              <div className="w-72">
+              <div className="w-72 h-40 flex items-stretch">
                 <ActionButton
                   text={
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-2 h-full">
                       <FaCar className="text-xl" />
                       חיפוש חנייה/עמדת טעינה בתשלום
                     </div>
                   }
                   primary={true}
+                  className="h-full"
                   onClick={() => {
                     localStorage.removeItem("mode", "regular");
                     navigate("/search-parking");
@@ -68,15 +69,16 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
                 />
               </div>
 
-              <div className="w-72">
+              <div className="w-72 h-40 flex items-stretch">
                 <ActionButton
                   text={
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-2 h-full">
                       <FaBuilding className="text-xl" />
                       מערכת ניהול חניות בבניין מגורים
                     </div>
                   }
                   primary={false}
+                  className="h-full"
                   onClick={() => {
                     localStorage.setItem("mode", "building");
                     navigate("/residential-parking-search");

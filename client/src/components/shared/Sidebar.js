@@ -17,7 +17,7 @@ const Sidebar = ({ current, setCurrent, role }) => {
     }
   }, [location.state?.mode]);
 
-  const isBuildingMode = currentMode === "building";
+  const isBuildingMode = currentMode === "building" && role === "building_resident";
 
   const options = [
     {
@@ -48,12 +48,11 @@ const Sidebar = ({ current, setCurrent, role }) => {
     label: "ניהול החנייה שלי",
     icon: <FaRegWindowClose className="text-lg" />,
     path: "/release",
-    visible: role !== "building_resident" || currentMode === "building",
+    visible: role !== "user" && (role !== "building_resident" || currentMode === "building"),
   };
 
   return (
     <>
-      {/* כפתור המבורגר למסכים קטנים */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 bg-indigo-800 text-white p-2 rounded"
         onClick={() => setIsOpen(!isOpen)}
@@ -63,15 +62,11 @@ const Sidebar = ({ current, setCurrent, role }) => {
 
       <aside
         className={`fixed top-[4rem] bottom-0 z-40 bg-gradient-to-b from-indigo-900 to-blue-800 shadow-xl flex flex-col
-        w-[70vw] min-w-[180px] max-w-[250px] h-[calc(100vh-4rem)]
-        transform transition-transform duration-300
-        rtl:right-0 ltr:left-0
-        lg:static lg:right-0 lg:translate-x-0 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[20vw] lg:min-w-[180px] lg:max-w-[250px] ${
+        w-[70vw] min-w-[180px] max-w-[250px] h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] lg:w-[20vw] lg:min-w-[180px] lg:max-w-[250px] rtl:right-0 ltr:left-0 lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* כפתורים רגילים */}
-        <nav className="flex flex-col px-3 py-4 mt-16 overflow-y-auto flex-grow">
+        <nav className="flex flex-col px-3 py-4 mt-2 overflow-y-auto flex-grow">
         {options.map(
             (opt) =>
               opt.visible && (
@@ -107,7 +102,6 @@ const Sidebar = ({ current, setCurrent, role }) => {
           )}
         </nav>
 
-        {/* כפתור ניהול חנייה - למטה */}
         {releaseOption.visible && (
           <div className="px-3 py-2 border-t border-blue-700/30 bg-blue-900/30">
             <button
@@ -147,7 +141,6 @@ const Sidebar = ({ current, setCurrent, role }) => {
           </div>
         )}
 
-        {/* תחתית */}
         <div className="px-3 py-4 text-center text-blue-200 text-xs bg-indigo-900/30">
           <div className="w-10 h-0.5 mx-auto mb-2 bg-blue-400/30 rounded-full"></div>
           Spotly
