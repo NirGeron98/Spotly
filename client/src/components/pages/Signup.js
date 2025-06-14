@@ -211,7 +211,6 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     } catch (err) {
       console.error("Registration error:", err);
 
-      // הדפסה מלאה של תגובת השגיאה
       if (err.response) {
         console.log("📦 err.response.data:", err.response.data);
         console.log("📦 err.response.data.error:", err.response.data.error);
