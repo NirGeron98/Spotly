@@ -85,10 +85,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  useEffect(() => {
-    fetchAllUserActivity();
-  }, [fetchAllUserActivity]);
-
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -98,7 +94,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const mode = localStorage.getItem("mode"); // Retrieve the user's current mode
+      const mode = localStorage.getItem("mode");
 
       // Fetch user's bookings (either as customer or as owner)
       const bookingsResponse = await axios.get(
@@ -128,7 +124,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           return false;
         })
         .map((b) => {
-          // Safely parse dates with validation
           const startDate = b.start_datetime
             ? parseISO(b.start_datetime)
             : null;
@@ -165,7 +160,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
       // Transform published spots into history items
       const spotHistory = spots.flatMap((spot) => {
-        // Safely parse spot creation date
         const spotDate = spot.created_at ? parseISO(spot.created_at) : null;
 
         const spotEntry = {
@@ -215,13 +209,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
               }
             };
 
-            console.log("✅ FIXED SCHEDULE DEBUG:", {
-              schedule,
-              start_datetime: schedule.start_datetime,
-              end_datetime: schedule.end_datetime,
-              scheduleActionDate,
-            });
-
             return {
               id: `${spot._id}-${schedule._id}`,
               date: schedule.start_datetime
@@ -257,15 +244,29 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         return [spotEntry, ...scheduleEntries];
       });
 
-      // Combine all history items and sort by date
+      // Combine all history items
       const combinedHistory = [...bookingHistory, ...spotHistory];
       setUsageHistory(combinedHistory);
+
+      // הוספת console.log לבדיקה
+      console.log("Data loaded successfully:", combinedHistory.length, "items");
     } catch (err) {
       console.error("שגיאה בעת טעינת היסטוריית שימוש:", err);
+      setUsageHistory([]); // וודא שה-state מתעדכן גם במקרה של שגיאה
     } finally {
+      // וודא שה-loading מתבטל תמיד, גם במקרה של שגיאה
       setLoading(false);
+      console.log("Loading state set to false");
     }
   };
+
+  useEffect(() => {
+    fetchAllUserActivity();
+  }, []);
+
+  useEffect(() => {
+    fetchAllUserActivity();
+  }, [localStorage.getItem("mode")]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -815,7 +816,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
             {loading && (
               <div className="text-center py-4 text-gray-500 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700 mr-2"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700 ml-5"></div>
                 <span>טוען היסטוריית שימוש...</span>
               </div>
             )}

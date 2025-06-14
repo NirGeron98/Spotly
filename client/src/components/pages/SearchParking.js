@@ -104,6 +104,28 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     { id: "Other", label: "אחר" },
   ];
 
+    const sortParkingSpots = (spots) => {
+    return [...spots].sort((a, b) => {
+      let valueA, valueB;
+
+      switch (searchParams.sortBy) {
+        case "price":
+          valueA = a.hourly_price || 0;
+          valueB = b.hourly_price || 0;
+          break;
+        case "distance":
+        default:
+          valueA = a.distance || 0;
+          valueB = b.distance || 0;
+          break;
+      }
+
+      return searchParams.sortOrder === "asc"
+        ? valueA - valueB
+        : valueB - valueA;
+    });
+  };
+
   useEffect(() => {
     // Try to get user location when component mounts
     if (navigator.geolocation) {
@@ -122,7 +144,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
     // Fetch user preferences when component mounts
     fetchUserPreferences();
-  }, [sortParkingSpots]);
+  }, []);
 
   // Update search params when address changes
   useEffect(() => {
@@ -282,28 +304,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const sortParkingSpots = (spots) => {
-    return [...spots].sort((a, b) => {
-      let valueA, valueB;
-
-      switch (searchParams.sortBy) {
-        case "price":
-          valueA = a.hourly_price || 0;
-          valueB = b.hourly_price || 0;
-          break;
-        case "distance":
-        default:
-          valueA = a.distance || 0;
-          valueB = b.distance || 0;
-          break;
-      }
-
-      return searchParams.sortOrder === "asc"
-        ? valueA - valueB
-        : valueB - valueA;
-    });
   };
 
   const handleSortChange = (sortField) => {

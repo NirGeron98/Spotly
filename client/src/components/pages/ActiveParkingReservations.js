@@ -954,7 +954,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               </button>
               <button
                 onClick={confirmEndParking}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                className="bg-blue-600 hover:bg-blue-700 text-blue font-medium py-2 px-4 rounded"
               >
                 סיים חניה
               </button>
