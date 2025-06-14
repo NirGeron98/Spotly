@@ -286,7 +286,6 @@ const AddressMapSelector = ({
       setSelectedPosition(latlng);
       setFeedback("✅ מיקום עודכן ידנית במפה");
 
-      // עדכון השדות בפופ-אפ בהתאם למיקום שנבחר על המפה
       await handleReverseGeocode(latlng, false, true);
     });
 
@@ -298,7 +297,6 @@ const AddressMapSelector = ({
       setSelectedPosition(latlng);
       setFeedback("✅ מיקום נגרר ידנית");
 
-      // עדכון השדות בפופ-אפ בהתאם למיקום שנגרר על המפה
       await handleReverseGeocode(latlng, false, true);
     });
 

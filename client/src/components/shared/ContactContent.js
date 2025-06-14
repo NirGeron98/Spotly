@@ -3,12 +3,6 @@
 const ContactContent = () => {
   // const [submitted, setSubmitted] = useState(false);
 
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-  //   // כאן אפשר להוסיף שליחה לשרת / EmailJS / Formspree
-  //   setSubmitted(true);
-  // };
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       {/* Contact Info */}
