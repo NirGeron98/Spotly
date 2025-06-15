@@ -13,6 +13,7 @@ import {
   parseISO,
   isValid,
   isBefore,
+  isAfter,
 } from "date-fns";
 import { USER_TIMEZONE } from "../utils/constants";
 
@@ -310,7 +311,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
             const scheduleDayStart = startOfDay(scheduleStartLocal);
             if (
               !isBefore(scheduleDayStart, weekStart) &&
-              !isBefore(addDays(weekEnd, 1), scheduleDayStart)
+              !isAfter(scheduleDayStart, weekEnd)
             ) {
               const dayOfWeek = getDay(scheduleStartLocal);
               schedules.push({
@@ -330,7 +331,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       }
     });
     setWeekViewSchedules(schedules);
-  }, [parkingSlots, startOfWeekDate, USER_TIMEZONE]);
+  }, [parkingSlots, startOfWeekDate]);
 
   useEffect(() => {
     generateWeekViewData();
