@@ -1026,60 +1026,34 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     ))}
                   </div>
 
-                  <div className="relative min-w-[700px] md:min-w-[900px] lg:min-w-[1000px]">
-                    <div className="absolute top-0 right-0 h-full w-12 md:w-16 border-l border-gray-200 bg-white z-10">
+                  <div className="relative min-w-[1000px]">
+                    <div className="absolute top-0 right-0 h-full w-16 border-l border-gray-200 bg-white z-10">
                       {Array.from({ length: 18 }).map((_, i) => (
                         <div
                           key={i}
-                          className="h-[40px] md:h-[50px] lg:h-[60px] border-b border-gray-200 text-xs text-gray-500 flex items-center justify-center"
+                          className="h-[60px] border-b border-gray-200 text-xs text-gray-500 flex items-center justify-center"
                         >
-                          <span className="hidden md:inline">
-                            {String(i + 6).padStart(2, "0")}:00
-                          </span>
-                          <span className="md:hidden">{i + 6}</span>
+                          {String(i + 6).padStart(2, "0")}:00
                         </div>
                       ))}
                     </div>
-
-                    <div className="mr-12 md:mr-16 flex">
+                    <div className="mr-16 flex">
                       {Array.from({ length: 7 }).map((_, dayIndex) => {
                         const isPast = isDayInPast(dayIndex);
-                        const dayHeight = 40; 
-                        const mdDayHeight = 50; 
-                        const lgDayHeight = 60; 
-
                         return (
                           <div
                             key={dayIndex}
-                            className={`flex-1 relative border-l border-gray-200 ${
+                            className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${
                               isPast
                                 ? "bg-gray-100 cursor-not-allowed"
                                 : "bg-white"
                             }`}
-                            style={{
-                              minHeight: `${dayHeight * 18}px`,
-                              "@media (min-width: 768px)": {
-                                minHeight: `${mdDayHeight * 18}px`,
-                              },
-                              "@media (min-width: 1024px)": {
-                                minHeight: `${lgDayHeight * 18}px`,
-                              },
-                            }}
                             onMouseDown={(e) =>
                               !isPast && handleMouseDown(e, dayIndex)
                             }
                             onMouseMove={!isPast ? handleMouseMove : undefined}
                             onMouseUp={!isPast ? handleMouseUp : undefined}
                             onMouseLeave={!isPast ? handleMouseUp : undefined}
-                            onTouchStart={(e) =>
-                              !isPast && handleMouseDown(e.touches[0], dayIndex)
-                            }
-                            onTouchMove={
-                              !isPast
-                                ? (e) => handleMouseMove(e.touches[0])
-                                : undefined
-                            }
-                            onTouchEnd={!isPast ? handleMouseUp : undefined}
                           >
                             {Array.from({ length: 18 }).map((_, i) => (
                               <div
@@ -1087,21 +1061,12 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 className={`absolute w-full h-[1px] ${
                                   isPast ? "bg-gray-200" : "bg-gray-100"
                                 }`}
-                                style={{
-                                  top: `${i * dayHeight}px`,
-                                  "@media (min-width: 768px)": {
-                                    top: `${i * mdDayHeight}px`,
-                                  },
-                                  "@media (min-width: 1024px)": {
-                                    top: `${i * lgDayHeight}px`,
-                                  },
-                                }}
+                                style={{ top: i * 60 }}
                               ></div>
                             ))}
-
                             {isDragging && selectedDay === dayIndex && (
                               <div
-                                className="absolute right-0 w-[calc(100%-4px)] md:w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70 z-10"
+                                className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70 z-10"
                                 style={{
                                   top: `${Math.min(dragStart, dragEnd)}px`,
                                   height: `${Math.abs(dragEnd - dragStart)}px`,
@@ -1109,7 +1074,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 }}
                               ></div>
                             )}
-
                             {weekViewSchedules
                               .filter(
                                 (schedule) => schedule.dayOfWeek === dayIndex
@@ -1126,7 +1090,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 const isExpanded =
                                   expandedSchedule &&
                                   expandedSchedule._id === schedule._id;
-
                                 return (
                                   <div
                                     key={idx}
@@ -1135,7 +1098,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         isExpanded ? null : schedule
                                       )
                                     }
-                                    className={`absolute right-0 w-[calc(100%-4px)] md:w-[calc(100%-8px)] mx-1 rounded-md p-1 md:p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${
+                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${
                                       isBooked
                                         ? "bg-red-100 border border-red-300 text-red-800"
                                         : schedule.type === "טעינה לרכב חשמלי"
@@ -1149,13 +1112,13 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                       height: `${
                                         isExpanded
                                           ? "auto"
-                                          : Math.max(height, 25)
+                                          : Math.max(height, 30)
                                       }px`,
-                                      minHeight: "25px",
+                                      minHeight: "30px",
                                     }}
                                   >
                                     <div className="flex justify-between items-start">
-                                      <div className="flex gap-1 md:gap-2 flex-shrink-0">
+                                      <div className="flex gap-2 flex-shrink-0">
                                         {!isBooked && !isPast && (
                                           <button
                                             onClick={(e) => {
@@ -1165,7 +1128,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                                 scheduleId: schedule._id,
                                               });
                                             }}
-                                            className="text-red-500 hover:text-red-700 text-xs md:text-sm"
+                                            className="text-red-500 hover:text-red-700 text-sm"
                                             title="מחק פינוי"
                                           >
                                             <FaTrash />
@@ -1180,26 +1143,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                                 schedule._id
                                               );
                                             }}
-                                            className="text-blue-500 hover:text-blue-700 text-xs md:text-sm"
+                                            className="text-blue-500 hover:text-blue-700 text-sm"
                                             title="פרטי המזמין"
                                           >
                                             <FaUser />
                                           </button>
                                         )}
                                       </div>
-                                      <div className="font-semibold text-xs md:text-sm">
+                                      <div
+                                        className={`font-semibold ${
+                                          isExpanded ? "text-base" : "text-xs"
+                                        }`}
+                                      >
                                         {schedule.display_start_time} -{" "}
                                         {schedule.display_end_time}
                                       </div>
                                     </div>
-
                                     {isExpanded && (
-                                      <div className="mt-1 md:mt-2 text-xs md:text-sm space-y-1">
+                                      <div className="mt-2 text-sm space-y-1">
                                         <div>
                                           סטטוס:{" "}
                                           {isBooked ? "הוזמן" : "זמין להזמנה"}
                                         </div>
-                                        <div className="truncate">
+                                        <div>
                                           חנייה:{" "}
                                           {schedule.slot?.spot_number
                                             ? `מספר ${schedule.slot.spot_number}`
