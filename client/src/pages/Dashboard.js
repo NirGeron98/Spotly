@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCar, FaBuilding } from "react-icons/fa";
-import ActionButton from "../components/common/ActionButton";
+import ActionButton from "../components/shared/ActionButton";
 import Navbar from "../components/shared/Navbar";
 import Footer from "../components/shared/Footer";
 

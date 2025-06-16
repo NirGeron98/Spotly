@@ -4,7 +4,13 @@ import Navbar from "../components/shared/Navbar";
 import Sidebar from "../components/shared/Sidebar";
 import Footer from "../components/shared/Footer";
 import Popup from "../components/shared/Popup";
-import { FaCog, FaTrash, FaUser } from "react-icons/fa";
+import AddScheduleForm from "../components/release-parking/AddScheduleForm";
+import WeeklyToolbar from "../components/release-parking/WeeklyToolbar";
+import WeeklyParkingGrid from "../components/release-parking/WeeklyParkingGrid";
+import WeeklyHeader from "../components/release-parking/WeeklyHeader";
+import QuickAddPopup from "../components/release-parking/QuickAddPopup";
+import SettingsButton from "../components/release-parking/SettingsButton";
+import ScheduleCard from "../components/release-parking/ScheduleCard";  
 import { format, fromZonedTime, toZonedTime } from "date-fns-tz";
 import {
   startOfDay,
@@ -46,11 +52,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
-
-  console.log(
-    "ReleaseParking Component: USER_TIMEZONE defined as:",
-    USER_TIMEZONE
-  );
 
   const getRoundedTime = (date = new Date()) => {
     date.setSeconds(0, 0);
@@ -821,121 +822,23 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               ניהול החנייה שלי
             </h1>
             {!isBuildingMode && (
-              <button
-                onClick={() => {
-                  const privateSpot = parkingSlots.find(
-                    (s) => s.spot_type === "private"
-                  );
-                  setNewPrice(privateSpot?.hourly_price?.toString() || "");
-                  setPriceError("");
-                  setPriceSuccess("");
-                  setShowSettingsPopup(true);
-                }}
-                className="absolute ml-4 mt-4 top-20 left-2 flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200 shadow-md"
-                title="הגדרות חנייה"
-              >
-                <span className="ml-2">הגדרות חנייה</span>
-                <FaCog />
-              </button>
+              <SettingsButton
+                parkingSlots={parkingSlots}
+                setNewPrice={setNewPrice}
+                setPriceError={setPriceError}
+                setPriceSuccess={setPriceSuccess}
+                setShowSettingsPopup={setShowSettingsPopup}
+              />
             )}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md space-y-4 h-fit">
-              <h2 className="text-xl font-bold text-center mb-4">
-                הוסף פינוי חנייה
-              </h2>
-              <div>
-                <label className="font-semibold">תאריך</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  min={format(new Date(), "yyyy-MM-dd")}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    שעת התחלה
-                  </label>
-                  <select
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
-                  >
-                    {Array.from({ length: 72 }).map((_, i) => {
-                      const hours = Math.floor(i / 4) + 6;
-                      const minutes = (i % 4) * 15;
-                      const timeString = `${hours
-                        .toString()
-                        .padStart(2, "0")}:${minutes
-                        .toString()
-                        .padStart(2, "0")}`;
-                      return (
-                        <option key={i} value={timeString}>
-                          {timeString}
-                        </option>
-                      );
-                    })}
-                    <option value="23:59">23:59</option>
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    שעת סיום
-                  </label>
-                  <select
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
-                  >
-                    {Array.from({ length: 72 }).map((_, i) => {
-                      const hours = Math.floor(i / 4) + 6;
-                      const minutes = (i % 4) * 15;
-                      const timeString = `${hours
-                        .toString()
-                        .padStart(2, "0")}:${minutes
-                        .toString()
-                        .padStart(2, "0")}`;
-                      return (
-                        <option key={i} value={timeString}>
-                          {timeString}
-                        </option>
-                      );
-                    })}
-                    <option value="23:59">23:59</option>
-                  </select>
-                </div>
-              </div>
+            <AddScheduleForm
+              formData={formData}
+              handleChange={handleChange}
+              isBuildingMode={isBuildingMode}
+              handleAddSlot={handleAddSlot}
+            />
 
-              {!isBuildingMode && (
-                <>
-                  <div>
-                    <label className="font-semibold">סוג פינוי</label>
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      className="w-full border rounded px-3 py-2"
-                    >
-                      <option>השכרה רגילה</option>
-                      <option>טעינה לרכב חשמלי</option>
-                    </select>
-                  </div>
-                </>
-              )}
-              <div className="mt-4"></div>
-              <button
-                onClick={() => handleAddSlot()}
-                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-              >
-                הוסף פינוי
-              </button>
-            </div>
             <div className="lg:col-span-2 bg-white p-3 md:p-6 rounded-xl shadow-md flex flex-col h-[500px] md:h-[600px] lg:h-[700px]">
               <h2 className="text-lg md:text-xl font-bold text-center mb-4">
                 לוח פינויי החניות
@@ -950,33 +853,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                 <span className="md:hidden"> גע על הלוח כדי ליצור פינוי</span>
               </div>
 
-              <div className="flex justify-between items-center mb-4 gap-2">
-                <button
-                  onClick={goToPrevWeek}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 md:px-4 py-1 rounded text-xs md:text-sm"
-                >
-                  <i className="fas fa-chevron-right ml-1"></i>
-                  <span className="hidden sm:inline">שבוע קודם</span>
-                  <span className="sm:hidden">קודם</span>
-                </button>
-
-                <button
-                  onClick={goToCurrentWeek}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 md:px-4 py-1 rounded text-xs md:text-sm"
-                >
-                  <span className="hidden sm:inline">השבוע הנוכחי</span>
-                  <span className="sm:hidden">השבוע</span>
-                </button>
-
-                <button
-                  onClick={goToNextWeek}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 md:px-4 py-1 rounded text-xs md:text-sm"
-                >
-                  <span className="hidden sm:inline">שבוע הבא</span>
-                  <span className="sm:hidden">הבא</span>
-                  <i className="fas fa-chevron-left mr-1"></i>
-                </button>
-              </div>
+              <WeeklyToolbar
+                goToPrevWeek={goToPrevWeek}
+                goToCurrentWeek={goToCurrentWeek}
+                goToNextWeek={goToNextWeek}
+              />
 
               {loadingSpots ? (
                 <div className="flex-grow flex items-center justify-center">
@@ -987,296 +868,47 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   className="flex-grow overflow-auto relative"
                   ref={timeGridRef}
                 >
-                  <div className="flex sticky top-0 bg-white z-20 border-b border-gray-200 min-w-[700px] md:min-w-[900px] lg:min-w-[1000px]">
-                    <div className="w-12 md:w-16 shrink-0 border-l border-gray-200 bg-gray-50"></div>
-                    {getWeekDates().map((date, i) => (
-                      <div
-                        key={i}
-                        className={`flex-1 text-center py-2 px-1 border-l border-gray-200 ${
-                          isDayInPast(i) ? "bg-gray-100" : "bg-gray-50"
-                        }`}
-                      >
-                        <div className="font-bold text-blue-800 text-xs md:text-sm lg:text-base">
-                          <span className="md:hidden">
-                            {getDayName(getDay(date)).slice(0, 2)}
-                          </span>
-                          <span className="hidden md:inline">
-                            {getDayName(getDay(date))}
-                          </span>
-                        </div>
+                  <WeeklyHeader
+                    getWeekDates={getWeekDates}
+                    getDayName={getDayName}
+                    getDay={getDay}
+                    formatDateForDisplay={formatDateForDisplay}
+                    isDayInPast={isDayInPast}
+                  />
 
-                        <div className="text-xs md:text-sm text-gray-600">
-                          {formatDateForDisplay(date)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="relative min-w-[1000px]">
-                    <div className="absolute top-0 right-0 h-full w-16 border-l border-gray-200 bg-white z-10">
-                      {Array.from({ length: 18 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="h-[60px] border-b border-gray-200 text-xs text-gray-500 flex items-center justify-center"
-                        >
-                          {String(i + 6).padStart(2, "0")}:00
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mr-16 flex">
-                      {Array.from({ length: 7 }).map((_, dayIndex) => {
-                        const isPast = isDayInPast(dayIndex);
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${
-                              isPast
-                                ? "bg-gray-100 cursor-not-allowed"
-                                : "bg-white"
-                            }`}
-                            onMouseDown={(e) =>
-                              !isPast && handleMouseDown(e, dayIndex)
-                            }
-                            onMouseMove={!isPast ? handleMouseMove : undefined}
-                            onMouseUp={!isPast ? handleMouseUp : undefined}
-                            onMouseLeave={!isPast ? handleMouseUp : undefined}
-                          >
-                            {Array.from({ length: 18 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={`absolute w-full h-[1px] ${
-                                  isPast ? "bg-gray-200" : "bg-gray-100"
-                                }`}
-                                style={{ top: i * 60 }}
-                              ></div>
-                            ))}
-                            {isDragging && selectedDay === dayIndex && (
-                              <div
-                                className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70 z-10"
-                                style={{
-                                  top: `${Math.min(dragStart, dragEnd)}px`,
-                                  height: `${Math.abs(dragEnd - dragStart)}px`,
-                                  minHeight: "15px",
-                                }}
-                              ></div>
-                            )}
-                            {weekViewSchedules
-                              .filter(
-                                (schedule) => schedule.dayOfWeek === dayIndex
-                              )
-                              .map((schedule, idx) => {
-                                const top = getTimePosition(
-                                  schedule.display_start_time
-                                );
-                                const height = getTimeSlotHeight(
-                                  schedule.display_start_time,
-                                  schedule.display_end_time
-                                );
-                                const isBooked = !schedule.is_available;
-                                const isExpanded =
-                                  expandedSchedule &&
-                                  expandedSchedule._id === schedule._id;
-                                return (
-                                  <div
-                                    key={idx}
-                                    onClick={() =>
-                                      setExpandedSchedule(
-                                        isExpanded ? null : schedule
-                                      )
-                                    }
-                                    className={`absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md p-2 cursor-pointer transition-all duration-200 overflow-hidden text-right ${
-                                      isBooked
-                                        ? "bg-red-100 border border-red-300 text-red-800"
-                                        : schedule.type === "טעינה לרכב חשמלי"
-                                        ? "bg-green-100 border border-green-300 text-green-800"
-                                        : "bg-blue-100 border border-blue-300 text-blue-800"
-                                    } ${
-                                      isExpanded ? "shadow-lg z-20" : "z-10"
-                                    }`}
-                                    style={{
-                                      top: `${top}px`,
-                                      height: `${
-                                        isExpanded
-                                          ? "auto"
-                                          : Math.max(height, 30)
-                                      }px`,
-                                      minHeight: "30px",
-                                    }}
-                                  >
-                                    <div className="flex justify-between items-start">
-                                      <div className="flex gap-2 flex-shrink-0">
-                                        {!isBooked && !isPast && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setConfirmDeleteId({
-                                                spotId: schedule.slot._id,
-                                                scheduleId: schedule._id,
-                                              });
-                                            }}
-                                            className="text-red-500 hover:text-red-700 text-sm"
-                                            title="מחק פינוי"
-                                          >
-                                            <FaTrash />
-                                          </button>
-                                        )}
-                                        {isBooked && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              fetchBookingDetails(
-                                                schedule.slot._id,
-                                                schedule._id
-                                              );
-                                            }}
-                                            className="text-blue-500 hover:text-blue-700 text-sm"
-                                            title="פרטי המזמין"
-                                          >
-                                            <FaUser />
-                                          </button>
-                                        )}
-                                      </div>
-                                      <div
-                                        className={`font-semibold ${
-                                          isExpanded ? "text-base" : "text-xs"
-                                        }`}
-                                      >
-                                        {schedule.display_start_time} -{" "}
-                                        {schedule.display_end_time}
-                                      </div>
-                                    </div>
-                                    {isExpanded && (
-                                      <div className="mt-2 text-sm space-y-1">
-                                        <div>
-                                          סטטוס:{" "}
-                                          {isBooked ? "הוזמן" : "זמין להזמנה"}
-                                        </div>
-                                        <div>
-                                          חנייה:{" "}
-                                          {schedule.slot?.spot_number
-                                            ? `מספר ${schedule.slot.spot_number}`
-                                            : schedule.slot?.address?.street ||
-                                              "פרטית"}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <WeeklyParkingGrid
+                    weekViewSchedules={weekViewSchedules}
+                    isDayInPast={isDayInPast}
+                    timeGridRef={timeGridRef}
+                    handleMouseDown={handleMouseDown}
+                    handleMouseMove={handleMouseMove}
+                    handleMouseUp={handleMouseUp}
+                    isDragging={isDragging}
+                    dragStart={dragStart}
+                    dragEnd={dragEnd}
+                    selectedDay={selectedDay}
+                    getTimePosition={getTimePosition}
+                    getTimeSlotHeight={getTimeSlotHeight}
+                    expandedSchedule={expandedSchedule}
+                    setExpandedSchedule={setExpandedSchedule}
+                    fetchBookingDetails={fetchBookingDetails}
+                    setConfirmDeleteId={setConfirmDeleteId}
+                      ScheduleCard={ScheduleCard}
+                  />
                 </div>
               )}
             </div>
           </div>
           {showQuickAddPopup && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
-                <h3 className="text-xl font-bold mb-4 text-center">
-                  הוסף פינוי חנייה מהיר
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="font-semibold">תאריך</label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={quickAddData.date}
-                      onChange={handleQuickAddChange}
-                      min={format(new Date(), "yyyy-MM-dd")}
-                      className="w-full border rounded px-3 py-2"
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="w-1/2">
-                      <label className="font-semibold">שעת התחלה</label>
-                      <select
-                        name="startTime"
-                        value={quickAddData.startTime}
-                        onChange={handleQuickAddChange}
-                        className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
-                      >
-                        {Array.from({ length: 72 }).map((_, i) => {
-                          const hours = Math.floor(i / 4) + 6;
-                          const minutes = (i % 4) * 15;
-                          const timeString = `${hours
-                            .toString()
-                            .padStart(2, "0")}:${minutes
-                            .toString()
-                            .padStart(2, "0")}`;
-                          return (
-                            <option key={i} value={timeString}>
-                              {timeString}
-                            </option>
-                          );
-                        })}
-                        <option value="23:59">23:59</option>
-                      </select>
-                    </div>
-                    <div className="w-1/2">
-                      <label className="font-semibold">שעת סיום</label>
-                      <select
-                        name="endTime"
-                        value={quickAddData.endTime}
-                        onChange={handleQuickAddChange}
-                        className="w-full px-4 py-2 rounded-md border border-gray-300 text-right"
-                      >
-                        {Array.from({ length: 72 }).map((_, i) => {
-                          const hours = Math.floor(i / 4) + 6;
-                          const minutes = (i % 4) * 15;
-                          const timeString = `${hours
-                            .toString()
-                            .padStart(2, "0")}:${minutes
-                            .toString()
-                            .padStart(2, "0")}`;
-                          return (
-                            <option key={i} value={timeString}>
-                              {timeString}
-                            </option>
-                          );
-                        })}
-                        <option value="23:59">23:59</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {!isBuildingMode && (
-                    <>
-                      <div>
-                        <label className="font-semibold">סוג פינוי</label>
-                        <select
-                          name="type"
-                          value={quickAddData.type}
-                          onChange={handleQuickAddChange}
-                          className="w-full border rounded px-3 py-2"
-                        >
-                          <option>השכרה רגילה</option>
-                          <option>טעינה לרכב חשמלי</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={() => setShowQuickAddPopup(false)}
-                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
-                    >
-                      ביטול
-                    </button>
-                    <button
-                      onClick={() => handleAddSlot(quickAddData)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                    >
-                      הוסף
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <QuickAddPopup
+              quickAddData={quickAddData}
+              handleQuickAddChange={handleQuickAddChange}
+              handleAddSlot={handleAddSlot}
+              setShowQuickAddPopup={setShowQuickAddPopup}
+              isBuildingMode={isBuildingMode}
+            />
           )}
+
           {showSettingsPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
