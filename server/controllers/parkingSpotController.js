@@ -584,39 +584,32 @@ exports.handleBuildingParkingRequest = catchAsync(async (req, res, next) => {
       );
 
       if (availableSpot) {
-        // Instantly book if available
-        await bookingService.createBooking(
-          req.user.id,
-          availableSpot._id,
-          requestedStartTime,
-          requestedEndTime,
-          {
-            booking_type: "parking",
-            booking_source: "resident_building_allocation",
-            status: "active",
-            payment_status: "not_applicable",
-          },
-          req.user.timezone || "UTC"
-        );
-        return res.status(201).json({
+        return res.status(200).json({
           status: "success",
-          message: "Spot allocated successfully!",
+          message: "Spot found successfully. No booking created yet.",
           data: { spot: availableSpot },
         });
       } else {
-        // Add to waiting queue if no spots are free
-        const newQueueRequest = new ParkingRequest({
-          userId: req.user.id,
-          buildingId: building_id,
-          start_datetime: requestedStartTime,
-          end_datetime: requestedEndTime,
-          status: "waiting_queue",
-        });
-        await newQueueRequest.save();
-        return res.status(202).json({
-          status: "accepted",
+        if (req.body.confirm_waitlist) {
+          const newQueueRequest = new ParkingRequest({
+            userId: req.user.id,
+            buildingId: building_id,
+            start_datetime: requestedStartTime,
+            end_datetime: requestedEndTime,
+            status: "waiting_queue",
+          });
+          await newQueueRequest.save();
+
+          return res.status(202).json({
+            status: "added_to_queue",
+            message: "You have been added to the waiting queue.",
+          });
+        }
+
+        return res.status(200).json({
+          status: "no_spot_today",
           message:
-            "All spots are currently full. You have been added to the priority waitlist and will be notified if a spot becomes available.",
+            "No available spot today. Ask the user if they want to be added to the waiting list.",
         });
       }
     } catch (error) {
@@ -625,19 +618,27 @@ exports.handleBuildingParkingRequest = catchAsync(async (req, res, next) => {
   } else {
     // C. If not for the past and not for today, it must be for the future
     // TIER 1 LOGIC: Handle advance requests
-    const newRequest = new ParkingRequest({
-      userId: req.user.id,
-      buildingId: building_id,
-      start_datetime: requestedStartTime,
-      end_datetime: requestedEndTime,
-      status: "pending_batch",
-    });
-    await newRequest.save();
+    if (req.body.confirm_waitlist) {
+      const newRequest = new ParkingRequest({
+        userId: req.user.id,
+        buildingId: building_id,
+        start_datetime: requestedStartTime,
+        end_datetime: requestedEndTime,
+        status: "pending_batch",
+      });
+      await newRequest.save();
 
-    return res.status(202).json({
-      status: "accepted",
+      return res.status(202).json({
+        status: "accepted",
+        message:
+          "Your advance request has been submitted and will be processed tonight. You will be notified of the outcome.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "no_spot_future",
       message:
-        "Your advance request has been submitted and will be processed tonight. You will be notified of the outcome.",
+        "No spot found for the future date. Ask the user if they want to be added to the batch queue.",
     });
   }
 });

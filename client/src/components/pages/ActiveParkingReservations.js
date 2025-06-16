@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Navbar from "../shared/Navbar";
 import Sidebar from "../shared/Sidebar";
 import Footer from "../shared/Footer";
-import { FaClock, FaCheck, FaCarSide, FaMoneyBillWave } from "react-icons/fa";
+import {
+  FaClock,
+  FaCheck,
+  FaCarSide,
+  FaMoneyBillWave,
+  FaMapMarkerAlt,
+  FaParking,
+  FaTimes,
+  FaStop,
+} from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import Popup from "../shared/Popup";
@@ -20,9 +29,9 @@ const ActiveParkingTimer = ({
   return (
     <div className="mb-8 w-full">
       <div
-        className="rounded-xl shadow-xl p-6 mx-auto max-w-4xl transform hover:scale-105 transition-transform duration-300"
+        className="rounded-xl shadow-lg p-6 mx-auto max-w-4xl transform hover:scale-105 transition-all duration-500 border border-blue-200"
         style={{
-          background: "linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6)",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
           backgroundSize: "200% 200%",
           animation: "15s ease infinite",
           animationName: "gradientShift",
@@ -72,50 +81,45 @@ const ActiveParkingTimer = ({
             }
           }
         `}</style>
-        <div className="flex flex-col md:flex-row items-center justify-between">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           {/* Left side: Booking info */}
-          <div className="text-white mb-6 md:mb-0 md:w-1/2 text-center md:text-right">
-            <h3 className="text-xl font-bold mb-2">חנייה פעילה כעת</h3>
-            {localStorage.getItem("mode") !== "building" && (
-              <p className="mb-1 text-blue-100">
-                <span className="font-semibold">תעריף:</span>{" "}
-                {activeBooking.base_rate !== undefined &&
-                activeBooking.base_rate !== null &&
-                activeBooking.base_rate > 0
-                  ? `${activeBooking.base_rate} ₪/שעה`
-                  : activeBooking.spot &&
-                    activeBooking.spot.hourly_price &&
-                    activeBooking.spot.hourly_price > 0
-                  ? `${activeBooking.spot.hourly_price} ₪/שעה`
-                  : "0 ₪/שעה"}
-              </p>
-            )}
+          <div className="text-white lg:w-1/3 text-center lg:text-right">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
+              <h3 className="text-lg font-bold mb-3 flex items-center justify-center lg:justify-start">
+                <FaParking className="ml-2 text-white" />
+                חנייה פעילה כעת
+              </h3>
+              {localStorage.getItem("mode") !== "building" && (
+                <p className="mb-2 text-blue-100 flex items-center justify-center lg:justify-start text-sm">
+                  <FaMoneyBillWave className="ml-2" />
+                  <span className="font-semibold">תעריף:</span>&nbsp;
+                  {activeBooking.base_rate !== undefined &&
+                  activeBooking.base_rate !== null &&
+                  activeBooking.base_rate > 0
+                    ? `${activeBooking.base_rate} ₪/שעה`
+                    : activeBooking.spot &&
+                      activeBooking.spot.hourly_price &&
+                      activeBooking.spot.hourly_price > 0
+                    ? `${activeBooking.spot.hourly_price} ₪/שעה`
+                    : "0 ₪/שעה"}
+                </p>
+              )}
 
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">תעריף:</span>{" "}
-              {activeBooking.base_rate !== undefined &&
-              activeBooking.base_rate !== null &&
-              activeBooking.base_rate > 0
-                ? `${activeBooking.base_rate} ₪/שעה`
-                : activeBooking.spot &&
-                  activeBooking.spot.hourly_price &&
-                  activeBooking.spot.hourly_price > 0
-                ? `${activeBooking.spot.hourly_price} ₪/שעה`
-                : "0 ₪/שעה"}
-            </p>
-            <p className="mb-1 text-blue-100">
-              <span className="font-semibold">מיקום חנייה:</span>{" "}
-              {activeBooking.spot?.spot_number
-                ? `חנייה מספר ${activeBooking.spot.spot_number}`
-                : "חנייה פרטית"}
-            </p>
+              <p className="mb-2 text-blue-100 flex items-center justify-center lg:justify-start text-sm">
+                <FaMapMarkerAlt className="ml-2" />
+                <span className="font-semibold">מיקום:</span>&nbsp;
+                {activeBooking.spot?.spot_number
+                  ? `חנייה מספר ${activeBooking.spot.spot_number}`
+                  : "חנייה פרטית"}
+              </p>
+            </div>
           </div>
 
-          {/* Center: Large Timer */}
-          <div className="relative md:w-1/3 flex flex-col items-center">
+          {/* Center: Compact Timer */}
+          <div className="relative lg:w-1/3 flex flex-col items-center">
             {/* Pulsing ring effect */}
             <div
-              className="absolute w-48 h-48 rounded-full bg-blue-400 opacity-30 mx-auto"
+              className="absolute w-32 h-32 rounded-full bg-blue-400 opacity-20"
               style={{
                 animation: "3s infinite",
                 animationName: "pulseRing",
@@ -124,7 +128,7 @@ const ActiveParkingTimer = ({
 
             {/* Second pulse ring with delay */}
             <div
-              className="absolute w-52 h-52 rounded-full bg-indigo-400 opacity-20 mx-auto"
+              className="absolute w-36 h-36 rounded-full bg-indigo-400 opacity-10"
               style={{
                 animation: "3s infinite",
                 animationName: "pulseRing",
@@ -132,10 +136,10 @@ const ActiveParkingTimer = ({
               }}
             ></div>
 
-            <div className="relative w-44 h-44 mx-auto">
+            <div className="relative w-28 h-28 mx-auto">
               {/* Rotating outer ring */}
               <div
-                className="absolute inset-0 w-full h-full border-4 border-white opacity-10 rounded-full"
+                className="absolute inset-0 w-full h-full border-2 border-white opacity-20 rounded-full"
                 style={{
                   animation: "10s linear infinite",
                   animationName: "rotate",
@@ -143,13 +147,13 @@ const ActiveParkingTimer = ({
               ></div>
 
               {/* Base circle */}
-              <svg className="w-44 h-44" viewBox="0 0 36 36">
+              <svg className="w-28 h-28" viewBox="0 0 36 36">
                 <path
                   d="M18 2.0845
                     a 15.9155 15.9155 0 0 1 0 31.831
                     a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
-                  stroke="rgba(255, 255, 255, 0.2)"
+                  stroke="rgba(255, 255, 255, 0.3)"
                   strokeWidth="3"
                   strokeDasharray="100, 100"
                 />
@@ -159,7 +163,7 @@ const ActiveParkingTimer = ({
                     a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
                   stroke="white"
-                  strokeWidth="3"
+                  strokeWidth="4"
                   strokeLinecap="round"
                   strokeDasharray={`${percentage}, 100`}
                   className="drop-shadow-lg"
@@ -168,39 +172,42 @@ const ActiveParkingTimer = ({
 
               {/* Central time display */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <FaClock className="text-white mb-2 text-xl" />
-                <div className="text-4xl font-bold text-white drop-shadow-md">
+                <FaClock className="text-white mb-1 text-lg" />
+                <div className="text-3xl font-bold text-white drop-shadow-lg">
                   {hours}:{minutes.toString().padStart(2, "0")}
                 </div>
-                <div className="text-xs text-blue-100 mt-1">זמן נותר</div>
+                <div className="text-xs text-blue-100 mt-1 font-medium">
+                  זמן נותר
+                </div>
               </div>
             </div>
 
             {/* Animation elements */}
             <div className="absolute w-full h-full pointer-events-none">
-              <div className="absolute w-2 h-2 bg-blue-300 rounded-full top-10 left-10 animate-ping"></div>
+              <div className="absolute w-2 h-2 bg-blue-300 rounded-full top-6 left-6 animate-ping"></div>
               <div
-                className="absolute w-3 h-3 bg-purple-300 rounded-full bottom-10 right-20 animate-ping"
+                className="absolute w-3 h-3 bg-purple-300 rounded-full bottom-6 right-12 animate-ping"
                 style={{ animationDelay: "0.5s" }}
               ></div>
               <div
-                className="absolute w-2 h-2 bg-indigo-300 rounded-full bottom-20 left-20 animate-ping"
+                className="absolute w-2 h-2 bg-indigo-300 rounded-full bottom-12 left-12 animate-ping"
                 style={{ animationDelay: "0.8s" }}
               ></div>
             </div>
           </div>
 
           {/* Right side: Action button */}
-          <div className="md:w-1/6 flex justify-center">
+          <div className="lg:w-1/3 flex justify-center">
             <button
               onClick={() => handleEndParking(activeBooking)}
-              className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-indigo-600 font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="group relative overflow-hidden px-6 py-3 rounded-xl bg-white/90 backdrop-blur-sm text-indigo-600 font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-white/50"
             >
-              <span className="relative z-10 group-hover:text-white transition-colors duration-300">
+              <span className="relative z-10 group-hover:text-sky transition-colors duration-300 flex items-center gap-2">
+                <FaStop />
                 סיים חניה
               </span>
-              <span className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-x-0 group-hover:scale-x-100 origin-left"></span>
-              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 animate-pulse"></span>
+              <span className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-x-0 group-hover:scale-x-100 origin-left rounded-xl"></span>
+              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 animate-pulse rounded-xl"></span>
             </button>
           </div>
         </div>
@@ -491,7 +498,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
   // Generate page numbers
   const getPageNumbers = () => {
-    const maxButtons = 5;
+    const maxButtons = 2;
 
     if (totalPages <= maxButtons) {
       return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -529,13 +536,29 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
   const getPaymentStatusDisplay = (status) => {
     switch (status) {
       case "completed":
-        return { text: "שולם", class: "bg-green-100 text-green-800" };
+        return {
+          text: "שולם",
+          class:
+            "bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200",
+        };
       case "pending":
-        return { text: "ממתין לתשלום", class: "bg-yellow-100 text-yellow-800" };
+        return {
+          text: "ממתין לתשלום",
+          class:
+            "bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 border border-yellow-200",
+        };
       case "refunded":
-        return { text: "הוחזר", class: "bg-blue-100 text-blue-800" };
+        return {
+          text: "הוחזר",
+          class:
+            "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200",
+        };
       default:
-        return { text: status, class: "bg-gray-100 text-gray-800" };
+        return {
+          text: status,
+          class:
+            "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300",
+        };
     }
   };
 
@@ -549,13 +572,19 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
-        <main className="flex-grow flex flex-col justify-start p-4 md:p-6 md:mr-5 mt-4 min-h-[75vh]">
-          <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 mb-4 text-center">
-            הזמנות חנייה פעילות
-          </h1>
-          <p className="text-gray-600 text-lg mb-8 text-center">
-            כאן תוכל לראות את ההזמנות הפעילות שלך
-          </p>
+        <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
+          {/* Header Section */}
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-6">
+              <FaParking className="text-blue-600 text-3xl ml-4" />
+              <h1 className="pt-[20px] text-4xl font-extrabold text-blue-700">
+                הזמנות חנייה פעילות
+              </h1>
+            </div>
+            <p className="text-gray-600 text-xl max-w-2xl mx-auto leading-relaxed">
+              כאן תוכל לראות ולנהל את ההזמנות הפעילות שלך
+            </p>
+          </div>
 
           {cancelSuccess && (
             <Popup
@@ -577,74 +606,53 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             )}
 
           {loading ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
-              <p className="text-gray-600 mt-4">טוען הזמנות...</p>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center max-w-md mx-auto border border-blue-100">
+              <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div>
+              </div>
+              <p className="text-gray-600 text-lg font-medium">
+                טוען הזמנות...
+              </p>
             </div>
           ) : error ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center text-red-500">
-              <p>{error}</p>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 text-center text-red-600 max-w-md mx-auto border border-red-200">
+              <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaTimes className="text-red-600 text-2xl" />
+              </div>
+              <p className="mb-6 text-lg">{error}</p>
               <button
                 onClick={fetchActiveBookings}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 נסה שוב
               </button>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500 max-w-4xl mx-auto">
-              אין כרגע הזמנות פעילות להצגה.
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-12 text-center max-w-2xl mx-auto border border-blue-100">
+              <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                <FaParking className="text-blue-600 text-4xl" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-700 mb-4">
+                אין הזמנות פעילות
+              </h3>
+              <p className="text-gray-600 text-lg">
+                אין כרגע הזמנות פעילות להצגה.
+              </p>
             </div>
           ) : (
-            <div
-              className="overflow-x-auto bg-white rounded-lg shadow-md w-full max-w-[90rem] mx-auto flex flex-col"
-              style={{ minHeight: "500px" }}
-            >
-              {/* Table container */}
-              <div className="w-full text-base text-right">
-                {/* Header row */}
-                <div className="flex bg-indigo-50 text-indigo-800 border-b">
-                  <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                    סוג הזמנה
-                  </div>
-                  <div className="px-3 py-3 w-[25%] font-semibold text-center">
-                    כתובת החניה
-                  </div>
-                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
-                    זמן התחלה
-                  </div>
-                  <div className="px-3 py-3 w-[15%] font-semibold text-center">
-                    זמן סיום
-                  </div>
-                  {storedMode !== "building" && (
-                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                      תעריף
-                    </div>
-                  )}
-                  {storedMode !== "building" && (
-                    <div className="px-3 py-3 w-[10%] font-semibold text-center">
-                      סטטוס תשלום
-                    </div>
-                  )}
-                  <div
-                    className={`px-3 py-3 font-semibold text-center ${
-                      storedMode === "building" ? "w-[15%]" : "w-[10%]"
-                    }`}
-                  >
-                    זמן נותר
-                  </div>
-                  <div
-                    className={`px-3 py-3 font-semibold text-center ${
-                      storedMode === "building" ? "w-[15%]" : "w-[10%]"
-                    }`}
-                  >
-                    פעולות
-                  </div>
-                </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl w-full max-w-[95rem] mx-auto border border-blue-100 overflow-hidden">
+              {/* Table Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+                <h2 className="text-xl font-bold flex items-center gap-3">
+                  <FaParking className="text-2xl" />
+                  רשימת הזמנות פעילות ({bookings.length})
+                </h2>
+              </div>
 
-                {/* Table body */}
-                <div className="divide-y">
-                  {currentBookings.map((booking) => {
+              {/* Compact Card-based List */}
+              <div className="p-6">
+                <div className="space-y-3">
+                  {currentBookings.map((booking, index) => {
                     const timer = timeRemaining[booking._id] || {
                       hours: 0,
                       minutes: 0,
@@ -658,138 +666,162 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                     return (
                       <div
                         key={booking._id}
-                        className="flex hover:bg-indigo-50 transition-colors duration-150"
+                        className="group bg-gradient-to-r from-white to-blue-50/50 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border border-blue-100 p-4"
                       >
-                        <div className="px-3 py-3 w-[10%] text-center">
-                          {booking.booking_type === "parking"
-                            ? "חנייה"
-                            : "טעינה"}
-                        </div>
-                        <div className="px-3 py-3 w-[25%] text-center">
-                          <div className="flex flex-col items-center justify-center">
-                            {/* Check if full address (street + city) is available */}
-                            {booking.spot?.address?.street &&
-                            booking.spot?.address?.city ? (
-                              <>
-                                {/* Show full address */}
-                                <span>
-                                  {`${booking.spot.address.city}, ${
-                                    booking.spot.address.street
-                                  } ${booking.spot.address.number || ""}`}
-                                </span>
+                        <div className="grid grid-cols-12 gap-4 items-center">
+                          {/* Type & Address - 4 columns */}
+                          <div className="col-span-4 flex items-center gap-3">
+                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0">
+                              {booking.booking_type === "parking" ? (
+                                <FaParking className="text-white text-sm" />
+                              ) : (
+                                <FaCarSide className="text-white text-sm" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium mb-1 inline-block">
+                                {booking.booking_type === "parking"
+                                  ? "חנייה"
+                                  : "טעינה"}
+                              </div>
+                              <div className="text-gray-800 font-medium text-sm truncate">
+                                {booking.spot?.address?.street &&
+                                booking.spot?.address?.city
+                                  ? `${booking.spot.address.city}, ${
+                                      booking.spot.address.street
+                                    } ${booking.spot.address.number || ""}`
+                                  : booking.spot?.spot_number
+                                  ? `חנייה מספר ${booking.spot.spot_number}`
+                                  : "כתובת לא זמינה"}
+                              </div>
+                            </div>
+                          </div>
 
-                                {/* Show spot number under the address, if available */}
-                                {booking.spot.spot_number && (
-                                  <span className="text-sm text-gray-500 mt-1">
-                                    חנייה מספר {booking.spot.spot_number}
+                          {/* Start Time - 2 columns */}
+                          <div className="col-span-2 text-center">
+                            <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-medium mb-1">
+                              <span>שעת התחלה</span>
+                            </div>
+                            <div className="text-gray-800 font-bold text-sm">
+                              {formatDisplayTime(booking.start_datetime)}
+                            </div>
+                            <div className="text-gray-500 text-xs">
+                              {formatDisplayDate(booking.start_datetime)}
+                            </div>
+                          </div>
+
+                          {/* End Time - 2 columns */}
+                          <div className="col-span-2 text-center">
+                            <div className="flex items-center justify-center gap-1 text-red-600 text-xs font-medium mb-1">
+                              <FaStop className="text-xs" />
+                              <span>שעת סיום</span>
+                            </div>
+                            <div className="text-gray-800 font-bold text-sm">
+                              {formatDisplayTime(booking.end_datetime)}
+                            </div>
+                            <div className="text-gray-500 text-xs">
+                              {formatDisplayDate(booking.end_datetime)}
+                            </div>
+                          </div>
+
+                          {/* Timer & Status - 2 columns */}
+                          <div className="col-span-2 text-center">
+                            {timer.isActive ? (
+                              <div className="flex flex-col items-center">
+                                <div className="relative w-12 h-12 mb-1">
+                                  <svg
+                                    className="w-12 h-12 transform -rotate-90"
+                                    viewBox="0 0 36 36"
+                                  >
+                                    <path
+                                      d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none"
+                                      stroke="#e5e7eb"
+                                      strokeWidth="3"
+                                      strokeDasharray="100, 100"
+                                    />
+                                    <path
+                                      d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none"
+                                      stroke="#3b82f6"
+                                      strokeWidth="3"
+                                      strokeLinecap="round"
+                                      strokeDasharray={`${timer.percentage}, 100`}
+                                    />
+                                  </svg>
+                                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                    <FaClock className="text-blue-600 text-xs" />
+                                  </div>
+                                </div>
+                                <div className="text-sm font-bold text-gray-800">
+                                  {timer.hours}:
+                                  {timer.minutes.toString().padStart(2, "0")}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  נותר
+                                </div>
+                                {storedMode !== "building" && (
+                                  <span
+                                    className={`px-2 py-1 text-xs font-medium rounded-full mt-1 ${paymentStatus.class}`}
+                                  >
+                                    {paymentStatus.text}
                                   </span>
                                 )}
-                              </>
-                            ) : booking.spot?.spot_number ? (
-                              // If only spot number is available (e.g. in building mode), show it alone
-                              <span className="text-sm text-gray-500">
-                                חנייה מספר {booking.spot.spot_number}
-                              </span>
+                              </div>
                             ) : (
-                              // Fallback: if there's no address and no spot number
-                              <span>כתובת לא זמינה</span>
+                              <div className="flex flex-col items-center">
+                                {new Date(booking.start_datetime) > now ? (
+                                  <>
+                                    <FaClock className="text-yellow-500 text-lg mb-1" />
+                                    <span className="text-xs text-gray-500">
+                                      ממתין
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <FaCheck className="text-green-500 text-lg mb-1" />
+                                    <span className="text-xs text-gray-500">
+                                      הסתיים
+                                    </span>
+                                  </>
+                                )}
+                                {storedMode !== "building" && (
+                                  <>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {booking.base_rate !== undefined &&
+                                      booking.base_rate !== null &&
+                                      booking.base_rate > 0
+                                        ? `${booking.base_rate} ₪/שעה`
+                                        : booking.spot &&
+                                          booking.spot.hourly_price &&
+                                          booking.spot.hourly_price > 0
+                                        ? `${booking.spot.hourly_price} ₪/שעה`
+                                        : "0 ₪/שעה"}
+                                    </div>
+                                    <span
+                                      className={`px-2 py-1 text-xs font-medium rounded-full mt-1 ${paymentStatus.class}`}
+                                    >
+                                      {paymentStatus.text}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
 
-                        <div className="px-3 py-3 w-[15%] text-center">
-                          {formatDisplayDate(booking.start_datetime)}
-                          <div className="text-xs text-gray-500">
-                            {formatDisplayTime(booking.start_datetime)}
-                          </div>
-                        </div>
-                        <div className="px-3 py-3 w-[15%] text-center">
-                          {formatDisplayDate(booking.end_datetime)}
-                          <div className="text-xs text-gray-500">
-                            {formatDisplayTime(booking.end_datetime)}
-                          </div>
-                        </div>
-                        {storedMode !== "building" && (
-                          <div className="px-3 py-3 w-[10%] text-center">
-                            {booking.base_rate !== undefined &&
-                            booking.base_rate !== null &&
-                            booking.base_rate > 0
-                              ? `${booking.base_rate} ₪/שעה`
-                              : booking.spot &&
-                                booking.spot.hourly_price &&
-                                booking.spot.hourly_price > 0
-                              ? `${booking.spot.hourly_price} ₪/שעה`
-                              : "0 ₪/שעה"}
-                          </div>
-                        )}
-
-                        {storedMode !== "building" && (
-                          <div className="px-3 py-3 w-[10%] text-center">
-                            <span
-                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.class}`}
-                            >
-                              {paymentStatus.text}
-                            </span>
-                          </div>
-                        )}
-                        <div
-                          className={`px-3 py-3 font-semibold text-center ${
-                            storedMode === "building" ? "w-[15%]" : "w-[10%]"
-                          }`}
-                        >
-                          {timer.isActive ? (
-                            <div className="flex flex-col items-center">
-                              <div className="relative w-12 h-12 mx-auto">
-                                <svg className="w-12 h-12" viewBox="0 0 36 36">
-                                  <path
-                                    d="M18 2.0845
-                                      a 15.9155 15.9155 0 0 1 0 31.831
-                                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none"
-                                    stroke="#e5e7eb"
-                                    strokeWidth="3"
-                                    strokeDasharray="100, 100"
-                                  />
-                                  <path
-                                    d="M18 2.0845
-                                      a 15.9155 15.9155 0 0 1 0 31.831
-                                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none"
-                                    stroke="#3b82f6"
-                                    strokeWidth="3"
-                                    strokeDasharray={`${timer.percentage}, 100`}
-                                  />
-                                </svg>
-                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-sm font-medium">
-                                  <FaClock className="mx-auto text-blue-600" />
-                                </div>
-                              </div>
-                              <div className="text-sm font-medium mt-1">
-                                {timer.hours}:
-                                {timer.minutes.toString().padStart(2, "0")}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              {new Date(booking.start_datetime) > now
-                                ? "לא התחיל"
-                                : "הסתיים"}
-                            </div>
-                          )}
-                        </div>
-                        <div
-                          className={`px-3 py-3 font-semibold text-center ${
-                            storedMode === "building" ? "w-[15%]" : "w-[10%]"
-                          }`}
-                        >
-                          <div className="flex flex-col space-y-2">
+                          {/* Actions - 2 columns */}
+                          <div className="col-span-2 flex flex-col gap-2">
                             {timer.isActive && (
                               <button
                                 onClick={() => handleEndParking(booking)}
-                                className="bg-blue-600 text-white px-4 py-1 rounded text-xs mx-auto hover:bg-blue-700 transition-all duration-300 w-32 flex items-center justify-center"
+                                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center gap-1"
                               >
-                                סיים חניה
-                                <FaCheck className="mr-1" />
+                                <FaStop className="text-xs" />
+                                סיים
                               </button>
                             )}
 
@@ -799,16 +831,17 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                                   setSelectedBooking(booking);
                                   setShowCancelModal(true);
                                 }}
-                                className="bg-red-600 text-white px-4 py-1 rounded text-xs mx-auto hover:bg-red-700 transition-all duration-300"
+                                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center gap-1"
                               >
+                                <FaTimes className="text-xs" />
                                 ביטול
                               </button>
                             )}
 
                             {!canBeCanceled(booking.start_datetime) &&
                               !timer.isActive && (
-                                <span className="text-gray-400">
-                                  לא ניתן לביטול
+                                <span className="text-gray-400 text-xs font-medium bg-gray-100 px-2 py-1 rounded-lg text-center">
+                                  לא ניתן
                                 </span>
                               )}
                           </div>
@@ -819,63 +852,69 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                 </div>
               </div>
 
-              {/* Pagination */}
-              {bookings.length > 0 && (
-                <div className="flex justify-between items-center px-6 py-4 border-t bg-white mt-auto">
-                  <div className="text-sm text-gray-600">
-                    מציג {indexOfFirstBooking + 1}-
-                    {Math.min(indexOfLastBooking, bookings.length)} מתוך{" "}
-                    {bookings.length}
-                  </div>
+              {/* Enhanced Pagination */}
+              {bookings.length > 0 && totalPages > 1 && (
+                <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-t border-blue-100 p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
+                      מציג {indexOfFirstBooking + 1}-
+                      {Math.min(indexOfLastBooking, bookings.length)} מתוך{" "}
+                      {bookings.length}
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className={`px-3 py-1 rounded-full transition ${
-                        currentPage === 1
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      הקודם
-                    </button>
-
-                    {getPageNumbers().map((pageNumber, i) => (
+                    <div className="flex items-center gap-2">
                       <button
-                        key={i}
                         onClick={() =>
-                          typeof pageNumber === "number" &&
-                          handlePageChange(pageNumber)
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
                         }
-                        disabled={pageNumber === "..."}
-                        className={`px-4 py-1.5 rounded-full font-medium transition ${
-                          pageNumber === currentPage
-                            ? "bg-blue-700 text-white"
-                            : pageNumber === "..."
-                            ? "bg-transparent text-gray-400 cursor-default"
-                            : "bg-gray-100 text-gray-700 hover:bg-blue-100"
+                        disabled={currentPage === 1}
+                        className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${
+                          currentPage === 1
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105"
                         }`}
                       >
-                        {pageNumber}
+                        הקודם
                       </button>
-                    ))}
 
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-1 rounded-full transition ${
-                        currentPage === totalPages
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      הבא
-                    </button>
+                      <div className="flex gap-1">
+                        {getPageNumbers().map((pageNumber, i) => (
+                          <button
+                            key={i}
+                            onClick={() =>
+                              typeof pageNumber === "number" &&
+                              handlePageChange(pageNumber)
+                            }
+                            disabled={pageNumber === "..."}
+                            className={`w-10 h-10 rounded-xl font-bold transition-all duration-300 ${
+                              pageNumber === currentPage
+                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform scale-110"
+                                : pageNumber === "..."
+                                ? "bg-transparent text-gray-400 cursor-default"
+                                : "bg-white text-gray-700 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 shadow-sm hover:shadow-md border border-gray-200"
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages)
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${
+                          currentPage === totalPages
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105"
+                        }`}
+                      >
+                        הבא
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -886,7 +925,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
       <Footer />
 
-      {/* Cancel Confirmation Modal */}
+      {/* Enhanced Cancel Confirmation Modal */}
       {showCancelModal && (
         <Popup
           title="אישור ביטול הזמנה"
@@ -899,7 +938,6 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
             try {
               const token = localStorage.getItem("token");
 
-              // שולחים בקשה למחוק את ההזמנה מהשרת עם מזהה ההזמנה
               await axios.delete(
                 `http://localhost:5000/api/v1/bookings/${selectedBooking._id}`,
                 {
@@ -909,20 +947,18 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                 }
               );
 
-              // עדכון הממשק אחרי שמחיקת ההזמנה הצליחה
               setBookings(
                 bookings.filter((item) => item._id !== selectedBooking._id)
               );
               setCancelSuccess(true);
 
-              // טוענים מחדש את ההזמנות אחרי המחיקה
               setTimeout(() => {
                 fetchActiveBookings();
                 setCancelSuccess(false);
               }, 2000);
 
-              setShowCancelModal(false); // סוגרים את המודל אחרי ביטול ההזמנה
-              setSelectedBooking(null); // מאפסים את ההזמנה שנבחרה
+              setShowCancelModal(false);
+              setSelectedBooking(null);
             } catch (err) {
               console.error("Error canceling booking:", err);
               setError("אירעה שגיאה בביטול ההזמנה. נסה שוב מאוחר יותר.");
@@ -931,30 +967,32 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         />
       )}
 
-      {/* End Parking Confirmation Modal */}
+      {/* Enhanced End Parking Confirmation Modal */}
       {showEndParkingModal && endingParkingBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div
-            className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
+            className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl border border-blue-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <FaCarSide className="mx-auto text-blue-600 text-4xl mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-4">סיום חניה</h3>
-            <p className="mb-6 text-gray-600">
+            <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaCarSide className="text-blue-600 text-3xl" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">סיום חניה</h3>
+            <p className="mb-6 text-gray-600 leading-relaxed">
               האם אתה בטוח שברצונך לסיים את החניה כעת?
               <br />
               זמן החניה שהוזמן יסתיים והחניה תסומן כמושלמת.
             </p>
-            <div className="flex justify-center space-x-4 space-x-reverse">
+            <div className="flex justify-center gap-4">
               <button
                 onClick={() => setShowEndParkingModal(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded text-lg"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-xl transition-all duration-300"
               >
                 ביטול
               </button>
               <button
                 onClick={confirmEndParking}
-                className="bg-blue-600 hover:bg-blue-700 text-blue font-medium py-2 px-4 rounded"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 סיים חניה
               </button>
@@ -963,49 +1001,62 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
         </div>
       )}
 
-      {/* Payment Summary Modal */}
+      {/* Enhanced Payment Summary Modal */}
       {showPaymentSummary && endingParkingBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div
-            className="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-xl"
+            className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl border border-blue-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <FaMoneyBillWave className="mx-auto text-green-600 text-4xl mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            <div className="bg-gradient-to-br from-green-100 to-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaMoneyBillWave className="text-green-600 text-3xl" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">
               סיכום חניה
             </h3>
-            <div className="border-t border-b border-gray-200 py-4 my-4">
-              <div className="grid grid-cols-2 gap-4 text-right mb-3">
-                <div className="text-gray-500">כתובת:</div>
-                <div className="font-medium">
-                  {endingParkingBooking.spot?.address
-                    ? `${endingParkingBooking.spot.address.street} ${endingParkingBooking.spot.address.number}, ${endingParkingBooking.spot.address.city}`
-                    : "כתובת לא זמינה"}
+
+            <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 mb-6 border border-gray-200">
+              <div className="space-y-4 text-right">
+                <div className="flex justify-between items-center">
+                  <div className="text-gray-500 font-medium">כתובת:</div>
+                  <div className="font-semibold">
+                    {endingParkingBooking.spot?.address
+                      ? `${endingParkingBooking.spot.address.street} ${endingParkingBooking.spot.address.number}, ${endingParkingBooking.spot.address.city}`
+                      : "כתובת לא זמינה"}
+                  </div>
                 </div>
 
-                <div className="text-gray-500">זמן התחלה:</div>
-                <div className="font-medium">
-                  {formatDateTime(endingParkingBooking.start_datetime)}
+                <div className="flex justify-between items-center">
+                  <div className="text-gray-500 font-medium">זמן התחלה:</div>
+                  <div className="font-semibold">
+                    {formatDateTime(endingParkingBooking.start_datetime)}
+                  </div>
                 </div>
 
-                <div className="text-gray-500">זמן סיום:</div>
-                <div className="font-medium">{formatDateTime(new Date())}</div>
-
-                <div className="text-gray-500">תעריף:</div>
-                <div className="font-medium">
-                  {endingParkingBooking.base_rate} ₪/שעה
+                <div className="flex justify-between items-center">
+                  <div className="text-gray-500 font-medium">זמן סיום:</div>
+                  <div className="font-semibold">
+                    {formatDateTime(new Date())}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex justify-between items-center text-lg font-bold border-t pt-4">
-                <div>סה"כ לתשלום:</div>
-                <div className="text-xl text-blue-700">
-                  {calculateFinalAmount(endingParkingBooking)} ₪
+                <div className="flex justify-between items-center">
+                  <div className="text-gray-500 font-medium">תעריף:</div>
+                  <div className="font-semibold">
+                    {endingParkingBooking.base_rate} ₪/שעה
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 flex justify-between items-center text-xl">
+                  <div className="font-bold text-gray-800">סה"כ לתשלום:</div>
+                  <div className="font-bold text-blue-700">
+                    {calculateFinalAmount(endingParkingBooking)} ₪
+                  </div>
                 </div>
               </div>
             </div>
 
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-6 leading-relaxed">
               החניה הסתיימה בהצלחה. התשלום יחויב בהתאם לשעות החניה בפועל.
             </p>
 
@@ -1014,7 +1065,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
                 setShowPaymentSummary(false);
                 setEndingParkingBooking(null);
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-8 rounded-full"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
               אישור
             </button>

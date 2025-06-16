@@ -27,66 +27,62 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
     return null;
   }
 
+  const today = new Date();
+  const date = today.toLocaleDateString("he-IL");
+  const time = today.toLocaleTimeString("he-IL");
+
   return (
-    <div
-      className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50"
-      dir="rtl"
-    >
-      <Navbar
-        loggedIn={loggedIn}
-        setLoggedIn={setLoggedIn}
-        activePage={
-          role === "building_resident" ? "dashboard" : "search-parking"
-        }
-      />
-      <main className="flex-1 py-16">
+    <div className="pt-[68px] min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50" dir="rtl">
+      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} activePage="dashboard" />
+
+      <main className="flex-1 py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold text-blue-700 mb-4">
+          <div className="text-center mb-10">
+            <h1 className="text-4xl font-extrabold text-blue-700 mb-2">
               שלום {firstName}!
             </h1>
-            <p className="text-gray-600 text-lg">
-              בחר פעולה מתוך האפשרויות הבאות:
+            <p className="text-gray-600 text-lg">נא לבחור מערכת מתוך האפשרויות הבאות:</p>
+            <p className="text-sm text-gray-500 mt-1">
+              היום: {date} | השעה: {time}
             </p>
           </div>
 
-          {role === "building_resident" && (
-            <div className="flex justify-center gap-6">
-              <div className="w-72 h-40 flex items-stretch">
-                <ActionButton
-                  text={
-                    <div className="flex items-center justify-center gap-2 h-full">
-                      <FaCar className="text-xl" />
-                      חיפוש חנייה/עמדת טעינה בתשלום
-                    </div>
-                  }
-                  primary={true}
-                  className="h-full"
-                  onClick={() => {
-                    localStorage.removeItem("mode", "regular");
-                    navigate("/search-parking");
-                  }}
-                />
-              </div>
-
-              <div className="w-72 h-40 flex items-stretch">
-                <ActionButton
-                  text={
-                    <div className="flex items-center justify-center gap-2 h-full">
-                      <FaBuilding className="text-xl" />
-                      מערכת ניהול חניות בבניין מגורים
-                    </div>
-                  }
-                  primary={false}
-                  className="h-full"
-                  onClick={() => {
-                    localStorage.setItem("mode", "building");
-                    navigate("/residential-parking-search");
-                  }}
-                />
-              </div>
+          {/* Action buttons */}
+          <div className="flex flex-wrap justify-center gap-6">
+            <div className="w-72 h-40 flex items-stretch transform hover:scale-105 transition duration-300">
+              <ActionButton
+                text={
+                  <div className="flex items-center justify-center gap-2 h-full">
+                    <FaCar className="text-xl" />
+                    חיפוש חנייה/עמדת טעינה בתשלום
+                  </div>
+                }
+                primary={true}
+                className="h-full"
+                onClick={() => {
+                  localStorage.removeItem("mode");
+                  navigate("/search-parking");
+                }}
+              />
             </div>
-          )}
+
+            <div className="w-72 h-40 flex items-stretch transform hover:scale-105 transition duration-300">
+              <ActionButton
+                text={
+                  <div className="flex items-center justify-center gap-2 h-full">
+                    <FaBuilding className="text-xl" />
+                    מערכת ניהול חניות בבניין מגורים
+                  </div>
+                }
+                primary={false}
+                className="h-full"
+                onClick={() => {
+                  localStorage.setItem("mode", "building");
+                  navigate("/residential-parking-search");
+                }}
+              />
+            </div>
+          </div>
         </div>
       </main>
       <Footer />

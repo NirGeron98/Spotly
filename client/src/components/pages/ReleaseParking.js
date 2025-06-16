@@ -21,6 +21,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול החנייה שלי | Spotly";
   const [current, setCurrent] = useState("releaseParking");
   const [user] = useState(null);
+  const isBuildingMode = localStorage.getItem("mode") === "building";
   const [parkingSlots, setParkingSlots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
   const [popupData, setPopupData] = useState({
@@ -33,7 +34,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const [showQuickAddPopup, setShowQuickAddPopup] = useState(false);
   const [newPrice, setNewPrice] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [isBuildingMode, setIsBuildingMode] = useState(false);
   const [priceError, setPriceError] = useState("");
   const [priceSuccess, setPriceSuccess] = useState("");
   const [startOfWeekDate, setStartOfWeekDate] = useState(
@@ -268,15 +268,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           }),
       }));
       setParkingSlots(processedSpots);
-      const hasPrivate = processedSpots.some((s) => s.spot_type === "private");
-      const hasBuilding = processedSpots.some(
-        (s) => s.spot_type === "building"
-      );
-      if (hasBuilding && !hasPrivate) {
-        setIsBuildingMode(true);
-      } else {
-        setIsBuildingMode(false);
-      }
     } catch (err) {
       console.error("Error fetching parking spots:", err);
       setPopupData({
@@ -517,10 +508,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     const token = localStorage.getItem("token");
     let targetSpot = null;
 
-    console.log(
-      "handleAddSlot: Determining target spot. isBuildingMode:",
-      isBuildingMode
-    );
     console.log("handleAddSlot: Available parkingSlots:", parkingSlots);
 
     if (isBuildingMode) {
@@ -551,23 +538,21 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       }
 
       // Check if hourly price is 0 or not set
-      if (
-        targetSpot.hourly_price === undefined ||
-        targetSpot.hourly_price === null ||
-        targetSpot.hourly_price === 0
-      ) {
-        console.log(
-          "handleAddSlot: Validation failed - Private spot price is zero or not set"
-        );
-
-        setPopupData({
-          title: "נדרש לעדכן את המחיר לשעה",
-          description:
-            "לפני שתוכל להוסיף זמינות חנייה, עליך להגדיר מחיר לשעה בהגדרות החנייה.",
-          type: "warning",
-          show: true,
-        });
-        return;
+      if (!isBuildingMode) {
+        if (
+          targetSpot.hourly_price === undefined ||
+          targetSpot.hourly_price === null ||
+          targetSpot.hourly_price === 0
+        ) {
+          setPopupData({
+            title: "נדרש לעדכן את המחיר לשעה",
+            description:
+              "לפני שתוכל להוסיף זמינות חנייה, עליך להגדיר מחיר לשעה בהגדרות החנייה.",
+            type: "warning",
+            show: true,
+          });
+          return;
+        }
       }
     }
     console.log("handleAddSlot: Target spot found:", targetSpot?._id);
@@ -832,7 +817,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
         <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
           <div className="max-w-[1200px] mx-auto">
-            <h1 className="pt-[68px] text-3xl font-extrabold text-blue-700 text-center w-full">
+            <h1 className="pt-[20px] text-3xl font-extrabold text-blue-700 text-center w-full mb-8">
               ניהול החנייה שלי
             </h1>
             {!isBuildingMode && (
@@ -846,7 +831,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   setPriceSuccess("");
                   setShowSettingsPopup(true);
                 }}
-                className="absolute top-2 left-2 flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200 shadow-md"
+                className="absolute ml-4 mt-4 top-20 left-2 flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200 shadow-md"
                 title="הגדרות חנייה"
               >
                 <span className="ml-2">הגדרות חנייה</span>
