@@ -4,12 +4,14 @@ import Navbar from "../components/shared/Navbar";
 import Sidebar from "../components/shared/Sidebar";
 import Footer from "../components/shared/Footer";
 import Popup from "../components/shared/Popup";
+import UsageFilters from "../components/usage-history/UsageFilters";
+import UsageDesktopTable from "../components/usage-history/UsageDesktopTable";
+import UsageMobileCards from "../components/usage-history/UsageMobileCards";
+import PageHeader from "../components/shared/PageHeader";
 import { USER_TIMEZONE } from "../utils/constants";
 import { parseISO, isValid } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import {
-  FaSearch,
-  FaSync,
   FaParking,
   FaCar,
   FaCalendarAlt,
@@ -20,11 +22,9 @@ import {
   FaSortUp,
   FaSortDown,
   FaSort,
-  FaFilter,
   FaHistory,
   FaClock,
   FaUser,
-  FaEye,
 } from "react-icons/fa";
 
 const UsageHistory = ({ loggedIn, setLoggedIn }) => {
@@ -277,26 +277,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       paymentStatus: "all",
       triggerSearch: false,
     });
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder(
-        field === "actionDate" || field === "actionTime" ? "desc" : "asc"
-      );
-    }
-  };
-
-  const getSortIcon = (field) => {
-    if (sortField !== field) return <FaSort className="text-gray-400" />;
-    return sortOrder === "asc" ? (
-      <FaSortUp className="text-blue-600" />
-    ) : (
-      <FaSortDown className="text-blue-600" />
-    );
   };
 
   const getStatusDisplay = (status) => {
@@ -562,17 +542,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-10 mt-16 w-full mr-0 sm:mr-16 md:mr-64 lg:mr-80 transition-all duration-300 min-w-0">
           {/* Header Section - Responsive */}
-          <div className="text-center mb-8 sm:mb-10 md:mb-12 pt-[50px]">
-            <div className="flex flex-col sm:flex-row items-center justify-center mb-4 sm:mb-6 gap-3 sm:gap-4">
-              <FaHistory className="text-blue-600 text-2xl sm:text-3xl md:text-4xl order-2 sm:order-1" />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-blue-700 order-1 sm:order-2 text-center sm:text-right">
-                היסטוריית שימוש
-              </h1>
-            </div>
-            <p className="text-gray-600 text-base sm:text-lg md:text-xl max-w-full sm:max-w-2xl mx-auto leading-relaxed px-4 sm:px-0">
-              כאן תוכל לצפות בכל הפעילויות שלך במערכת
-            </p>
-          </div>
+          <PageHeader
+            icon={FaHistory}
+            title="היסטוריית שימוש"
+            subtitle="כאן תוכל לצפות בכל הפעילויות שלך במערכת"
+          />
 
           {/* Mode Indicator - Responsive */}
           <div className="flex items-center justify-center mb-6 sm:mb-8 px-4 sm:px-0">
@@ -594,306 +568,36 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
           </div>
 
           {/* Filters Section - Responsive */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 px-4 py-3 mb-6 max-w-6xl mx-auto">
-            <div className="flex items-center justify-center mb-6 gap-3">
-              <FaFilter className="text-blue-600 text-xl" />
-              <h2 className="text-xl font-bold text-gray-800">סינון וחיפוש</h2>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Search Input */}
-              <div className="lg:col-span-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  מונח חיפוש:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="searchTerm"
-                    placeholder="הקלד כאן לחיפוש..."
-                    value={filters.searchTerm}
-                    onChange={handleFilterChange}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Activity Type Filter */}
-              <div className="lg:col-span-3">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  סוג פעילות:
-                </label>
-                <select
-                  name="activityType"
-                  value={filters.activityType}
-                  onChange={handleFilterChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white transition-all duration-200"
-                >
-                  <option value="all">הכל</option>
-                  <option value="booking">הזמנת חניה</option>
-                  <option value="rental">השכרת חניה</option>
-                  <option value="publication">התחלת פעילות</option>
-                  <option value="availability">שינוי/הוספת זמינות</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  סטטוס:
-                </label>
-                <select
-                  name="status"
-                  value={filters.status}
-                  onChange={handleFilterChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white transition-all duration-200"
-                >
-                  <option value="all">הכל</option>
-                  <option value="active">פעיל</option>
-                  <option value="completed">הושלם</option>
-                  <option value="cancelled">בוטל</option>
-                  <option value="available">זמין</option>
-                  <option value="booked">מוזמן</option>
-                </select>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="lg:col-span-2 flex flex-col justify-end">
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() =>
-                      setFilters((prev) => ({ ...prev, triggerSearch: true }))
-                    }
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
-                  >
-                    <FaSearch className="w-4 h-4" />
-                    חפש
-                  </button>
-
-                  <button
-                    onClick={resetFilters}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-200 border border-gray-300 hover:border-gray-400"
-                  >
-                    <FaSync className="w-4 h-4" />
-                    איפוס
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <UsageFilters
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            resetFilters={resetFilters}
+            setFilters={setFilters}
+          />
 
           {/* Table Section - Modern Design */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full max-w-6xl mx-auto">
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                    <th
-                      className="px-6 py-4 text-right font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-200 select-none"
-                      onClick={() => handleSort("actionDate")}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>תאריך ביצוע</span>
-                        {getSortIcon("actionDate")}
-                      </div>
-                    </th>
-                    <th
-                      className="px-6 py-4 text-right font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-200 select-none"
-                      onClick={() => handleSort("actionDate")}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>שעת ביצוע</span>
-                        {getSortIcon("actionDate")}
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-right font-semibold">
-                      פרטים נוספים
-                    </th>
-                    <th className="px-6 py-4 text-right font-semibold">
-                      סוג פעילות
-                    </th>
-                    <th className="px-6 py-4 text-right font-semibold">
-                      סטטוס
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {currentItems.map((item, index) => {
-                    const status = getStatusDisplay(item.status);
-                    const actionDateTime =
-                      item.rawActionDate || item.actionDate;
-
-                    return (
-                      <tr
-                        key={index}
-                        className="hover:bg-blue-50 transition-all duration-200 group"
-                      >
-                        <td className="px-6 py-4 text-gray-900 font-medium">
-                          <div className="flex items-center gap-2">
-                            <FaCalendarAlt className="text-blue-600 text-sm" />
-                            {formatDisplayDate(actionDateTime)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-gray-700">
-                          <div className="flex items-center gap-2">
-                            <FaClock className="text-green-600 text-sm" />
-                            {formatDisplayTime(actionDateTime)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {item.activityType !== "publication" ? (
-                            <div className="text-sm leading-relaxed space-y-1">
-                              {(item.activityType === "booking" ||
-                                item.activityType === "availability") && (
-                                <>
-                                  <div className="flex items-center gap-2 text-gray-700">
-                                    <FaCalendarAlt className="text-blue-500 text-xs" />
-                                    <span>תאריך: {item.date}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-gray-700">
-                                    <FaClock className="text-green-500 text-xs" />
-                                    <span>
-                                      שעות: {item.startTime}
-                                      {item.endTime !== "-" &&
-                                        ` - ${item.endTime}`}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                              {item.activityType === "booking" && (
-                                <div className="flex items-center gap-2 text-gray-700">
-                                  <FaMapMarkerAlt className="text-red-500 text-xs" />
-                                  <span className="truncate max-w-xs">
-                                    כתובת: {item.address}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500 italic">
-                              פרטים נוספים לא זמינים
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                              {getActivityIcon(item.icon)}
-                            </div>
-                            <span className="font-medium text-gray-800">
-                              {getActivityTypeDisplay(item.activityType)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {item.status === "booked" ? (
-                            <button
-                              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-200 transform hover:scale-105 ${status.class}`}
-                              onClick={() => getBookingDetails(item)}
-                            >
-                              <span>{status.icon}</span>
-                              <span>{status.text}</span>
-                              <FaEye className="text-xs" />
-                            </button>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border ${status.class}`}
-                            >
-                              <span>{status.icon}</span>
-                              <span>{status.text}</span>
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <UsageDesktopTable
+              items={currentItems}
+              getStatusDisplay={getStatusDisplay}
+              getActivityIcon={getActivityIcon}
+              getActivityTypeDisplay={getActivityTypeDisplay}
+              formatDisplayDate={formatDisplayDate}
+              formatDisplayTime={formatDisplayTime}
+              getBookingDetails={getBookingDetails}
+            />
 
             {/* Mobile Card View */}
-            <div className="lg:hidden space-y-4 p-4">
-              {currentItems.map((item, index) => {
-                const status = getStatusDisplay(item.status);
-                const actionDateTime = item.rawActionDate || item.actionDate;
-
-                return (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-                  >
-                    {/* Card Header */}
-                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
-                          {getActivityIcon(item.icon)}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-800 text-sm">
-                            {getActivityTypeDisplay(item.activityType)}
-                          </h3>
-                          <p className="text-xs text-gray-600">
-                            {formatDisplayDate(actionDateTime)} •{" "}
-                            {formatDisplayTime(actionDateTime)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Status Badge */}
-                      {item.status === "booked" ? (
-                        <button
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ${status.class}`}
-                          onClick={() => getBookingDetails(item)}
-                        >
-                          <span>{status.icon}</span>
-                          <span>{status.text}</span>
-                          <FaEye className="text-xs" />
-                        </button>
-                      ) : (
-                        <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${status.class}`}
-                        >
-                          <span>{status.icon}</span>
-                          <span>{status.text}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Card Content */}
-                    {item.activityType !== "publication" && (
-                      <div className="space-y-2">
-                        {(item.activityType === "booking" ||
-                          item.activityType === "availability") && (
-                          <>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <FaCalendarAlt className="text-blue-500 text-xs flex-shrink-0" />
-                              <span>תאריך: {item.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <FaClock className="text-green-500 text-xs flex-shrink-0" />
-                              <span>
-                                שעות: {item.startTime}
-                                {item.endTime !== "-" && ` - ${item.endTime}`}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                        {item.activityType === "booking" && (
-                          <div className="flex items-start gap-2 text-sm text-gray-700">
-                            <FaMapMarkerAlt className="text-red-500 text-xs flex-shrink-0 mt-0.5" />
-                            <span className="break-words">
-                              כתובת: {item.address}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <UsageMobileCards
+              items={currentItems}
+              getActivityIcon={getActivityIcon}
+              getActivityTypeDisplay={getActivityTypeDisplay}
+              getStatusDisplay={getStatusDisplay}
+              getBookingDetails={getBookingDetails}
+              formatDisplayDate={formatDisplayDate}
+              formatDisplayTime={formatDisplayTime}
+            />
 
             {/* Pagination */}
             {!loading && filteredHistory.length > 0 && (

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Navbar from "../components/shared/Navbar";
 import Sidebar from "../components/shared/Sidebar";
+import PageHeader from "../components/shared/PageHeader";
 import Footer from "../components/shared/Footer";
 import {
   FaClock,
@@ -574,17 +575,11 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
         <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
           {/* Header Section */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-6">
-              <FaParking className="text-blue-600 text-5xl ml-4 pt-[20px]" />
-              <h1 className="pt-[20px] text-4xl font-extrabold text-blue-700">
-                הזמנות חנייה פעילות
-              </h1>
-            </div>
-            <p className="text-gray-600 text-xl max-w-2xl mx-auto leading-relaxed">
-              כאן תוכל לראות ולנהל את ההזמנות הפעילות שלך
-            </p>
-          </div>
+          <PageHeader
+            icon={FaParking}
+            title="הזמנות חנייה פעילות"
+            subtitle="כאן תוכל לראות ולנהל את ההזמנות הפעילות שלך"
+          />
 
           {cancelSuccess && (
             <Popup

@@ -17,6 +17,8 @@ import UsageHistory from "./pages/UsageHistory";
 import ReleaseParking from "./pages/ReleaseParking";
 import ActiveParkingReservations from "./pages/ActiveParkingReservations";
 import ResidentialParkingSearch from "./pages/ResidentialParkingSearch";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -38,116 +40,135 @@ function App() {
 
   return (
     <Router>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              loggedIn ? (
-                user?.role === "user" || user?.role === "private_prop_owner" ? (
-                  <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-                ) : user?.role === "building_resident" ? (
-                  <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-                ) : (
-                  <Home />
-                )
+      <Routes>
+        <Route
+          path="/"
+          element={
+            loggedIn ? (
+              user?.role === "user" || user?.role === "private_prop_owner" ? (
+                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : user?.role === "building_resident" ? (
+                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
               ) : (
                 <Home />
               )
-            }
-          />
-          <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
-          <Route
-            path="/forgot-password"
-            element={
-              <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            }
-          />
-          <Route
-            path="/reset-password/:token"
-            element={
-              <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-            }
-          />
+            ) : (
+              <Home />
+            )
+          }
+        />
+        <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+          }
+        />
 
-          <Route
-            path="/signup"
-            element={
-              <Signup
+        <Route
+          path="/signup"
+          element={
+            <Signup
+              loggedIn={loggedIn}
+              setLoggedIn={setLoggedIn}
+              isRegistering={true}
+            />
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            loggedIn ? (
+              user?.role !== "user" && user?.role !== "private_prop_owner" ? (
+                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              ) : (
+                <Navigate to="/search-parking" />
+              )
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/active-reservations"
+          element={
+            loggedIn ? (
+              <ActiveParkingReservations
                 loggedIn={loggedIn}
                 setLoggedIn={setLoggedIn}
-                isRegistering={true}
               />
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              loggedIn ? (
-                user?.role !== "user" && user?.role !== "private_prop_owner" ? (
-                  <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-                ) : (
-                  <Navigate to="/search-parking" />
-                )
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/active-reservations"
-            element={
-              loggedIn ? (
-                <ActiveParkingReservations loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              loggedIn ? (
-                <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/search-parking"
-            element={
-              loggedIn ? (
-                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/release"
-            element={
-              loggedIn ? (
-                <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/usage-history"
-            element={
-              loggedIn ? (
-                <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          <Route
-            path="/residential-parking-search"
-            element={<ResidentialParkingSearch loggedIn={loggedIn} setLoggedIn={setLoggedIn} />}
-          />
-        </Routes>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            loggedIn ? (
+              <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/search-parking"
+          element={
+            loggedIn ? (
+              <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/release"
+          element={
+            loggedIn ? (
+              <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/usage-history"
+          element={
+            loggedIn ? (
+              <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/residential-parking-search"
+          element={
+            <ResidentialParkingSearch
+              loggedIn={loggedIn}
+              setLoggedIn={setLoggedIn}
+            />
+          }
+        />
+      </Routes>
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+      />
     </Router>
   );
 }
