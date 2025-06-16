@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Footer from "../shared/Footer";
-import Navbar from "../shared/Navbar";
-import { authService } from "../../services/authService";
+import Footer from "../components/shared/Footer";
+import Navbar from "../components/shared/Navbar";
+import { authService } from "../services/authService";
 
 const ForgotPassword = ({ loggedIn, setLoggedIn, isRegistering }) => {
   document.title = "שחזור סיסמה | Spotly";

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import Navbar from "../shared/Navbar";
-import Sidebar from "../shared/Sidebar";
-import Footer from "../shared/Footer";
-import Popup from "../shared/Popup";
-import AddressMapSelector from "../shared/AddressMapSelector";
-import AdvancedPreferencesPopup from "../shared/AdvancedPreferences";
+import Navbar from "../components/shared/Navbar";
+import Sidebar from "../components/shared/Sidebar";
+import Footer from "../components/shared/Footer";
+import Popup from "../components/shared/Popup";
+import AddressMapSelector from "../components/shared/AddressMapSelector";
+import AdvancedPreferencesPopup from "../components/shared/AdvancedPreferences";
 import { USER_TIMEZONE } from "../utils/constants";
 import { format } from "date-fns";
 import {

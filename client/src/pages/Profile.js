@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "../shared/Navbar";
-import Footer from "../shared/Footer";
-import { userService } from "../../services/userService";
+import Navbar from "../components/shared/Navbar";
+import Footer from "../components/shared/Footer";
+import { userService } from "../services/userService";
 
 const Profile = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול פרופיל | Spotly";

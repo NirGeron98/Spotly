@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
-import Footer from "../shared/Footer";
-import Navbar from "../shared/Navbar";
-import WelcomeSection from "../shared/WelcomeSection";
-import RoutesSection from "../routes/RoutesSection";
-import FeaturesSection from "../shared/FeaturesSection";
-import ChatBot from "../shared/ChatBot";
+import Footer from "../components/shared/Footer";
+import Navbar from "../components/shared/Navbar";
+import WelcomeSection from "../components/shared/WelcomeSection";
+import RoutesSection from "../components/routes/RoutesSection";
+import FeaturesSection from "../components/shared/FeaturesSection";
+import ChatBot from "../components/shared/ChatBot";
 
 const Home = ({ loggedIn, setLoggedIn, isRegistering }) => {
   useEffect(() => {

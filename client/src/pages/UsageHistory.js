@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import Navbar from "../shared/Navbar";
-import Sidebar from "../shared/Sidebar";
-import Footer from "../shared/Footer";
-import Popup from "../shared/Popup";
+import Navbar from "../components/shared/Navbar";
+import Sidebar from "../components/shared/Sidebar";
+import Footer from "../components/shared/Footer";
+import Popup from "../components/shared/Popup";
 import { USER_TIMEZONE } from "../utils/constants";
 import { parseISO, isValid } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";

@@ -5,18 +5,18 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Home from "./components/pages/Home";
-import Login from "./components/pages/Login";
-import Signup from "./components/pages/Signup";
-import ForgotPassword from "./components/pages/ForgotPassword";
-import ResetPassword from "./components/pages/ResetPassword";
-import Dashboard from "./components/pages/Dashboard";
-import Profile from "./components/pages/Profile";
-import SearchParking from "./components/pages/SearchParking";
-import UsageHistory from "./components/pages/UsageHistory";
-import ReleaseParking from "./components/pages/ReleaseParking";
-import ActiveParkingReservations from "./components/pages/ActiveParkingReservations";
-import ResidentialParkingSearch from "./components/pages/ResidentialParkingSearch";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import SearchParking from "./pages/SearchParking";
+import UsageHistory from "./pages/UsageHistory";
+import ReleaseParking from "./pages/ReleaseParking";
+import ActiveParkingReservations from "./pages/ActiveParkingReservations";
+import ResidentialParkingSearch from "./pages/ResidentialParkingSearch";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);

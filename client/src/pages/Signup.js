@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Footer from "../shared/Footer";
-import Navbar from "../shared/Navbar";
-import { authService } from "../../services/authService";
-import { buildingService } from "../../services/buildingService";
-import AddressMapSelector from "../shared/AddressMapSelector";
-import TermsContent from "../shared/TermsContent";
+import Footer from "../components/shared/Footer";
+import Navbar from "../components/shared/Navbar";
+import { authService } from "../services/authService";
+import { buildingService } from "../services/buildingService";
+import AddressMapSelector from "../components/shared/AddressMapSelector";
+import TermsContent from "../components/shared/TermsContent";
 
 const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   document.title = "הרשמה | Spotly";

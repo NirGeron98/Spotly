@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Footer from "../shared/Footer";
-import Navbar from "../shared/Navbar";
-import { authService } from "../../services/authService";
+import Footer from "../components/shared/Footer";
+import Navbar from "../components/shared/Navbar";
+import { authService } from "../services/authService";
 import axios from "axios";
 
 const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {

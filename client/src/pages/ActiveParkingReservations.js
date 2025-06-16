@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import Navbar from "../shared/Navbar";
-import Sidebar from "../shared/Sidebar";
-import Footer from "../shared/Footer";
+import Navbar from "../components/shared/Navbar";
+import Sidebar from "../components/shared/Sidebar";
+import Footer from "../components/shared/Footer";
 import {
   FaClock,
   FaCheck,
@@ -15,7 +15,7 @@ import {
 } from "react-icons/fa";
 import { parseISO } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
-import Popup from "../shared/Popup";
+import Popup from "../components/shared/Popup";
 
 const ActiveParkingTimer = ({
   activeBooking,
@@ -576,7 +576,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
           {/* Header Section */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-6">
-              <FaParking className="text-blue-600 text-3xl ml-4" />
+              <FaParking className="text-blue-600 text-5xl ml-4 pt-[20px]" />
               <h1 className="pt-[20px] text-4xl font-extrabold text-blue-700">
                 הזמנות חנייה פעילות
               </h1>

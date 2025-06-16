@@ -1,9 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
-import Navbar from "../shared/Navbar";
-import Footer from "../shared/Footer";
-import Popup from "../shared/Popup";
-import Sidebar from "../shared/Sidebar";
+import Navbar from "../components/shared/Navbar";
+import Footer from "../components/shared/Footer";
+import Popup from "../components/shared/Popup";
+import Sidebar from "../components/shared/Sidebar";
 import { format } from "date-fns";
 import {
   FaSearch,
