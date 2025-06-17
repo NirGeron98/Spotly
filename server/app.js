@@ -48,7 +48,8 @@ app.get("/api/v1/ping", (req, res) => {
 // Enabling CORS (Cross-Origin Resource Sharing)
 app.use(
   cors({
-    origin: "*",
+    origin: "http://localhost:3000", // מאפשר קריאות מהפרונט המקומי
+    credentials: true,               // אם אתה שולח cookies / headers
   })
 );
 
