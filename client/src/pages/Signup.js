@@ -122,6 +122,12 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       setError("יש למלא את כל השדות");
       return;
     }
+    
+    if (password.length < 8) {
+      setError("הסיסמה חייבת להכיל לפחות 8 תווים");
+      return;
+    }
+    
     if (password !== passwordConfirm) {
       setError("הסיסמאות אינן תואמות");
       return;
