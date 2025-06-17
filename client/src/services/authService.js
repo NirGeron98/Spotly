@@ -44,6 +44,28 @@ export const authService = {
     }
   },
 
+  register: async (userData) => {
+    try {
+      const response = await api.post("/api/v1/users/signup", userData);
+
+      const { token, data } = response.data;
+
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Registration error:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url,
+      });
+      throw error;
+    }
+  },
+
   /**
    * Logs out a user by removing auth data from localStorage
    */
