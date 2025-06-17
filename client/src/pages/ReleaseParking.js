@@ -451,7 +451,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const handleAddSlot = async (dataToAdd = formData) => {
     const { date, startTime, endTime, type } = dataToAdd;
     if (!date || !startTime || !endTime) {
-      console.log("handleAddSlot: Validation failed - Missing date/time");
       setPopupData({
         title: "שגיאה",
         description: "יש למלא תאריך, שעת התחלה ושעת סיום",
@@ -461,9 +460,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
-    console.log("handleAddSlot: Checking if date is in past:", date);
     if (isDateInPast(date)) {
-      console.log("handleAddSlot: Validation failed - Date is in past");
       setPopupData({
         title: "שגיאה",
         description: "לא ניתן להוסיף זמינות לתאריכים שכבר עברו",
@@ -479,14 +476,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       const localEndString = `${date}T${endTime}:00`;
       startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
-      console.log(
-        `handleAddSlot: Converted UTC times. Start: ${startUtc.toISOString()}, End: ${endUtc.toISOString()}`
-      );
 
       if (!isBefore(startUtc, endUtc)) {
-        console.log(
-          "handleAddSlot: Validation failed - End time is not after start time"
-        );
         setPopupData({
           title: "שגיאה",
           description: "שעת סיום חייבת להיות אחרי שעת התחלה",
@@ -509,14 +500,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
     let targetSpot = null;
 
-    console.log("handleAddSlot: Available parkingSlots:", parkingSlots);
-
     if (isBuildingMode) {
       targetSpot = parkingSlots.find((s) => s.spot_type === "building");
       if (!targetSpot) {
-        console.log(
-          "handleAddSlot: Validation failed - No building spot found"
-        );
         setPopupData({
           title: "שגיאה",
           description: "לא נמצאה חנייה משויכת בבניין שלך",
@@ -528,7 +514,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     } else {
       targetSpot = parkingSlots.find((s) => s.spot_type === "private");
       if (!targetSpot) {
-        console.log("handleAddSlot: Validation failed - No private spot found");
         setPopupData({
           title: "שגיאה",
           description: "לא נמצאה חנייה פרטית עבור המשתמש",
@@ -556,12 +541,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         }
       }
     }
-    console.log("handleAddSlot: Target spot found:", targetSpot?._id);
 
-    console.log(
-      "handleAddSlot: Checking for overlap with existing schedules:",
-      targetSpot.availability_schedule || []
-    );
     const hasOverlap = isOverlap(
       targetSpot.availability_schedule || [],
       date,
@@ -570,7 +550,6 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     );
 
     if (hasOverlap) {
-      console.log("handleAddSlot: Validation failed - Overlap detected");
       setPopupData({
         title: "שגיאה",
         description: `יש חפיפה עם פינוי קיים בתאריך ${date}`,
@@ -589,19 +568,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
         timezone: USER_TIMEZONE,
       };
 
-      console.log(
-        "handleAddSlot: Making API call to add schedule:",
-        scheduleData
-      );
-
       await axios.post(
         `/api/v1/parking-spots/${targetSpot._id}/availability-schedule`,
         scheduleData,
         { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      console.log(
-        "handleAddSlot: API call successful. Fetching spots and showing success popup."
       );
 
       await fetchMySpots();

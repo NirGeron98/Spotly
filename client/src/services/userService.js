@@ -6,7 +6,7 @@ export const userService = {
       const response = await api.post("/api/v1/users", requestData);
       return response.data;
     } catch (error) {
-      console.error('Signup error:', error.response?.data || error.message);
+      console.error("Signup error:", error.response?.data || error.message);
       throw error;
     }
   },
@@ -16,7 +16,7 @@ export const userService = {
       const response = await api.get("/api/v1/users");
       return response.data;
     } catch (error) {
-      console.error('Get users error:', error.response?.data || error.message);
+      console.error("Get users error:", error.response?.data || error.message);
       throw error;
     }
   },
@@ -26,7 +26,7 @@ export const userService = {
       const response = await api.get(`/api/v1/users/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Get user error:', error.response?.data || error.message);
+      console.error("Get user error:", error.response?.data || error.message);
       throw error;
     }
   },
@@ -36,24 +36,26 @@ export const userService = {
       const response = await api.patch(`/api/v1/users/${userId}`, requestData);
       return response.data;
     } catch (error) {
-      console.error('Update user error:', error.response?.data || error.message);
+      console.error(
+        "Update user error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
 
   deleteUser: async (userId) => {
-    const response = await api.delete(`/users/${userId}`);
+    const response = await api.delete(`/api/v1/users/${userId}`);
     return response.data;
   },
 
   login: async ({ email, password }) => {
-    const response = await api.post("/users/login", { email, password });
+    const response = await api.post("/api/v1/users/login", { email, password });
     return response.data;
   },
 
   getMe: async () => {
     const response = await api.get("/users/me");
-    console.log("getMe response:", response.data);
     return response.data;
   },
 
@@ -89,4 +91,3 @@ export const userService = {
     return response.data;
   },
 };
-

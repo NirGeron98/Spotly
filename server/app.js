@@ -34,7 +34,6 @@ pmsInstance
 // For simplicity in the controller example above, it was newed up, but a shared instance is better.
 app.use((req, res, next) => {
   req.pms = pmsInstance; // Example: making it available on request object
-  console.log("PMS instance attached to request object.");
   req.requestTime = new Date().toISOString();
   next();
 });
@@ -118,7 +117,6 @@ app.use(globalErrorHandler);
 cron.schedule(
   "5 22 * * *",
   () => {
-    console.log("SCHEDULER: Triggering the nightly batch allocation job...");
 
     // Set the target date for the allocation to be "tomorrow"
     const tomorrow = new Date();

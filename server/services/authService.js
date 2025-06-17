@@ -41,7 +41,6 @@ exports.signup = async (userData) => {
   // Start a MongoDB session for transaction
   const session = await mongoose.startSession();
   session.startTransaction();
-  console.log("data: ", userData);
   try {
     // Define allowed fields for all roles
     const allowedFields = [
@@ -62,7 +61,6 @@ exports.signup = async (userData) => {
 
     // Filter user data to only include allowed fields
     const filteredUserData = filterObj(userData, ...allowedFields);
-    console.log("filtered data: ", filteredUserData);
 
     // Explicitly handle role assignment - restrict admin
     if (userData.role && userData.role !== "admin") {
@@ -121,7 +119,6 @@ exports.signup = async (userData) => {
         building: buildingId,
         owner: userId,
       };
-      console.log("parking spot data: ", parkingSpotData);
       // Create the parking spot
       const newParkingSpot = await ParkingSpot.create([parkingSpotData], {
         session,

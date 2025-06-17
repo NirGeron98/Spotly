@@ -9,9 +9,6 @@ const bookingService = require("./bookingService");
  * Runs the batch allocation process for requests starting on a given target date.
  */
 async function runBatchAllocation(targetDate) {
-  console.log(
-    `Starting batch allocation for requests starting on: ${targetDate.toDateString()}`
-  );
 
   const startOfTargetDate = new Date(targetDate);
   startOfTargetDate.setHours(0, 0, 0, 0);
@@ -107,9 +104,6 @@ async function runBatchAllocation(targetDate) {
 
       // If all three operations succeed, commit the single transaction
       await session.commitTransaction();
-      console.log(
-        `SUCCESS: Transaction committed for assigning spot ${spot.spot_number} to user ${request.userId._id}`
-      );
       // TODO: Notify user they got a spot.
     } catch (error) {
       // If any operation fails, the entire transaction is rolled back
@@ -128,7 +122,6 @@ async function runBatchAllocation(targetDate) {
     if (!confirmedRequestIds.has(request._id.toString())) {
       request.status = "waiting_queue";
       await request.save(); // This can be a simple save, no transaction needed
-      console.log(`INFO: User ${request.userId._id} moved to waiting queue.`);
       // TODO: Notify user they are on the waitlist.
     }
   }

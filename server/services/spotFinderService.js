@@ -47,12 +47,6 @@ class ParkingSpotFinder {
     const distPref  = user.preferences.distance_importance;
     const pricePref = user.preferences.price_importance;
 
-    // --- Logging ---
-    console.log("====== PARKING FINDER ALGORITHM EXECUTION ======");
-    console.log(`Search parameters: lat=${desiredLat}, lon=${desiredLon}, maxPrice=${maxPrice}`);
-    console.log(`Time range: ${desiredStartTime} to ${desiredEndTime}`);
-    console.log(`User preferences: distance=${distPref}, price=${pricePref}`);
-
     // 1) parse times into UTC
     let startUtc, endUtc;
     try {
@@ -64,23 +58,19 @@ class ParkingSpotFinder {
 
     // 2) fetch & filter out owner
     const allSpots = await this._fetchAllSpots(additionalFilters);
-    console.log(`1. Spots fetched initially: ${allSpots.length}`);
 
     const spotsExcludingOwner = allSpots.filter(
       (s) => s.original.owner._id.toString() !== excludeOwnerId
     );
-    console.log(`2. Spots after owner exclusion: ${spotsExcludingOwner.length}`);
 
     // 3) availability
     const available = spotsExcludingOwner.filter((s) =>
       this._checkAvailability(s.availability, startUtc, endUtc)
     );
-    console.log(`3. Spots after availability filter: ${available.length}`);
     if (!available.length) return [];
 
     // 4) price
     const priceOk = available.filter((s) => s.price_per_hour <= maxPrice);
-    console.log(`4. Spots after price filter: ${priceOk.length}`);
     if (!priceOk.length) return [];
 
     // --- Mahalanobis with preference weights ---

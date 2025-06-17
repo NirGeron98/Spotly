@@ -8,7 +8,7 @@ export const buildingService = {
    */
   getBuildingByCode: async (code) => {
     try {
-      const response = await api.get(`/buildings/byCode/${code}`);
+      const response = await api.get(`/api/v1/buildings/byCode/${code}`);
       return response.data;
     } catch (error) {
       console.error("Error fetching building by code:", error);

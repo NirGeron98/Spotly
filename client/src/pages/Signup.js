@@ -7,7 +7,7 @@ import { buildingService } from "../services/buildingService";
 import AddressMapSelector from "../components/shared/AddressMapSelector";
 import TermsContent from "../components/shared/TermsContent";
 
-const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
+const Signup = ({ loggedIn, setLoggedIn }) => {
   document.title = "הרשמה | Spotly";
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -21,6 +21,11 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [buildingInfo, setBuildingInfo] = useState(null);
   const [loadingBuilding, setLoadingBuilding] = useState(false);
   const [showMapPopup, setShowMapPopup] = useState(false);
+  
+  // Loading animation state
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -74,6 +79,41 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     return () => clearTimeout(timer);
   }, [formData.buildingCode, formData.residenceType]);
 
+  // Progress bar animation effect
+  useEffect(() => {
+    let interval;
+    if (isRegistering) {
+      const messages = [
+        "יוצר את החשבון שלך...",
+        "מאמת פרטים...",
+        "מגדיר את הפרופיל שלך...",
+        "כמעט סיימנו...",
+        "מכין את הדף הבית שלך..."
+      ];
+      
+      let messageIndex = 0;
+      let progress = 0;
+      
+      interval = setInterval(() => {
+        progress += Math.random() * 15 + 5; // Random progress increment
+        if (progress > 100) progress = 100;
+        
+        setLoadingProgress(progress);
+        
+        // Change message every 20% progress
+        const newMessageIndex = Math.floor(progress / 20);
+        if (newMessageIndex !== messageIndex && newMessageIndex < messages.length) {
+          messageIndex = newMessageIndex;
+          setLoadingMessage(messages[messageIndex]);
+        }
+      }, 300);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRegistering]);
+
   const handleNext = () => {
     setError("");
     const { fullName, email, password, passwordConfirm, phone_number } =
@@ -101,6 +141,10 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
   const handleRegister = async () => {
     setError("");
+    setIsRegistering(true); // Start loading animation
+    setLoadingProgress(0);
+    setLoadingMessage("יוצר את החשבון שלך...");
+
     const {
       fullName,
       email,
@@ -126,6 +170,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       !residenceType
     ) {
       setError("יש למלא את כל השדות חובה");
+      setIsRegistering(false);
       return;
     }
 
@@ -134,6 +179,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       (!city || !street || !buildingNumber)
     ) {
       setError("יש למלא את פרטי הכתובת");
+      setIsRegistering(false);
       return;
     }
 
@@ -142,11 +188,13 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       (!buildingCode || !apartmentNumber || !parkingNumber || !parkingFloor)
     ) {
       setError("יש למלא את כל הפרטים הקשורים לדירה ולחנייה בבניין");
+      setIsRegistering(false);
       return;
     }
 
     if (residenceType === "apartment" && !buildingInfo) {
       setError("יש להזין קוד בניין תקין");
+      setIsRegistering(false);
       return;
     }
 
@@ -188,9 +236,11 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         registrationData.resident_building = buildingInfo._id;
       }
 
-      console.log("Registration data:", registrationData);
-
       await authService.register(registrationData);
+
+      // Update loading message after successful registration
+      setLoadingMessage("נרשמת בהצלחה! מתחבר לחשבון...");
+      setLoadingProgress(80);
 
       const response = await authService.login({ email, password });
       const user =
@@ -203,22 +253,30 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
         "mode",
         user.role === "building_resident" ? "building" : "regular"
       );
+      
       setLoggedIn(true);
+      
+      // Final update before redirect
+      setLoadingMessage("מכין את הדף הבית שלך...");
+      setLoadingProgress(100);
       setSuccess("נרשמת בהצלחה! מעביר אותך לדף הבית...");
 
-      // Navigate to the appropriate home page
-      if (user.role === "building_resident") {
-        navigate("/dashboard");
-      } else {
-        navigate("/search-parking");
-      }
+      // Brief wait before redirect to show complete animation
+      setTimeout(() => {
+        // Navigate to the appropriate home page
+        if (user.role === "building_resident") {
+          navigate("/dashboard");
+        } else {
+          navigate("/search-parking");
+        }
+      }, 1000);
+
     } catch (err) {
       console.error("Registration error:", err);
+      setIsRegistering(false); // Stop loading animation on error
 
       if (err.response) {
-        console.log("📦 err.response.data:", err.response.data);
-        console.log("📦 err.response.data.error:", err.response.data.error);
-        console.log("📦 err.response.data.message:", err.response.data.message);
+        console.log("");
       }
 
       let message = "אירעה שגיאה. ודא שכל השדות מולאו כראוי ונסה שוב.";
@@ -245,6 +303,54 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
     }
   };
 
+  // Compact loading popup component
+  const LoadingOverlay = () => (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-gray-100">
+        {/* Header with icon */}
+        <div className="flex items-center justify-center mb-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-sky-500 rounded-full flex items-center justify-center text-xl animate-pulse">
+            🎉
+          </div>
+        </div>
+
+        {/* Loading message */}
+        <h3 className="text-lg font-bold text-gray-800 text-center mb-4">
+          {loadingMessage}
+        </h3>
+        
+        {/* Progress bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-3 overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-blue-500 to-sky-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+            style={{ width: `${loadingProgress}%` }}
+          >
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Progress percentage and dots */}
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600 text-sm font-medium">
+            {Math.round(loadingProgress)}%
+          </p>
+          
+          {/* Bouncing dots animation */}
+          <div className="flex space-x-1" dir="ltr">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"
+                style={{ animationDelay: `${i * 0.2}s` }}
+              ></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100"
@@ -253,7 +359,6 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       <Navbar
         loggedIn={loggedIn}
         setLoggedIn={setLoggedIn}
-        isRegistering={isRegistering}
       />
 
       <main className="flex-1 relative z-10 py-8">
@@ -405,6 +510,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     <button
                       onClick={() => setStep(1)}
                       className="px-6 py-3 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300"
+                      disabled={isRegistering}
                     >
                       ← הקודם
                     </button>
@@ -450,11 +556,12 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                             residenceType: type.key,
                           }))
                         }
+                        disabled={isRegistering}
                         className={`p-4 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 text-center ${
                           formData.residenceType === type.key
                             ? "border-blue-400 bg-blue-50 shadow-lg"
                             : "border-blue-200 bg-white hover:border-blue-300 hover:shadow-md"
-                        }`}
+                        } ${isRegistering ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
                         <div className="text-3xl mb-2">{type.icon}</div>
                         <div
@@ -486,7 +593,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                               placeholder="קוד בניין"
                               value={formData.buildingCode}
                               onChange={handleChange}
-                              className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                              disabled={isRegistering}
+                              className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                             />
                             {loadingBuilding && (
                               <div className="flex items-center text-sm text-blue-600 mt-2">
@@ -530,7 +638,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                                 placeholder="מספר דירה"
                                 value={formData.apartmentNumber}
                                 onChange={handleChange}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                                disabled={isRegistering}
+                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                             <div>
@@ -543,7 +652,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                                 placeholder="מספר חנייה"
                                 value={formData.parkingNumber}
                                 onChange={handleChange}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                                disabled={isRegistering}
+                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                             <div>
@@ -556,7 +666,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                                 placeholder="קומת חנייה"
                                 value={formData.parkingFloor}
                                 onChange={handleChange}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                                disabled={isRegistering}
+                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                           </div>
@@ -611,7 +722,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                         id="terms"
                         checked={termsAccepted}
                         onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ml-3"
+                        disabled={isRegistering}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ml-3 disabled:opacity-50"
                       />
                       <label
                         htmlFor="terms"
@@ -621,7 +733,8 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                         <button
                           type="button"
                           onClick={() => setShowTermsPopup(true)}
-                          className="text-blue-600 underline hover:text-blue-800 mx-1 font-semibold transition-colors"
+                          disabled={isRegistering}
+                          className="text-blue-600 underline hover:text-blue-800 mx-1 font-semibold transition-colors disabled:opacity-50"
                         >
                           תנאי השימוש
                         </button>
@@ -631,14 +744,21 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     {/* Register Button */}
                     <button
                       onClick={handleRegister}
-                      disabled={!termsAccepted}
-                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-xl ${
-                        termsAccepted
+                      disabled={!termsAccepted || isRegistering}
+                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden ${
+                        termsAccepted && !isRegistering
                           ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white hover:from-blue-700 hover:to-sky-700 hover:scale-105"
                           : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
                     >
-                      🎉 הרשמה
+                      {isRegistering ? (
+                        <div className="flex items-center justify-center">
+                          <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin ml-2"></div>
+                          רושם...
+                        </div>
+                      ) : (
+                        "🎉 הרשמה"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -650,8 +770,11 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
       <Footer />
 
+      {/* Loading Overlay */}
+      {isRegistering && <LoadingOverlay />}
+
       {/* Terms Popup */}
-      {showTermsPopup && (
+      {showTermsPopup && !isRegistering && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div
             className="bg-white/95 backdrop-blur-lg p-8 rounded-3xl shadow-2xl w-full max-w-4xl mx-4 relative border border-blue-100"
@@ -687,7 +810,7 @@ const Signup = ({ loggedIn, setLoggedIn, isRegistering }) => {
       )}
 
       {/* Map Selection Popup */}
-      {showMapPopup && (
+      {showMapPopup && !isRegistering && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div
             className="bg-white/95 backdrop-blur-lg p-8 rounded-3xl shadow-2xl w-full max-w-4xl mx-4 relative border border-blue-100"

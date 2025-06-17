@@ -1,7 +1,5 @@
 import axios from "axios";
 
-console.log('API URL:', process.env.REACT_APP_API_URL); // Debug line
-
 const instance = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://spotly-gsy6.onrender.com',
   withCredentials: false, // Temporarily disabled to test connection
@@ -13,11 +11,6 @@ const instance = axios.create({
 // Add request interceptor for debugging
 instance.interceptors.request.use(
   (config) => {
-    console.log('Request:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      headers: config.headers
-    });
     return config;
   },
   (error) => {
@@ -29,10 +22,6 @@ instance.interceptors.request.use(
 // Add response interceptor for debugging
 instance.interceptors.response.use(
   (response) => {
-    console.log('Response Success:', {
-      status: response.status,
-      url: response.config.url
-    });
     return response;
   },
   (error) => {

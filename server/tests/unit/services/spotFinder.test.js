@@ -15,7 +15,6 @@ mongoose
 // Test function with scenarios
 async function testParkingFinder() {
   try {
-    console.log("======= PARKING FINDER ALGORITHM TEST =======");
 
     // Test coordinates (Tel Aviv area)
     const testLat = 32.0853;
@@ -45,13 +44,11 @@ async function testParkingFinder() {
 
     // Test each scenario
     for (const scenario of testScenarios) {
-      console.log(`\n\n===== TESTING SCENARIO: ${scenario.name} =====`);
 
       // Create/update test user with desired preferences
       const testUser = await createOrUpdateTestUser(scenario.preferences);
 
       // Find parking spots with algorithm
-      console.log("Searching with preferences:", scenario.preferences);
       const spots = await parkingFinder.findParkingSpots(
         testLat,
         testLon,
@@ -64,7 +61,6 @@ async function testParkingFinder() {
       );
 
       // Format and print results
-      console.log(`Found ${spots.length} available spots`);
 
       const formattedResults = parkingFinder.formatResults(spots);
       console.table(
@@ -80,7 +76,6 @@ async function testParkingFinder() {
       );
     }
 
-    console.log("\nTest completed.");
   } catch (error) {
     console.error("Test failed:", error);
   } finally {

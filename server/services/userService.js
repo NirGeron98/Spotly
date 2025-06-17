@@ -27,7 +27,6 @@ exports.updateMe = async (userId, userData) => {
 
 exports.deactivateUser = async (userId) => {
   const user = await User.findByIdAndUpdate(userId, { is_active: false });
-  console.log(user.is_active);
   if (!user) {
     throw new AppError("No user found with that ID", 404);
   }

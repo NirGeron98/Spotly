@@ -135,7 +135,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           });
         },
         (error) => {
-          console.log("Error getting location:", error);
+          console.log("");
         }
       );
     }
@@ -306,14 +306,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       const token = localStorage.getItem("token");
       const selectedSpot = parkingSpots.find((spot) => spot._id === spotId);
 
-      // Debug the spot's hourly price
-      console.log("Selected spot details:", {
-        id: selectedSpot?._id,
-        hourly_price: selectedSpot?.hourly_price,
-        type: typeof selectedSpot?.hourly_price,
-        spot_type: selectedSpot?.spot_type,
-      });
-
       // Format the booking data according to your API
       const bookingData = {
         spot: spotId,
@@ -332,14 +324,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         type: "confirm",
         onConfirm: async () => {
           try {
-            console.log("Sending booking data:", bookingData);
-
             // Create booking
             const response = await axios.post("/api/v1/bookings", bookingData, {
               headers: { Authorization: `Bearer ${token}` },
             });
-
-            console.log("Booking response:", response.data);
 
             if (response.data?.status === "success") {
               setPopupData({

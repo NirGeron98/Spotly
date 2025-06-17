@@ -18,7 +18,6 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
     const checkBackend = async () => {
       try {
         const res = await axios.get("/api/v1/ping");
-        console.log("✅ Connected to backend:", res.data);
       } catch (err) {
         console.error("❌ Failed to connect to backend:", err);
       }

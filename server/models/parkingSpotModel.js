@@ -176,12 +176,9 @@ parkingSpotSchema.pre("save", async function (next) {
         if (geocodeResult.success) {
           this.address.latitude = geocodeResult.latitude;
           this.address.longitude = geocodeResult.longitude;
-          console.log(
-            `Updated coordinates for spot ${this._id}: [${geocodeResult.latitude}, ${geocodeResult.longitude}]`
-          );
         } else {
           console.log(
-            `Failed to geocode address for spot ${this._id}: ${geocodeResult.message}`
+            ""
           );
         }
       }

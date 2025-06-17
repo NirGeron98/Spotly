@@ -243,15 +243,11 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       const combinedHistory = [...bookingHistory, ...spotHistory];
       setUsageHistory(combinedHistory);
 
-      // הוספת console.log לבדיקה
-      console.log("Data loaded successfully:", combinedHistory.length, "items");
     } catch (err) {
       console.error("שגיאה בעת טעינת היסטוריית שימוש:", err);
-      setUsageHistory([]); // וודא שה-state מתעדכן גם במקרה של שגיאה
+      setUsageHistory([]);
     } finally {
-      // וודא שה-loading מתבטל תמיד, גם במקרה של שגיאה
       setLoading(false);
-      console.log("Loading state set to false");
     }
   };
 

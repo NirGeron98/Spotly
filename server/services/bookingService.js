@@ -261,13 +261,6 @@ exports.cancelBooking = async (bookingId, userId, options = {}) => {
           booking.payment_status = "pending_refund";
         }
 
-        console.log(`Booking ${booking._id} recalculated:
-          Original duration: ${originalHours.toFixed(2)} hours
-          Actual duration: ${actualUsageHours.toFixed(2)} hours
-          Original amount: ${booking.original_amount}
-          New amount: ${booking.final_amount}
-          Refund amount: ${booking.refund_amount || 0}
-        `);
       }
     }
     

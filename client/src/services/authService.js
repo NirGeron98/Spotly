@@ -13,17 +13,9 @@ export const authService = {
    */
   login: async ({ email, password }) => {
     try {
-      console.log("Attempting login with:", { email }); // Debug line - don't log password
-
       const response = await api.post("/api/v1/users/login", {
         email,
         password,
-      });
-
-      console.log("Login response:", {
-        status: response.status,
-        hasToken: !!response.data?.token,
-        hasUser: !!response.data?.data?.user,
       });
 
       const { token, data } = response.data;
@@ -113,7 +105,7 @@ export const authService = {
    * @returns {Promise<Object>} - Response data
    */
   forgotPassword: async (email) => {
-    const response = await api.post("/users/forgotPassword", { email });
+    const response = await api.post("/api/v1/users/forgotPassword", { email });
     return response.data;
   },
 
@@ -127,9 +119,10 @@ export const authService = {
    */
   resetPassword: async (token, passwordData) => {
     const response = await api.patch(
-      `/users/resetPassword/${token}`,
+      `/api/v1/users/resetPassword/${token}`,
       passwordData
     );
+
     return response.data;
   },
   updateParkingSpot: async (spotId, updateData) => {

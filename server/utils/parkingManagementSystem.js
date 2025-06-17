@@ -17,9 +17,6 @@ class ParkingManagementSystem {
   }
 
   async loadFromDatabase() {
-    console.log(
-      'Loading availability data from MongoDB (using start_datetime/end_datetime fields)...',
-    );
     this.availabilityTree = new IntervalTree(this.treeCenter); // Re-initialize
     this.intervalDataStore = new Map(); // Reset map
     let loadedCount = 0;
@@ -69,9 +66,6 @@ class ParkingManagementSystem {
         }
       }
       this.isLoaded = true;
-      console.log(
-        `Successfully loaded ${loadedCount} active intervals into tree.`,
-      );
     } catch (err) {
       console.error('ERROR loading data from MongoDB into interval tree:', err);
       this.isLoaded = false;
@@ -219,9 +213,6 @@ class ParkingManagementSystem {
         }
       }); // End of session.withTransaction
 
-      console.log(
-        `Booking ${createdBooking?._id} created successfully for spot ${spotId}. DB and tree updated.`,
-      );
       return createdBooking ? createdBooking.toObject() : null;
     } catch (error) {
       console.error(
