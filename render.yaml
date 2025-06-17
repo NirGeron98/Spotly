@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: spotly-backend
+    env: node
+    plan: free
+    region: frankfurt
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm run prod
+    rootDir: server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE
+        value: mongodb+srv://itzikga:${DATABASE_PASSWORD}@default.ft29z.mongodb.net/?retryWrites=true&w=majority&appName=Default
+      - key: DATABASE_PASSWORD
+        value: SpvmNnaZatkfdwCJ
+      - key: JWT_SECRET
+        value: jkhdfs89ukjsdfm,3mj,sdlfdffsdkj39fu09dkjds3
+      - key: JWT_EXPIRES_IN
+        value: 90d
+      - key: JWT_COOKIE_EXPIRES_IN
+        value: 90
+      - key: EMAIL_USERNAME
+        value: 90a016fb9304d8
+      - key: EMAIL_PASSWORD
+        value: 64f26c51a42c96
+      - key: EMAIL_HOST
+        value: sandbox.smtp.mailtrap.io
+      - key: EMAIL_PORT
+        value: 25
