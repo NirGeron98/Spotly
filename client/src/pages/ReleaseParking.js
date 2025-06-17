@@ -10,7 +10,7 @@ import WeeklyParkingGrid from "../components/release-parking/WeeklyParkingGrid";
 import WeeklyHeader from "../components/release-parking/WeeklyHeader";
 import QuickAddPopup from "../components/release-parking/QuickAddPopup";
 import SettingsButton from "../components/release-parking/SettingsButton";
-import ScheduleCard from "../components/release-parking/ScheduleCard";  
+import ScheduleCard from "../components/release-parking/ScheduleCard";
 import { format, fromZonedTime, toZonedTime } from "date-fns-tz";
 import {
   startOfDay,
@@ -880,9 +880,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     weekViewSchedules={weekViewSchedules}
                     isDayInPast={isDayInPast}
                     timeGridRef={timeGridRef}
-                    handleMouseDown={handleMouseDown}
-                    handleMouseMove={handleMouseMove}
-                    handleMouseUp={handleMouseUp}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                     isDragging={isDragging}
                     dragStart={dragStart}
                     dragEnd={dragEnd}
@@ -891,9 +891,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     getTimeSlotHeight={getTimeSlotHeight}
                     expandedSchedule={expandedSchedule}
                     setExpandedSchedule={setExpandedSchedule}
-                    fetchBookingDetails={fetchBookingDetails}
-                    setConfirmDeleteId={setConfirmDeleteId}
-                      ScheduleCard={ScheduleCard}
+                    handleDeleteClick={(data) => setConfirmDeleteId(data)}
+                    handleBookingDetailsClick={fetchBookingDetails}
+                    ScheduleCard={ScheduleCard}
                   />
                 </div>
               )}
