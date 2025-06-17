@@ -12,7 +12,7 @@ import PageHeader from "../components/shared/PageHeader";
 import ParkingResultsGrid from "../components/search-private-parking/ParkingResultsGrid";
 import EmptySearchPrompt from "../components/search-private-parking/EmptySearchPrompt";
 import { notifySuccess, notifyError, notifyInfo } from "../utils/toasts";
-
+import { fromZonedTime } from "date-fns-tz";
 import Loader from "../components/shared/Loader";
 import { format } from "date-fns";
 import { FaSearch, FaHome, FaSync } from "react-icons/fa";
@@ -32,6 +32,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [showPreferences, setShowPreferences] = useState(false);
   const [distancePreference, setDistancePreference] = useState(3);
   const [pricePreference, setPricePreference] = useState(3);
+  const [suppressEmptyMessage, setSuppressEmptyMessage] = useState(false);
 
   // Get user's current location
   const [userLocation, setUserLocation] = useState({
@@ -275,7 +276,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       spots = sortParkingSpots(spots);
       setParkingSpots(spots);
 
-      if (spots.length === 0) {
+      if (spots.length === 0 && !suppressEmptyMessage) {
         notifyInfo("לא נמצאו חניות העונות על הקריטריונים שלך");
       }
     } catch (err) {
@@ -285,6 +286,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       );
     } finally {
       setLoading(false);
+      setSuppressEmptyMessage(false);
     }
   };
 
@@ -306,30 +308,43 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       const token = localStorage.getItem("token");
       const selectedSpot = parkingSpots.find((spot) => spot._id === spotId);
 
-      // Format the booking data according to your API
+      // Construct local datetime strings
+      const localStartString = `${searchParams.date}T${searchParams.startTime}:00`;
+      const localEndString = `${searchParams.date}T${searchParams.endTime}:00`;
+
+      // Convert local datetime strings to UTC
+      const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
+      const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
+
+      // Prepare booking payload for the API
       const bookingData = {
         spot: spotId,
         booking_type: searchParams.is_charging_station ? "charging" : "parking",
-        start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
-        end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
+        start_datetime: startUtc.toISOString(),
+        end_datetime: endUtc.toISOString(),
         base_rate_override: selectedSpot?.hourly_price || 0,
-        base_rate: selectedSpot?.hourly_price || 0, // Send both parameters
+        base_rate: selectedSpot?.hourly_price || 0,
         timezone: USER_TIMEZONE,
       };
 
-      // Show confirmation popup
+      console.log("Booking data being sent:", bookingData);
+
+      // Show confirmation popup (without date and time)
       setPopupData({
         title: "אישור הזמנה",
-        description: "האם אתה בטוח שברצונך להזמין חניה זו?",
+        description: `האם אתה בטוח שברצונך להזמין חניה זו?\nמחיר: ₪${(
+          selectedSpot?.hourly_price * calculateHours()
+        ).toFixed(0)}`,
         type: "confirm",
         onConfirm: async () => {
           try {
-            // Create booking
+            // Send booking request
             const response = await axios.post("/api/v1/bookings", bookingData, {
               headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.data?.status === "success") {
+              // Show success popup
               setPopupData({
                 title: "הזמנה בוצעה בהצלחה",
                 description:
@@ -337,19 +352,22 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 type: "success",
               });
 
-              // Refresh search results to reflect the new booking
+              // Refresh search results
+              setSuppressEmptyMessage(true);
               setTimeout(() => {
                 searchParkingSpots();
               }, 2000);
             }
           } catch (err) {
-            console.error("שגיאה בביצוע הזמנה:", err);
+            console.error("Error during booking:", err);
+            console.error("Server response:", err.response?.data);
 
             let errorMessage = "אירעה שגיאה בעת ביצוע ההזמנה. אנא נסה שנית.";
             if (err.response?.data?.message) {
               errorMessage = err.response.data.message;
             }
 
+            // Show error popup
             setPopupData({
               title: "שגיאה בהזמנה",
               description: errorMessage,
@@ -359,7 +377,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         },
       });
     } catch (err) {
-      console.error("שגיאה בהכנת ההזמנה:", err);
+      console.error("Error preparing booking:", err);
+
+      // Show general error popup
       setPopupData({
         title: "שגיאה בהזמנה",
         description: "אירעה שגיאה בעת הכנת ההזמנה. אנא נסה שנית.",
@@ -411,10 +431,11 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
         {/* Main Content - Responsive Layout */}
-        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-10 mt-16 w-full 
+        <main
+          className="flex-1 p-3 sm:p-4 md:p-6 lg:p-10 mt-16 w-full 
                        mr-0 lg:mr-64 xl:mr-80 
-                       transition-all duration-300 min-w-0">
-          
+                       transition-all duration-300 min-w-0"
+        >
           {/* Header Section - Responsive */}
           <div className="mb-6 md:mb-8">
             <PageHeader
@@ -425,11 +446,12 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           </div>
 
           {/* Search Form Card - Responsive */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl md:rounded-2xl 
+          <div
+            className="bg-white/80 backdrop-blur-sm rounded-xl md:rounded-2xl 
                         shadow-lg md:shadow-xl p-4 sm:p-6 md:p-8 
                         mb-6 md:mb-12 max-w-6xl mx-auto 
-                        border border-blue-100">
-            
+                        border border-blue-100"
+          >
             {/* Form Header - Responsive */}
             <div className="flex flex-col sm:flex-row items-center justify-center mb-6 md:mb-8">
               <FaSearch className="text-blue-600 text-xl md:text-2xl mb-2 sm:mb-0 sm:ml-4 md:ml-6" />
@@ -485,12 +507,16 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
           ) : (
             /* Loading State - Responsive */
             <div className="text-center py-12 md:py-16">
-              <div className="inline-block bg-white/80 backdrop-blur-sm 
+              <div
+                className="inline-block bg-white/80 backdrop-blur-sm 
                             rounded-xl md:rounded-2xl p-6 md:p-8 
-                            shadow-lg md:shadow-xl max-w-sm mx-auto">
-                <div className="bg-gradient-to-br from-blue-100 to-indigo-100 
+                            shadow-lg md:shadow-xl max-w-sm mx-auto"
+              >
+                <div
+                  className="bg-gradient-to-br from-blue-100 to-indigo-100 
                               w-16 h-16 md:w-20 md:h-20 rounded-full 
-                              flex items-center justify-center mx-auto mb-4 md:mb-6">
+                              flex items-center justify-center mx-auto mb-4 md:mb-6"
+                >
                   <FaSync className="animate-spin text-blue-600 text-2xl md:text-3xl" />
                 </div>
                 <p className="text-gray-600 text-base md:text-lg font-medium">

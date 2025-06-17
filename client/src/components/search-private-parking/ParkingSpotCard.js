@@ -16,10 +16,12 @@ const ParkingSpotCard = ({
   formatAddress,
 }) => {
   const hours = calculateHours();
+  // Check if this is a building spot (usually free for residents)
+  const isBuildingSpot = spot.spot_type === 'building' || spot.hourly_price === 0;
 
   return (
     <div className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100">
-      {/* תמונה / איקון */}
+      {/* Image / Icon */}
       <div className="h-48 bg-gradient-to-br from-blue-500 to-indigo-600 relative overflow-hidden">
         {spot.photos?.length > 0 ? (
           <img
@@ -38,19 +40,33 @@ const ParkingSpotCard = ({
           </div>
         )}
 
-        {/* תוויות מחיר ועמדת טעינה */}
-        <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg backdrop-blur-sm">
-          ₪{spot.hourly_price}/שעה
-        </div>
-
-        <div className="absolute bottom-4 left-4 bg-gray-900/80 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm shadow-lg">
-          <div className="flex items-center gap-2">
-            <FaClock className="text-white" />
-            <span>
-              סה״כ: ₪{(spot.hourly_price * hours).toFixed(0)} ל-{hours} שעות
-            </span>
+        {/* Price and charging station labels - only show for paid spots */}
+        {!isBuildingSpot && spot.hourly_price > 0 && (
+          <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg backdrop-blur-sm">
+            ₪{spot.hourly_price}/שעה
           </div>
-        </div>
+        )}
+
+        {!isBuildingSpot && spot.hourly_price > 0 && (
+          <div className="absolute bottom-4 left-4 bg-gray-900/80 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm shadow-lg">
+            <div className="flex items-center gap-2">
+              <FaClock className="text-white" />
+              <span>
+                סה״כ: ₪{(spot.hourly_price * hours).toFixed(0)} ל-{hours} שעות
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Show "Free for residents" label for building spots */}
+        {isBuildingSpot && (
+          <div className="absolute bottom-4 left-4 bg-green-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm shadow-lg">
+            <div className="flex items-center gap-2">
+              <FaParking className="text-white" />
+              <span>חינם לדיירים</span>
+            </div>
+          </div>
+        )}
 
         {spot.is_charging_station && (
           <div className="absolute top-4 right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-xl text-sm shadow-lg flex items-center backdrop-blur-sm">
@@ -59,7 +75,7 @@ const ParkingSpotCard = ({
         )}
       </div>
 
-      {/* תוכן כרטיס */}
+      {/* Card content */}
       <div className="p-6">
         <h3 className="text-lg font-bold text-gray-800 mb-3 group-hover:text-blue-600 transition-colors duration-200">
           {formatAddress(spot.address)}

@@ -38,7 +38,11 @@ const ScheduleCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDeleteClick(schedule.slot._id, schedule._id);
+                // תיקון: העברת אובייקט במקום שני פרמטרים נפרדים
+                onDeleteClick({
+                  spotId: schedule.slot._id,
+                  scheduleId: schedule._id
+                });
               }}
               className="text-red-500 hover:text-red-700 text-sm"
               title="מחק פינוי"
