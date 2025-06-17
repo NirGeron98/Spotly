@@ -42,7 +42,7 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
 
   const handleConfirmReservation = async (selectedSpot) => {
     setLoading(true);
-    const token = localStorage.getItem("token");
+    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
     const spotToBook = selectedSpot || foundSpot;
     const bookingType = spotToBook.is_charging_station ? "charging" : "parking";
 
@@ -90,8 +90,8 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     setFoundSpot(null);
 
     try {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user"));
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const user = typeof Storage !== 'undefined' ? JSON.parse(localStorage.getItem("user") || '{}') : {};
 
       const response = await axios.post(
         "/api/v1/parking-spots/building/find-available",
@@ -150,8 +150,8 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
   const runPrivateParkingFallback = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user"));
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const user = typeof Storage !== 'undefined' ? JSON.parse(localStorage.getItem("user") || '{}') : {};
       const { latitude = 32.0518, longitude = 34.8585 } = user?.address || {};
 
       const requestBody = {
@@ -214,30 +214,36 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
           setCurrent={() => {}}
           role="building_resident"
         />
-        <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
-          <PageHeader
-            icon={FaBuilding}
-            title="חיפוש חניה בבניין מגורים"
-            subtitle="מצא חניה בבניין מגורים בתאריך ובשעות הרצויות"
-          />
-
-          <BuildingSearchForm
-            searchParams={searchParams}
-            handleInputChange={handleInputChange}
-            chargerTypes={chargerTypes}
-            searchParkingSpots={searchParkingSpots}
-          />
-
-          {fallbackResults.length > 0 && (
-            <FallbackResultsGrid
-              fallbackResults={fallbackResults}
-              searchParams={searchParams}
-              setPopupData={setPopupData}
-              handleConfirmReservation={handleConfirmReservation}
-              setFoundSpot={setFoundSpot}
-              calculateHours={calculateHours}
+        <main className="flex-1 p-2 sm:p-4 md:p-6 lg:p-10 mt-16 w-full md:mr-64 lg:mr-80 transition-all duration-300 min-w-0">
+          <div className="px-2 sm:px-0">
+            <PageHeader
+              icon={FaBuilding}
+              title="חיפוש חניה בבניין מגורים"
+              subtitle="מצא חניה בבניין מגורים בתאריך ובשעות הרצויות"
             />
-          )}
+
+            <div className="max-w-4xl mx-auto">
+              <BuildingSearchForm
+                searchParams={searchParams}
+                handleInputChange={handleInputChange}
+                chargerTypes={chargerTypes}
+                searchParkingSpots={searchParkingSpots}
+              />
+
+              {fallbackResults.length > 0 && (
+                <div className="mt-4 sm:mt-6 md:mt-8">
+                  <FallbackResultsGrid
+                    fallbackResults={fallbackResults}
+                    searchParams={searchParams}
+                    setPopupData={setPopupData}
+                    handleConfirmReservation={handleConfirmReservation}
+                    setFoundSpot={setFoundSpot}
+                    calculateHours={calculateHours}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </main>
       </div>
       <Footer />

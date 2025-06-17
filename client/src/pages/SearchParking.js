@@ -422,19 +422,32 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       <div className="flex flex-grow">
         <Sidebar current={current} setCurrent={setCurrent} role={role} />
 
-        <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
-          {/* Header Section */}
-          <PageHeader
-            icon={FaHome}
-            title="חיפוש חניה פרטית"
-            subtitle="מצא את החניה הפרטית המושלמת בדיוק במקום ובזמן שאתה צריך"
-          />
+        {/* Main Content - Responsive Layout */}
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-10 mt-16 w-full 
+                       mr-0 lg:mr-64 xl:mr-80 
+                       transition-all duration-300 min-w-0">
+          
+          {/* Header Section - Responsive */}
+          <div className="mb-6 md:mb-8">
+            <PageHeader
+              icon={FaHome}
+              title="חיפוש חניה פרטית"
+              subtitle="מצא את החניה הפרטית המושלמת בדיוק במקום ובזמן שאתה צריך"
+            />
+          </div>
 
-          {/* Search Form Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-12 max-w-6xl mx-auto border border-blue-100">
-            <div className="flex items-center justify-center mb-8">
-              <FaSearch className="text-blue-600 text-2xl ml-6" />
-              <h2 className="text-2xl font-bold text-gray-800">פרטי החיפוש</h2>
+          {/* Search Form Card - Responsive */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl md:rounded-2xl 
+                        shadow-lg md:shadow-xl p-4 sm:p-6 md:p-8 
+                        mb-6 md:mb-12 max-w-6xl mx-auto 
+                        border border-blue-100">
+            
+            {/* Form Header - Responsive */}
+            <div className="flex flex-col sm:flex-row items-center justify-center mb-6 md:mb-8">
+              <FaSearch className="text-blue-600 text-xl md:text-2xl mb-2 sm:mb-0 sm:ml-4 md:ml-6" />
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 text-center sm:text-right">
+                פרטי החיפוש
+              </h2>
             </div>
 
             <SearchForm
@@ -452,19 +465,21 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             />
           </div>
 
-          {/* Results Header */}
+          {/* Results Header - Responsive */}
           {parkingSpots.length > 0 && (
-            <ResultsHeader
-              count={parkingSpots.length}
-              distancePreference={distancePreference}
-              pricePreference={pricePreference}
-              sortBy={searchParams.sortBy}
-              sortOrder={searchParams.sortOrder}
-              handleSortChange={handleSortChange}
-            />
+            <div className="mb-4 md:mb-6">
+              <ResultsHeader
+                count={parkingSpots.length}
+                distancePreference={distancePreference}
+                pricePreference={pricePreference}
+                sortBy={searchParams.sortBy}
+                sortOrder={searchParams.sortOrder}
+                handleSortChange={handleSortChange}
+              />
+            </div>
           )}
 
-          {/* Results List */}
+          {/* Results List - Responsive */}
           {!loading && parkingSpots.length > 0 ? (
             <ParkingResultsGrid
               parkingSpots={parkingSpots}
@@ -480,12 +495,17 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
               description="הזן מיקום, תאריך ושעות כדי למצוא חניות פרטיות זמינות."
             />
           ) : (
-            <div className="text-center py-16">
-              <div className="inline-block bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl">
-                <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <FaSync className="animate-spin text-blue-600 text-3xl" />
+            /* Loading State - Responsive */
+            <div className="text-center py-12 md:py-16">
+              <div className="inline-block bg-white/80 backdrop-blur-sm 
+                            rounded-xl md:rounded-2xl p-6 md:p-8 
+                            shadow-lg md:shadow-xl max-w-sm mx-auto">
+                <div className="bg-gradient-to-br from-blue-100 to-indigo-100 
+                              w-16 h-16 md:w-20 md:h-20 rounded-full 
+                              flex items-center justify-center mx-auto mb-4 md:mb-6">
+                  <FaSync className="animate-spin text-blue-600 text-2xl md:text-3xl" />
                 </div>
-                <p className="text-gray-600 text-lg font-medium">
+                <p className="text-gray-600 text-base md:text-lg font-medium">
                   טוען חניות זמינות...
                 </p>
               </div>

@@ -27,7 +27,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול החנייה שלי | Spotly";
   const [current, setCurrent] = useState("releaseParking");
   const [user] = useState(null);
-  const isBuildingMode = localStorage.getItem("mode") === "building";
+  const isBuildingMode = typeof Storage !== 'undefined' ? localStorage.getItem("mode") === "building" : false;
   const [parkingSlots, setParkingSlots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
   const [popupData, setPopupData] = useState({
@@ -224,7 +224,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const fetchMySpots = useCallback(async () => {
     setLoadingSpots(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
       const res = await axios.get("/api/v1/parking-spots/my-spots", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -331,7 +331,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
   const fetchBookingDetails = async (spotId, scheduleId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
       const res = await axios.get(
         `/api/v1/bookings/spot/${spotId}/schedule/${scheduleId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -506,7 +506,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
     let targetSpot = null;
 
     console.log("handleAddSlot: Available parkingSlots:", parkingSlots);
@@ -641,7 +641,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     if (!confirmDeleteId) return;
     const { spotId, scheduleId } = confirmDeleteId;
     try {
-      const token = localStorage.getItem("token");
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
       await axios.delete(
         `/api/v1/parking-spots/${spotId}/availability-schedule/${scheduleId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -786,7 +786,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
     try {
-      const token = localStorage.getItem("token");
+      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
       await axios.patch(
         `/api/v1/parking-spots/${privateSpot._id}`,
         { hourly_price: parseFloat(newPrice) },
@@ -816,89 +816,266 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           role={user?.role || "user"}
         />
 
-        <main className="flex-1 p-4 md:p-10 mt-16 w-full mr-64 lg:mr-80 transition-all duration-300 min-w-0">
-          <div className="max-w-[1200px] mx-auto">
-            <h1 className="pt-[20px] text-3xl font-extrabold text-blue-700 text-center w-full mb-8">
+        <main className="flex-1 p-2 sm:p-4 md:p-6 lg:p-10 mt-16 w-full md:mr-64 lg:mr-80 transition-all duration-300 min-w-0">
+          <div className="max-w-[1200px] mx-auto px-2 sm:px-0">
+            <h1 className="pt-4 sm:pt-[20px] text-xl sm:text-2xl md:text-3xl font-extrabold text-blue-700 text-center w-full mb-4 sm:mb-6 md:mb-8">
               ניהול החנייה שלי
             </h1>
             {!isBuildingMode && (
-              <SettingsButton
-                parkingSlots={parkingSlots}
-                setNewPrice={setNewPrice}
-                setPriceError={setPriceError}
-                setPriceSuccess={setPriceSuccess}
-                setShowSettingsPopup={setShowSettingsPopup}
-              />
+              <div className="mb-4 sm:mb-6">
+                <SettingsButton
+                  parkingSlots={parkingSlots}
+                  setNewPrice={setNewPrice}
+                  setPriceError={setPriceError}
+                  setPriceSuccess={setPriceSuccess}
+                  setShowSettingsPopup={setShowSettingsPopup}
+                />
+              </div>
             )}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <AddScheduleForm
-              formData={formData}
-              handleChange={handleChange}
-              isBuildingMode={isBuildingMode}
-              handleAddSlot={handleAddSlot}
-            />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 px-2 sm:px-0">
+            <div className="lg:col-span-1">
+              <AddScheduleForm
+                formData={formData}
+                handleChange={handleChange}
+                isBuildingMode={isBuildingMode}
+                handleAddSlot={handleAddSlot}
+              />
+            </div>
 
-            <div className="lg:col-span-2 bg-white p-3 md:p-6 rounded-xl shadow-md flex flex-col h-[500px] md:h-[600px] lg:h-[700px]">
-              <h2 className="text-lg md:text-xl font-bold text-center mb-4">
-                לוח פינויי החניות
+            <div className="lg:col-span-2 bg-white p-3 sm:p-4 md:p-6 rounded-xl shadow-md flex flex-col h-[400px] sm:h-[500px] md:h-[600px] lg:h-[700px]">
+              <h2 className="text-base sm:text-lg md:text-xl font-bold text-center mb-3 sm:mb-4">
+                <span className="lg:hidden">פינויי החניות שלי</span>
+                <span className="hidden lg:block">לוח פינויי החניות</span>
               </h2>
 
-              <div className="mb-4 p-2 bg-blue-50 text-blue-700 rounded text-xs md:text-sm text-center">
+              <div className="mb-3 sm:mb-4 p-2 bg-blue-50 text-blue-700 rounded text-xs sm:text-sm text-center">
                 <strong>טיפ:</strong>
-                <span className="hidden md:inline">
-                  {" "}
-                  לחץ וגרור על הלוח כדי ליצור פינוי חנייה חדש
-                </span>
-                <span className="md:hidden"> גע על הלוח כדי ליצור פינוי</span>
+                <span className="lg:hidden"> לחץ על כרטיסיה לניהול פינוי</span>
+                <span className="hidden lg:block"> לחץ וגרור על הלוח כדי ליצור פינוי חנייה חדש</span>
               </div>
 
-              <WeeklyToolbar
-                goToPrevWeek={goToPrevWeek}
-                goToCurrentWeek={goToCurrentWeek}
-                goToNextWeek={goToNextWeek}
-              />
+              <div className="mb-3 sm:mb-4">
+                <WeeklyToolbar
+                  goToPrevWeek={goToPrevWeek}
+                  goToCurrentWeek={goToCurrentWeek}
+                  goToNextWeek={goToNextWeek}
+                />
+              </div>
+
+              {/* Week Date Range Display - Only for mobile/tablet */}
+              <div className="mb-3 sm:mb-4 text-center lg:hidden">
+                <div className="text-sm sm:text-base font-medium text-gray-600">
+                  {formatDateForDisplay(getWeekDates()[0])} - {formatDateForDisplay(getWeekDates()[6])}
+                </div>
+              </div>
 
               {loadingSpots ? (
                 <div className="flex-grow flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 md:h-12 md:w-12 border-b-2 border-blue-700 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 md:h-12 md:w-12 border-b-2 border-blue-700 mx-auto"></div>
                 </div>
               ) : (
-                <div
-                  className="flex-grow overflow-auto relative"
-                  ref={timeGridRef}
-                >
-                  <WeeklyHeader
-                    getWeekDates={getWeekDates}
-                    getDayName={getDayName}
-                    getDay={getDay}
-                    formatDateForDisplay={formatDateForDisplay}
-                    isDayInPast={isDayInPast}
-                  />
+                <>
+                  {/* Mobile/Tablet Card View */}
+                  <div className="flex-grow overflow-auto lg:hidden">
+                    {weekViewSchedules.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <div className="text-4xl sm:text-5xl md:text-6xl mb-4">📅</div>
+                        <div className="text-sm sm:text-base md:text-lg font-medium mb-2">
+                          אין פינויים השבוע
+                        </div>
+                        <div className="text-xs sm:text-sm text-center">
+                          השתמש בטופס מהצד כדי להוסיף פינוי חנייה חדש
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        {weekViewSchedules
+                          .sort((a, b) => {
+                            // Sort by day of week first, then by start time
+                            if (a.dayOfWeek !== b.dayOfWeek) {
+                              return a.dayOfWeek - b.dayOfWeek;
+                            }
+                            return a.display_start_time.localeCompare(b.display_start_time);
+                          })
+                          .map((schedule, index) => {
+                            const dayName = getDayName(schedule.dayOfWeek);
+                            const dayDate = formatDateForDisplay(getWeekDates()[schedule.dayOfWeek]);
+                            const isPast = isDayInPast(schedule.dayOfWeek);
+                            
+                            return (
+                              <div
+                                key={`${schedule._id}-${index}`}
+                                className={`
+                                  bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 
+                                  rounded-lg p-3 sm:p-4 cursor-pointer transition-all duration-300 
+                                  hover:shadow-lg hover:scale-105 hover:border-blue-300
+                                  ${isPast ? 'opacity-60 bg-gray-100' : ''}
+                                  ${expandedSchedule === schedule._id ? 'ring-2 ring-blue-400 shadow-lg' : ''}
+                                `}
+                                onClick={() => setExpandedSchedule(
+                                  expandedSchedule === schedule._id ? null : schedule._id
+                                )}
+                              >
+                                {/* Card Header */}
+                                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                    <div className="text-sm sm:text-base font-bold text-blue-800">
+                                      {dayName}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs sm:text-sm text-gray-600 font-medium">
+                                    {dayDate}
+                                  </div>
+                                </div>
 
-                  <WeeklyParkingGrid
-                    weekViewSchedules={weekViewSchedules}
-                    isDayInPast={isDayInPast}
-                    timeGridRef={timeGridRef}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    isDragging={isDragging}
-                    dragStart={dragStart}
-                    dragEnd={dragEnd}
-                    selectedDay={selectedDay}
-                    getTimePosition={getTimePosition}
-                    getTimeSlotHeight={getTimeSlotHeight}
-                    expandedSchedule={expandedSchedule}
-                    setExpandedSchedule={setExpandedSchedule}
-                    handleDeleteClick={(data) => setConfirmDeleteId(data)}
-                    handleBookingDetailsClick={fetchBookingDetails}
-                    ScheduleCard={ScheduleCard}
-                  />
-                </div>
+                                {/* Time Display */}
+                                <div className="mb-2 sm:mb-3">
+                                  <div className="flex items-center space-x-1 space-x-reverse text-lg sm:text-xl font-bold text-gray-800">
+                                    <span>{schedule.display_start_time}</span>
+                                    <span className="text-gray-400">-</span>
+                                    <span>{schedule.display_end_time}</span>
+                                  </div>
+                                  <div className="text-xs sm:text-sm text-gray-600">
+                                    משך: {(() => {
+                                      const [startH, startM] = schedule.display_start_time.split(':').map(Number);
+                                      const [endH, endM] = schedule.display_end_time.split(':').map(Number);
+                                      const duration = (endH * 60 + endM) - (startH * 60 + startM);
+                                      const hours = Math.floor(duration / 60);
+                                      const minutes = duration % 60;
+                                      return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')} שעות` : `${minutes} דקות`;
+                                    })()}
+                                  </div>
+                                </div>
+
+                                {/* Type Badge */}
+                                <div className="mb-2 sm:mb-3">
+                                  <span className="inline-block bg-blue-100 text-blue-800 text-xs sm:text-sm px-2 py-1 rounded-full font-medium">
+                                    {schedule.type || 'השכרה רגילה'}
+                                  </span>
+                                </div>
+
+                                {/* Parking Spot Info */}
+                                {schedule.slot && (
+                                  <div className="mb-2 sm:mb-3 text-xs sm:text-sm text-gray-600">
+                                    <div className="flex items-center space-x-1 space-x-reverse">
+                                      <span>🅿️</span>
+                                      <span>
+                                        {schedule.slot.spot_number 
+                                          ? `חנייה #${schedule.slot.spot_number}`
+                                          : 'חנייה פרטית'}
+                                      </span>
+                                    </div>
+                                    {schedule.slot.address && (
+                                      <div className="mt-1 text-xs text-gray-500">
+                                        {schedule.slot.address.street} {schedule.slot.address.number}, {schedule.slot.address.city}
+                                      </div>
+                                    )}
+                                    {!isBuildingMode && schedule.slot.hourly_price && (
+                                      <div className="mt-1 text-xs font-medium text-green-600">
+                                        💰 {schedule.slot.hourly_price} ₪/שעה
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Expanded Content */}
+                                {expandedSchedule === schedule._id && (
+                                  <div className="border-t pt-3 mt-3 space-y-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          fetchBookingDetails(schedule.slot._id, schedule._id);
+                                        }}
+                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs sm:text-sm py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-1 space-x-reverse"
+                                      >
+                                        <span>👤</span>
+                                        <span>פרטי מזמין</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setConfirmDeleteId({
+                                            spotId: schedule.slot._id,
+                                            scheduleId: schedule._id
+                                          });
+                                        }}
+                                        className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-1 space-x-reverse"
+                                      >
+                                        <span>🗑️</span>
+                                        <span>מחק פינוי</span>
+                                      </button>
+                                    </div>
+                                    
+                                    {/* Status Indicator */}
+                                    <div className="text-center">
+                                      {isPast ? (
+                                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                                          ⏰ פינוי שעבר
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                          ✅ פינוי פעיל
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Click Indicator */}
+                                <div className="text-center mt-2 sm:mt-3">
+                                  <div className="text-xs text-blue-500">
+                                    {expandedSchedule === schedule._id ? '🔽 סגור' : '🔽 לחץ לפרטים'}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop Grid View */}
+                  <div
+                    className="hidden lg:block flex-grow overflow-auto relative"
+                    ref={timeGridRef}
+                  >
+                    <WeeklyHeader
+                      getWeekDates={getWeekDates}
+                      getDayName={getDayName}
+                      getDay={getDay}
+                      formatDateForDisplay={formatDateForDisplay}
+                      isDayInPast={isDayInPast}
+                    />
+
+                    <WeeklyParkingGrid
+                      weekViewSchedules={weekViewSchedules}
+                      isDayInPast={isDayInPast}
+                      timeGridRef={timeGridRef}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      isDragging={isDragging}
+                      dragStart={dragStart}
+                      dragEnd={dragEnd}
+                      selectedDay={selectedDay}
+                      getTimePosition={getTimePosition}
+                      getTimeSlotHeight={getTimeSlotHeight}
+                      expandedSchedule={expandedSchedule}
+                      setExpandedSchedule={setExpandedSchedule}
+                      handleDeleteClick={(data) => setConfirmDeleteId(data)}
+                      handleBookingDetailsClick={fetchBookingDetails}
+                      ScheduleCard={ScheduleCard}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>
+          
           {showQuickAddPopup && (
             <QuickAddPopup
               quickAddData={quickAddData}
@@ -910,26 +1087,23 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
           )}
 
           {showSettingsPopup && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
-                {/* Updated header with centered title */}
-                <div className="flex flex-col items-center relative mb-6">
-                  <h3 className="text-2xl font-bold text-blue-700 mb-2 text-center">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-4 sm:p-6 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex flex-col items-center relative mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 mb-2 text-center">
                     הגדרות חנייה
                   </h3>
-                  {/* Close button positioned absolutely in the corner */}
                   <button
                     onClick={() => setShowSettingsPopup(false)}
-                    className="absolute top-0 left-0 text-gray-400 hover:text-gray-600"
+                    className="absolute top-0 left-0 text-gray-400 hover:text-gray-600 text-lg sm:text-xl"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Price Setting Section */}
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <label className="font-semibold text-blue-800 block mb-2">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
+                    <label className="font-semibold text-blue-800 block mb-2 text-sm sm:text-base">
                       מחיר לשעה (₪)
                     </label>
                     <div className="flex items-center">
@@ -946,18 +1120,18 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                             .find((s) => s.spot_type === "private")
                             ?.hourly_price?.toString() || "לא הוגדר מחיר"
                         }
-                        className="w-full border border-blue-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-blue-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                         min="0"
                         step="0.5"
                       />
-                      <span className="mr-2 text-blue-800 font-bold">₪</span>
+                      <span className="mr-2 text-blue-800 font-bold text-sm sm:text-base">₪</span>
                     </div>
                     {priceError && (
-                      <div className="text-red-500 text-sm mt-2 bg-red-50 p-2 rounded border border-red-100">
+                      <div className="text-red-500 text-xs sm:text-sm mt-2 bg-red-50 p-2 rounded border border-red-100">
                         <span className="flex items-center">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-1"
+                            className="h-3 w-3 sm:h-4 sm:w-4 mr-1"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -974,11 +1148,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       </div>
                     )}
                     {priceSuccess && (
-                      <div className="text-green-500 text-sm mt-2 bg-green-50 p-2 rounded border border-green-100">
+                      <div className="text-green-500 text-xs sm:text-sm mt-2 bg-green-50 p-2 rounded border border-green-100">
                         <span className="flex items-center">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-1"
+                            className="h-3 w-3 sm:h-4 sm:w-4 mr-1"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -996,38 +1170,37 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     )}
                   </div>
 
-                  {/* Address Section - Redesigned to look better for non-editable fields */}
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-semibold text-gray-700 mb-3 border-b pb-2 border-gray-300">
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-700 mb-3 border-b pb-2 border-gray-300 text-sm sm:text-base">
                       פרטי כתובת החנייה
                     </h4>
 
-                    <div className="space-y-3 mt-2">
-                      <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">
+                    <div className="space-y-2 sm:space-y-3 mt-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center">
+                        <div className="w-full sm:w-1/4 text-gray-600 font-medium text-xs sm:text-sm mb-1 sm:mb-0">
                           עיר:
                         </div>
-                        <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
+                        <div className="w-full sm:w-3/4 text-gray-800 bg-gray-100 p-2 rounded text-xs sm:text-sm">
                           {parkingSlots.find((s) => s.spot_type === "private")
                             ?.address?.city || "-"}
                         </div>
                       </div>
 
-                      <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">
+                      <div className="flex flex-col sm:flex-row sm:items-center">
+                        <div className="w-full sm:w-1/4 text-gray-600 font-medium text-xs sm:text-sm mb-1 sm:mb-0">
                           רחוב:
                         </div>
-                        <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
+                        <div className="w-full sm:w-3/4 text-gray-800 bg-gray-100 p-2 rounded text-xs sm:text-sm">
                           {parkingSlots.find((s) => s.spot_type === "private")
                             ?.address?.street || "-"}
                         </div>
                       </div>
 
-                      <div className="flex items-center">
-                        <div className="w-1/4 text-gray-600 font-medium">
+                      <div className="flex flex-col sm:flex-row sm:items-center">
+                        <div className="w-full sm:w-1/4 text-gray-600 font-medium text-xs sm:text-sm mb-1 sm:mb-0">
                           מספר בית:
                         </div>
-                        <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
+                        <div className="w-full sm:w-3/4 text-gray-800 bg-gray-100 p-2 rounded text-xs sm:text-sm">
                           {parkingSlots.find((s) => s.spot_type === "private")
                             ?.address?.number || "-"}
                         </div>
@@ -1035,11 +1208,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                       {parkingSlots.find((s) => s.spot_type === "private")
                         ?.spot_number && (
-                        <div className="flex items-center">
-                          <div className="w-1/4 text-gray-600 font-medium">
+                        <div className="flex flex-col sm:flex-row sm:items-center">
+                          <div className="w-full sm:w-1/4 text-gray-600 font-medium text-xs sm:text-sm mb-1 sm:mb-0">
                             מספר חנייה:
                           </div>
-                          <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
+                          <div className="w-full sm:w-3/4 text-gray-800 bg-gray-100 p-2 rounded text-xs sm:text-sm">
                             {parkingSlots.find((s) => s.spot_type === "private")
                               ?.spot_number || "-"}
                           </div>
@@ -1048,11 +1221,11 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
                       {parkingSlots.find((s) => s.spot_type === "private")
                         ?.floor && (
-                        <div className="flex items-center">
-                          <div className="w-1/4 text-gray-600 font-medium">
+                        <div className="flex flex-col sm:flex-row sm:items-center">
+                          <div className="w-full sm:w-1/4 text-gray-600 font-medium text-xs sm:text-sm mb-1 sm:mb-0">
                             קומה:
                           </div>
-                          <div className="w-3/4 text-gray-800 bg-gray-100 p-2 rounded">
+                          <div className="w-full sm:w-3/4 text-gray-800 bg-gray-100 p-2 rounded text-xs sm:text-sm">
                             {parkingSlots.find((s) => s.spot_type === "private")
                               ?.floor || "-"}
                           </div>
@@ -1060,10 +1233,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                       )}
                     </div>
 
-                    <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-100 flex items-start gap-2 text-sm text-blue-700">
+                    <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md border border-blue-100 flex items-start gap-2 text-xs sm:text-sm text-blue-700">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 flex-shrink-0 mt-0.5"
+                        className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1082,16 +1255,16 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3 mt-6">
+                  <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6">
                     <button
                       onClick={() => setShowSettingsPopup(false)}
-                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
+                      className="bg-gray-200 text-gray-800 px-3 sm:px-4 py-2 rounded-md hover:bg-gray-300 text-sm sm:text-base"
                     >
                       סגור
                     </button>
                     <button
                       onClick={handlePriceUpdate}
-                      className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700"
+                      className="bg-blue-600 text-white px-4 sm:px-5 py-2 rounded-md hover:bg-blue-700 text-sm sm:text-base"
                     >
                       שמור שינויים
                     </button>
@@ -1100,28 +1273,29 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
             </div>
           )}
+          
           {confirmDeleteId && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
               <div
-                className="bg-white rounded-lg p-6 max-w-md mx-4 text-center"
+                className="bg-white rounded-lg p-4 sm:p-6 max-w-md mx-4 text-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
                   אישור מחיקת פינוי
                 </h3>
-                <p className="mb-6 text-gray-600">
+                <p className="mb-4 sm:mb-6 text-gray-600 text-sm sm:text-base">
                   האם אתה בטוח שברצונך למחוק את הפינוי? לא ניתן לשחזר פעולה זו.
                 </p>
-                <div className="flex justify-center space-x-4 space-x-reverse">
+                <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 sm:space-x-reverse">
                   <button
                     onClick={() => setConfirmDeleteId(null)}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded"
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded text-sm sm:text-base"
                   >
                     ביטול
                   </button>
                   <button
                     onClick={handleDeleteSlot}
-                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded text-sm sm:text-base"
                   >
                     מחק פינוי
                   </button>
@@ -1129,6 +1303,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
             </div>
           )}
+          
           {popupData.show && (
             <Popup
               title={popupData.title}
