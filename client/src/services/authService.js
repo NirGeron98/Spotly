@@ -1,5 +1,8 @@
 import api from "./api";
 
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
+
 export const authService = {
   /**
    * Logs in a user with email and password
@@ -9,39 +12,53 @@ export const authService = {
    * @returns {Promise<Object>} - Response with user data and token
    */
   login: async ({ email, password }) => {
-    const response = await api.post("/users/login", { email, password });
+    try {
+      console.log("Attempting login with:", { email }); // Debug line - don't log password
 
-    // Store authentication data
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+      const response = await api.post("/api/v1/users/login", {
+        email,
+        password,
+      });
+
+      console.log("Login response:", {
+        status: response.status,
+        hasToken: !!response.data?.token,
+        hasUser: !!response.data?.data?.user,
+      });
+
+      const { token, data } = response.data;
+
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Login error details:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url,
+      });
+      throw error;
     }
-
-    return response.data;
   },
 
   /**
    * Logs out a user by removing auth data from localStorage
    */
-  logout: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-  },
-
-  /**
-   * Registers a new user
-   * @param {Object} userData - User registration data
-   * @returns {Promise<Object>} - Response with user data and token
-   */
-  register: async (userData) => {
-    const response = await api.post("/users/signup", userData);
-
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+  logout: async () => {
+    try {
+      await api.post("/api/v1/users/logout");
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch (error) {
+      console.error("Logout error:", error.response?.data || error.message);
+      // Still remove items even if the API call fails
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      throw error;
     }
-
-    return response.data;
   },
 
   /**
@@ -49,7 +66,7 @@ export const authService = {
    * @returns {boolean} - True if authenticated, false otherwise
    */
   isAuthenticated: () => {
-    return !!localStorage.getItem("token");
+    return !!localStorage.getItem(TOKEN_KEY);
   },
 
   /**
@@ -57,7 +74,7 @@ export const authService = {
    * @returns {Object|null} - User object or null if not authenticated
    */
   getCurrentUser: () => {
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
 
     try {

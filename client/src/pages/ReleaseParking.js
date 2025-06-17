@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
+import axios from "../axios";
 import Navbar from "../components/shared/Navbar";
 import Sidebar from "../components/shared/Sidebar";
 import Footer from "../components/shared/Footer";

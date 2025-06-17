@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Footer from "../components/shared/Footer";
 import Navbar from "../components/shared/Navbar";
 import { authService } from "../services/authService";
-import axios from "axios";
+import axios from "../axios";
 
 const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   const [email, setEmail] = useState("");
@@ -14,18 +14,31 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
   useEffect(() => {
     document.title = "התחברות | Spotly";
-    axios
-      .get("/api/v1/ping")
-      .then((res) => console.log("✅ Connected to backend:", res.data))
-      .catch((err) => console.error("❌ Failed to connect to backend:", err));
+    // Check backend connectivity
+    const checkBackend = async () => {
+      try {
+        const res = await axios.get("/api/v1/ping");
+        console.log("✅ Connected to backend:", res.data);
+      } catch (err) {
+        console.error("❌ Failed to connect to backend:", err);
+      }
+    };
+    checkBackend();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
+
     try {
-      const res = await authService.login({ email, password });
-      const user = res?.data?.user || res?.data?.data?.user || res?.data?.data;
+      const response = await authService.login({ email, password });
+      const user = response.data?.user;
+
+      if (!user) {
+        throw new Error("Invalid response format from server");
+      }
+
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem(
         "mode",
@@ -40,7 +53,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      setError("אימייל או סיסמה שגויים");
+      setError(error.response?.data?.message || "אימייל או סיסמה שגויים");
     } finally {
       setIsLoading(false);
     }

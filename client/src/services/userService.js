@@ -2,23 +2,43 @@ import api from "./api";
 
 export const userService = {
   signup: async (requestData) => {
-    const response = await api.post("/users", requestData);
-    return response.data;
+    try {
+      const response = await api.post("/api/v1/users", requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Signup error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   getUsers: async () => {
-    const response = await api.get("/users");
-    return response.data;
+    try {
+      const response = await api.get("/api/v1/users");
+      return response.data;
+    } catch (error) {
+      console.error('Get users error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   getUser: async (userId) => {
-    const response = await api.get(`/users/${userId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/v1/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get user error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   updateUser: async (userId, requestData) => {
-    const response = await api.put(`/users/${userId}`, requestData);
-    return response.data;
+    try {
+      const response = await api.patch(`/api/v1/users/${userId}`, requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Update user error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   deleteUser: async (userId) => {

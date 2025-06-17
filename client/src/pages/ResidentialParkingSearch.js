@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "../axios";
 import Navbar from "../components/shared/Navbar";
 import Footer from "../components/shared/Footer";
 import Sidebar from "../components/shared/Sidebar";

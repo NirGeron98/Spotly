@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import axios from "../axios";
 import Navbar from "../components/shared/Navbar";
 import Sidebar from "../components/shared/Sidebar";
 import PageHeader from "../components/shared/PageHeader";
@@ -372,7 +372,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
 
   const deleteBookingRequest = async (bookingId, token) => {
     try {
-      await axios.delete(`http://localhost:5000/api/v1/bookings/${bookingId}`, {
+      await axios.delete(`/api/v1/bookings/${bookingId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch (error) {
@@ -934,7 +934,7 @@ const ActiveParkingReservations = ({ loggedIn, setLoggedIn }) => {
               const token = localStorage.getItem("token");
 
               await axios.delete(
-                `http://localhost:5000/api/v1/bookings/${selectedBooking._id}`,
+                `/api/v1/bookings/${selectedBooking._id}`,
                 {
                   headers: {
                     Authorization: `Bearer ${token}`,
