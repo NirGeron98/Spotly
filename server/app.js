@@ -59,16 +59,16 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      callback(new AppError("Not allowed by CORS", 403));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Authorization"], // Ensure headers like Authorization are exposed
 };
 
 app.use(cors(corsOptions));
-
 app.options("*", cors(corsOptions));
 
 // Set security HTTP headers
