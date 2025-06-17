@@ -15,8 +15,8 @@ const userRouter = require("./routes/userRoutes");
 const buildingRouter = require("./routes/buildingRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
 const parkingSpotRouter = require("./routes/parkingSpotRoutes");
-const cron = require('node-cron');
-const { runBatchAllocation } = require('./services/batchAllocationService');
+const cron = require("node-cron");
+const { runBatchAllocation } = require("./services/batchAllocationService");
 
 const app = express();
 
@@ -45,11 +45,22 @@ app.get("/api/v1/ping", (req, res) => {
 
 // GLOBAL MIDDLEWARES
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://spotly-one.vercel.app",
+];
+
 // Enabling CORS (Cross-Origin Resource Sharing)
 app.use(
   cors({
-    origin: "http://localhost:3000", // מאפשר קריאות מהפרונט המקומי
-    credentials: true,               // אם אתה שולח cookies / headers
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
 
@@ -97,20 +108,23 @@ app.use(globalErrorHandler);
 // Schedule the task to run every night at 10:05 PM Jerusalem time.
 // The cron format is: 'minute hour day-of-month month day-of-week'
 // '5 22 * * *' means "at 22:05 (10:05 PM) every day".
-cron.schedule('5 22 * * *', () => {
-  console.log('SCHEDULER: Triggering the nightly batch allocation job...');
-  
-  // Set the target date for the allocation to be "tomorrow"
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0); // Normalize to the very start of the day
+cron.schedule(
+  "5 22 * * *",
+  () => {
+    console.log("SCHEDULER: Triggering the nightly batch allocation job...");
 
-  // Run the allocation service
-  runBatchAllocation(tomorrow);
-  
-}, {
-  scheduled: true,
-  timezone: "Asia/Jerusalem" // IMPORTANT: Set to your local timezone
-});
+    // Set the target date for the allocation to be "tomorrow"
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0); // Normalize to the very start of the day
+
+    // Run the allocation service
+    runBatchAllocation(tomorrow);
+  },
+  {
+    scheduled: true,
+    timezone: "Asia/Jerusalem", // IMPORTANT: Set to your local timezone
+  }
+);
 
 module.exports = app;
