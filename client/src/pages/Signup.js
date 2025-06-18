@@ -21,7 +21,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
   const [buildingInfo, setBuildingInfo] = useState(null);
   const [loadingBuilding, setLoadingBuilding] = useState(false);
   const [showMapPopup, setShowMapPopup] = useState(false);
-  
+
   // Loading animation state
   const [isRegistering, setIsRegistering] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -88,27 +88,30 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         "מאמת פרטים...",
         "מגדיר את הפרופיל שלך...",
         "כמעט סיימנו...",
-        "מכין את הדף הבית שלך..."
+        "מכין את הדף הבית שלך...",
       ];
-      
+
       let messageIndex = 0;
       let progress = 0;
-      
+
       interval = setInterval(() => {
         progress += Math.random() * 15 + 5; // Random progress increment
         if (progress > 100) progress = 100;
-        
+
         setLoadingProgress(progress);
-        
+
         // Change message every 20% progress
         const newMessageIndex = Math.floor(progress / 20);
-        if (newMessageIndex !== messageIndex && newMessageIndex < messages.length) {
+        if (
+          newMessageIndex !== messageIndex &&
+          newMessageIndex < messages.length
+        ) {
           messageIndex = newMessageIndex;
           setLoadingMessage(messages[messageIndex]);
         }
       }, 300);
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -122,12 +125,12 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       setError("יש למלא את כל השדות");
       return;
     }
-    
+
     if (password.length < 8) {
       setError("הסיסמה חייבת להכיל לפחות 8 תווים");
       return;
     }
-    
+
     if (password !== passwordConfirm) {
       setError("הסיסמאות אינן תואמות");
       return;
@@ -168,6 +171,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
     const street = address.street;
     const buildingNumber = address.number;
 
+    // Basic validation
     if (
       !fullName ||
       !email ||
@@ -204,13 +208,16 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
+    // Split full name into first and last name
     const [first_name, last_name] = fullName.trim().split(" ");
 
+    // Determine user role based on residence type
     let role = "user";
     if (residenceType === "apartment") role = "building_resident";
     else if (residenceType === "house") role = "private_prop_owner";
 
     try {
+      // Prepare the registration payload
       const registrationData = {
         first_name,
         last_name,
@@ -230,6 +237,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
             : 1,
       };
 
+      // Include address for apartment or house
       if (residenceType === "apartment" || residenceType === "house") {
         registrationData.address = {
           city,
@@ -238,71 +246,134 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         };
       }
 
+      // Add building reference for apartment residents
       if (residenceType === "apartment" && buildingInfo) {
         registrationData.resident_building = buildingInfo._id;
       }
 
+      // Submit registration
       await authService.register(registrationData);
 
-      // Update loading message after successful registration
+      // Update loading state
       setLoadingMessage("נרשמת בהצלחה! מתחבר לחשבון...");
       setLoadingProgress(80);
 
+      // Auto-login after registration
       const response = await authService.login({ email, password });
       const user =
         response?.data?.user ||
         response?.data?.data?.user ||
         response?.data?.data;
 
+      // Save user data to localStorage
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem(
         "mode",
         user.role === "building_resident" ? "building" : "regular"
       );
-      
+
       setLoggedIn(true);
-      
-      // Final update before redirect
+
+      // Final stage before redirect
       setLoadingMessage("מכין את הדף הבית שלך...");
       setLoadingProgress(100);
       setSuccess("נרשמת בהצלחה! מעביר אותך לדף הבית...");
 
-      // Brief wait before redirect to show complete animation
+      // Delay for UI feedback before redirect
       setTimeout(() => {
-        // Navigate to the appropriate home page
         if (user.role === "building_resident") {
           navigate("/dashboard");
         } else {
           navigate("/search-parking");
         }
       }, 1000);
-
     } catch (err) {
       console.error("Registration error:", err);
-      setIsRegistering(false); // Stop loading animation on error
+      setIsRegistering(false);
 
-      if (err.response) {
-        console.log("");
+      let message = "אירעה שגיאה לא צפויה. נסה שוב מאוחר יותר.";
+
+      const errorData = err.response?.data;
+      const status = err.response?.status;
+
+      // Mongo duplicate key error (email, phone, parking, etc.)
+      if (errorData?.code === 11000 || errorData?.error?.code === 11000) {
+        const keyPattern = errorData.keyPattern || errorData.error?.keyPattern;
+        const keyValue = errorData.keyValue || errorData.error?.keyValue;
+
+        if (keyPattern?.email || keyValue?.email) {
+          message = "האימייל שהזנת כבר קיים במערכת.";
+        } else if (keyPattern?.phone_number || keyValue?.phone_number) {
+          message = "מספר הטלפון שהזנת כבר קיים במערכת.";
+        } else if (keyPattern?.building && keyPattern?.spot_number) {
+          message = "כבר קיימת חניה עם הפרטים שסיפקת.";
+        } else {
+          message = "אחד מהפרטים שהזנת כבר קיים במערכת.";
+        }
       }
 
-      let message = "אירעה שגיאה. ודא שכל השדות מולאו כראוי ונסה שוב.";
+      // Mongoose validation errors
+      else if (errorData?.errors) {
+        const errors = errorData.errors;
 
-      if (err.response?.data?.error?.code === 11000) {
-        const { keyPattern } = err.response.data.error;
-
-        if (keyPattern?.email) {
-          message = "האימייל כבר קיים במערכת.";
-        } else if (keyPattern?.phone_number) {
-          message = "מספר הטלפון כבר קיים במערכת.";
-        } else if (
-          keyPattern?.building &&
-          keyPattern?.spot_number &&
-          keyPattern?.floor
-        ) {
-          message = "נראה שכבר קיימת חניה עם הפרטים שסיפקת. אנא בדוק ונסה שוב.";
+        if (errors.email) {
+          message = "כתובת האימייל שהזנת אינה תקינה.";
+        } else if (errors.phone_number) {
+          message = "מספר הטלפון שהזנת אינו תקין.";
+        } else if (errors.password) {
+          message = "הסיסמה שהזנת אינה עומדת בדרישות.";
+        } else if (errors.passwordConfirm) {
+          message = "אימות הסיסמה לא תואם.";
         } else {
-          message = "שדה מסוים כבר קיים במערכת ואינו יכול להיות כפול.";
+          const firstError = Object.values(errors)[0];
+          message = firstError.message || "בעיה באחד מהשדות שהוזנו.";
         }
+      }
+
+      // Server-provided error messages
+      else if (errorData?.message) {
+        const msg = errorData.message.toLowerCase();
+
+        if (
+          msg.includes("email") &&
+          (msg.includes("exists") || msg.includes("duplicate"))
+        ) {
+          message = "האימייל שהזנת כבר קיים במערכת.";
+        } else if (
+          msg.includes("phone") &&
+          (msg.includes("exists") || msg.includes("duplicate"))
+        ) {
+          message = "מספר הטלפון שהזנת כבר קיים במערכת.";
+        } else if (msg.includes("invalid") && msg.includes("email")) {
+          message = "פורמט האימייל שהזנת אינו תקין.";
+        } else if (msg.includes("invalid") && msg.includes("phone")) {
+          message = "פורמט מספר הטלפון שהזנת אינו תקין.";
+        } else if (msg.includes("short") && msg.includes("password")) {
+          message = "הסיסמה קצרה מדי. יש להזין לפחות 8 תווים.";
+        } else if (msg.includes("passwords do not match")) {
+          message = "אימות הסיסמה לא תואם לסיסמה.";
+        } else {
+          message = errorData.message;
+        }
+      }
+
+      // Status-based error handling
+      else if (status === 400) {
+        message = "הפרטים שהזנת אינם תקינים. אנא בדוק ונסה שוב.";
+      } else if (status === 409) {
+        message = "אחד מהפרטים שהזנת כבר קיים במערכת.";
+      } else if (status === 422) {
+        message = "הפרטים שהזנת אינם עומדים בדרישות המערכת.";
+      }
+
+      // Network error
+      else if (err.code === "NETWORK_ERROR" || !err.response) {
+        message = "נראה שיש בעיה בחיבור לאינטרנט. בדוק את הרשת ונסה שוב.";
+      }
+
+      // Timeout
+      else if (err.code === "ECONNABORTED") {
+        message = "הבקשה לקחה יותר מדי זמן. נסה שוב בעוד מספר רגעים.";
       }
 
       setError(message);
@@ -324,10 +395,10 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         <h3 className="text-lg font-bold text-gray-800 text-center mb-4">
           {loadingMessage}
         </h3>
-        
+
         {/* Progress bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-3 overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-blue-500 to-sky-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
             style={{ width: `${loadingProgress}%` }}
           >
@@ -341,7 +412,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
           <p className="text-gray-600 text-sm font-medium">
             {Math.round(loadingProgress)}%
           </p>
-          
+
           {/* Bouncing dots animation */}
           <div className="flex space-x-1" dir="ltr">
             {[0, 1, 2].map((i) => (
@@ -362,10 +433,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100"
       dir="rtl"
     >
-      <Navbar
-        loggedIn={loggedIn}
-        setLoggedIn={setLoggedIn}
-      />
+      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
       <main className="flex-1 relative z-10 py-8">
         <div className="container mx-auto px-6">
@@ -567,7 +635,9 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                           formData.residenceType === type.key
                             ? "border-blue-400 bg-blue-50 shadow-lg"
                             : "border-blue-200 bg-white hover:border-blue-300 hover:shadow-md"
-                        } ${isRegistering ? "opacity-50 cursor-not-allowed" : ""}`}
+                        } ${
+                          isRegistering ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
                       >
                         <div className="text-3xl mb-2">{type.icon}</div>
                         <div

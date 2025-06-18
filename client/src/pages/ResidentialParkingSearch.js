@@ -63,14 +63,6 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
 
-      console.log("Booking data being sent:", {
-        spot: spotToBook._id,
-        booking_type: bookingType,
-        start_datetime: startUtc.toISOString(),
-        end_datetime: endUtc.toISOString(),
-        timezone: USER_TIMEZONE,
-      });
-
       await axios.post(
         "/api/v1/bookings",
         {

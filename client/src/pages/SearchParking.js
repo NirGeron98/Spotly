@@ -135,9 +135,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             longitude: position.coords.longitude,
           });
         },
-        (error) => {
-          console.log("");
-        }
       );
     }
 
@@ -326,9 +323,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
         base_rate: selectedSpot?.hourly_price || 0,
         timezone: USER_TIMEZONE,
       };
-
-      console.log("Booking data being sent:", bookingData);
-
+      
       // Show confirmation popup (without date and time)
       setPopupData({
         title: "אישור הזמנה",

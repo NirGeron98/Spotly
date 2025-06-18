@@ -21,10 +21,6 @@ async function runBatchAllocation(targetDate) {
     start_datetime: { $gte: startOfTargetDate, $lte: endOfTargetDate },
   }).populate("userId", "priority_score timezone"); // Populate user data
 
-  if (requests.length === 0) {
-    return console.log("No pending requests to process.");
-  }
-
   // 2. Fetch ALL building spots once to work with them in memory
   const allBuildingSpots = await ParkingSpot.find({ spot_type: "building" });
 
