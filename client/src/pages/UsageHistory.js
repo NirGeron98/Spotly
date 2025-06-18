@@ -242,7 +242,6 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
       // Combine all history items
       const combinedHistory = [...bookingHistory, ...spotHistory];
       setUsageHistory(combinedHistory);
-
     } catch (err) {
       console.error("שגיאה בעת טעינת היסטוריית שימוש:", err);
       setUsageHistory([]);
@@ -365,21 +364,27 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
     if (item.status !== "booked") return;
 
     try {
-      // Mock booking details for demonstration
-      const mockBookingDetails = {
-        user: {
-          first_name: "יוסי",
-          last_name: "כהן",
-          email: "yossi@example.com",
-          phone_number: "050-1234567",
-        },
-        start_datetime: "2025-06-12T16:00:00Z",
-        end_datetime: "2025-06-12T18:00:00Z",
-      };
+      const token = localStorage.getItem("token");
 
-      const user = mockBookingDetails.user;
-      const start = formatDisplayTime(mockBookingDetails.start_datetime);
-      const end = formatDisplayTime(mockBookingDetails.end_datetime);
+      const res = await axios.get(
+        `/api/v1/bookings/spot/${item.originalSpot._id}/schedule/${item.scheduleId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const booking = res.data?.data?.booking;
+
+      if (!booking || !booking.user) {
+        setPopupData({
+          title: "אין הזמנה",
+          description: "לא נמצאה הזמנה תואמת לפינוי הזה",
+          type: "info",
+        });
+        return;
+      }
+
+      const user = booking.user;
+      const start = formatDisplayTime(booking.start_datetime);
+      const end = formatDisplayTime(booking.end_datetime);
 
       const content = (
         <div className="text-right text-gray-800 space-y-3 leading-relaxed bg-gray-50 p-4 rounded-lg">
@@ -416,6 +421,7 @@ const UsageHistory = ({ loggedIn, setLoggedIn }) => {
         type: "info",
       });
     } catch (err) {
+      console.error("שגיאה בעת טעינת פרטי המזמין:", err);
       setPopupData({
         title: "שגיאה",
         description: "לא ניתן לשלוף את פרטי המזמין",
