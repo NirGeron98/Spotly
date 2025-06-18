@@ -1,6 +1,8 @@
 import React from "react";
 import TimeLabels from "./TimeLabels";
 
+const dayColumnClass = "w-[130px] md:w-[150px] flex-none";
+
 const WeeklyParkingGrid = ({
   children,
   onMouseDown,
@@ -27,13 +29,14 @@ const WeeklyParkingGrid = ({
 
       <TimeLabels />
 
-      <div className="mr-16 flex">
+      <div className="flex">
+        <div className="w-12 md:w-16 shrink-0 border-l border-gray-200 bg-gray-50" />
         {Array.from({ length: 7 }).map((_, dayIndex) => {
           const isPast = isDayInPast(dayIndex);
           return (
             <div
               key={dayIndex}
-              className={`flex-1 relative border-l border-gray-200 min-h-[1080px] ${
+              className={`${dayColumnClass} relative border-l border-gray-200 min-h-[1080px] ${
                 isPast ? "bg-gray-100 cursor-not-allowed" : "bg-white"
               }`}
               onMouseDown={(e) => !isPast && onMouseDown(e, dayIndex)}
