@@ -1,8 +1,6 @@
 import React from "react";
 import TimeLabels from "./TimeLabels";
 
-const dayColumnClass = "w-[130px] md:w-[150px] flex-none";
-
 const WeeklyParkingGrid = ({
   children,
   onMouseDown,
@@ -29,14 +27,14 @@ const WeeklyParkingGrid = ({
 
       <TimeLabels />
 
-      <div className="flex">
+      <div className="flex min-h-[1080px]">
         <div className="w-12 md:w-16 shrink-0 border-l border-gray-200 bg-gray-50" />
         {Array.from({ length: 7 }).map((_, dayIndex) => {
           const isPast = isDayInPast(dayIndex);
           return (
             <div
               key={dayIndex}
-              className={`${dayColumnClass} relative border-l border-gray-200 min-h-[1080px] ${
+              className={`flex-1 min-w-0 relative border-l border-gray-200 min-h-[1080px] ${
                 isPast ? "bg-gray-100 cursor-not-allowed" : "bg-white"
               }`}
               onMouseDown={(e) => !isPast && onMouseDown(e, dayIndex)}
@@ -44,6 +42,7 @@ const WeeklyParkingGrid = ({
               onMouseUp={!isPast ? onMouseUp : undefined}
               onMouseLeave={!isPast ? onMouseLeave : undefined}
             >
+              {/* Time grid lines */}
               {Array.from({ length: 18 }).map((_, i) => (
                 <div
                   key={i}
@@ -53,6 +52,8 @@ const WeeklyParkingGrid = ({
                   style={{ top: i * 60 }}
                 ></div>
               ))}
+              
+              {/* Drag selection preview */}
               {isDragging && selectedDay === dayIndex && (
                 <div
                   className="absolute right-0 w-[calc(100%-8px)] mx-1 rounded-md bg-blue-200 border border-blue-400 opacity-70 z-10"
@@ -63,6 +64,8 @@ const WeeklyParkingGrid = ({
                   }}
                 ></div>
               )}
+              
+              {/* Schedule cards */}
               {weekViewSchedules
                 .filter((schedule) => schedule.dayOfWeek === dayIndex)
                 .map((schedule, idx) => (

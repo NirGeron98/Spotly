@@ -38,7 +38,6 @@ const ScheduleCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // תיקון: העברת אובייקט במקום שני פרמטרים נפרדים
                 onDeleteClick({
                   spotId: schedule.slot._id,
                   scheduleId: schedule._id
