@@ -18,7 +18,7 @@ import { FaBuilding } from "react-icons/fa";
 const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה בבניין מגורים | Spotly";
 
-  const { searchParams, setSearchParams, handleInputChange } = useSearchParams();
+  const { searchParams, handleInputChange } = useSearchParams();
   const [popupData, setPopupData] = useState(null);
   const [fallbackResults, setFallbackResults] = useState([]);
   const [foundSpot, setFoundSpot] = useState(null);
@@ -62,14 +62,6 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       
       const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
-
-      console.log("Booking data being sent:", {
-        spot: spotToBook._id,
-        booking_type: bookingType,
-        start_datetime: startUtc.toISOString(),
-        end_datetime: endUtc.toISOString(),
-        timezone: USER_TIMEZONE,
-      });
 
       await axios.post(
         "/api/v1/bookings",

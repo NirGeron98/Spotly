@@ -28,42 +28,78 @@ function App() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
+    
     if (storedUser && token) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setLoggedIn(true);
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setLoggedIn(true);
+      } catch (error) {
+        console.error("Error parsing stored user:", error);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     }
     setIsLoading(false);
   }, []);
 
-  if (isLoading) return null;
+  // Debug function to help understand user state
+  const getHomeRoute = () => {
+    if (!loggedIn || !user) {
+      return <Home />;
+    }
+
+    console.log("App.jsx - User role for routing:", user.role); // Debug log
+
+    switch (user.role) {
+      case "building_resident":
+        return <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
+      case "user":
+      case "private_prop_owner":
+        return <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
+      default:
+        return <Home />;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-sky-100">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">טוען...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
       <Routes>
-        <Route
-          path="/"
+        <Route path="/" element={getHomeRoute()} />
+        
+        <Route 
+          path="/login" 
           element={
             loggedIn ? (
-              user?.role === "user" || user?.role === "private_prop_owner" ? (
-                <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
-              ) : user?.role === "building_resident" ? (
-                <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              user?.role === "building_resident" ? (
+                <Navigate to="/dashboard" replace />
               ) : (
-                <Home />
+                <Navigate to="/search-parking" replace />
               )
             ) : (
-              <Home />
+              <Login loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             )
-          }
+          } 
         />
-        <Route path="/login" element={<Login setLoggedIn={setLoggedIn} />} />
+        
         <Route
           path="/forgot-password"
           element={
             <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
           }
         />
+        
         <Route
           path="/reset-password/:token"
           element={
@@ -74,27 +110,37 @@ function App() {
         <Route
           path="/signup"
           element={
-            <Signup
-              loggedIn={loggedIn}
-              setLoggedIn={setLoggedIn}
-              isRegistering={true}
-            />
+            loggedIn ? (
+              user?.role === "building_resident" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/search-parking" replace />
+              )
+            ) : (
+              <Signup
+                loggedIn={loggedIn}
+                setLoggedIn={setLoggedIn}
+                isRegistering={true}
+              />
+            )
           }
         />
+        
         <Route
           path="/dashboard"
           element={
             loggedIn ? (
-              user?.role !== "user" && user?.role !== "private_prop_owner" ? (
+              user?.role === "building_resident" ? (
                 <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
               ) : (
-                <Navigate to="/search-parking" />
+                <Navigate to="/search-parking" replace />
               )
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/active-reservations"
           element={
@@ -104,60 +150,70 @@ function App() {
                 setLoggedIn={setLoggedIn}
               />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/profile"
           element={
             loggedIn ? (
               <Profile loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/search-parking"
           element={
             loggedIn ? (
               <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/release"
           element={
             loggedIn ? (
               <ReleaseParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/usage-history"
           element={
             loggedIn ? (
               <UsageHistory loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
+        
         <Route
           path="/residential-parking-search"
           element={
-            <ResidentialParkingSearch
-              loggedIn={loggedIn}
-              setLoggedIn={setLoggedIn}
-            />
+            loggedIn ? (
+              <ResidentialParkingSearch
+                loggedIn={loggedIn}
+                setLoggedIn={setLoggedIn}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
       </Routes>
+      
       <ToastContainer
         position="top-center"
         autoClose={3000}

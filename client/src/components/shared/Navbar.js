@@ -14,19 +14,33 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("mode");
     setLoggedIn(false);
     navigate("/login", { replace: true });
   };
 
   const handleLogoClick = (e) => {
     e.preventDefault();
-    const user = JSON.parse(localStorage.getItem("user"));
-
-    if (!user) {
+    const storedUser = localStorage.getItem("user");
+    
+    if (!storedUser) {
       navigate("/");
-    } else if (user.role === "building_resident") {
+      return;
+    }
+
+    let user;
+    try {
+      user = JSON.parse(storedUser);
+    } catch (error) {
+      console.error("Error parsing user from localStorage:", error);
+      navigate("/");
+      return;
+    }
+
+    if (user.role === "building_resident") {
       navigate("/dashboard");
-    } else if (["private_prop_owner", "user"].includes(user.role)) {
+    } else if (user.role === "private_prop_owner" || user.role === "user") {
       navigate("/search-parking");
     } else {
       navigate("/");
@@ -35,26 +49,40 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const isActive = (path) => {
     if (path === "/") {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (
-        user?.role === "building_resident" &&
-        location.pathname === "/dashboard"
-      ) {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) return location.pathname === "/";
+      
+      let user;
+      try {
+        user = JSON.parse(storedUser);
+      } catch (error) {
+        return location.pathname === "/";
+      }
+
+      // Check if building resident is on dashboard
+      if (user.role === "building_resident" && location.pathname === "/dashboard") {
         return true;
       }
+      
+      // Check if regular users are on search-parking
       if (
-        ["private_prop_owner", "user"].includes(user?.role) &&
+        (user.role === "private_prop_owner" || user.role === "user") &&
         location.pathname === "/search-parking"
       ) {
         return true;
       }
+      
+      // For non-logged in users
+      return location.pathname === "/";
     }
+    
     if (path === "/signup" || path === "/signup-details") {
       return (
         location.pathname === "/signup" ||
         location.pathname === "/signup-details"
       );
     }
+    
     return location.pathname === path;
   };
 
