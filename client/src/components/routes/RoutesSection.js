@@ -35,7 +35,7 @@ const RoutesSection = () => {
       <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
         המסלולים שלנו הם:
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 justify-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8 xl:gap-6 justify-center min-h-0">
         {routes.map((route, idx) => (
           <RouteCard key={idx} {...route} />
         ))}

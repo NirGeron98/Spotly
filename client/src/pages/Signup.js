@@ -375,15 +375,15 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
     >
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
-      <main className="flex-1 relative z-10 py-8">
+      <main className="flex-1 relative z-10 py-4">
         <div className="container mx-auto px-6">
-          <div className="max-w-2xl mx-auto w-full">
-            <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-3xl shadow-2xl px-10 py-8 transition-all duration-500">
+          <div className="max-w-xl mx-auto w-full">
+            <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-2xl shadow-xl px-6 py-6 transition-all duration-500">
               {/* Step Progress Indicator */}
-              <div className="flex items-center justify-center mb-8">
+              <div className="flex items-center justify-center mb-6">
                 <div className="flex items-center justify-center w-full max-w-xs">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                       step >= 1
                         ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-lg"
                         : "bg-gray-200 text-gray-500"
@@ -392,14 +392,14 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                     1
                   </div>
                   <div
-                    className={`w-16 h-1 transition-all duration-300 ${
+                    className={`w-12 h-1 transition-all duration-300 ${
                       step >= 2
                         ? "bg-gradient-to-r from-blue-600 to-sky-600"
                         : "bg-gray-200"
                     }`}
                   ></div>
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                       step >= 2
                         ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-lg"
                         : "bg-gray-200 text-gray-500"
@@ -413,18 +413,18 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
               {step === 1 && (
                 <div>
                   {/* Title */}
-                  <div className="text-center mb-8">
-                    <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">
+                  <div className="text-center mb-6">
+                    <h1 className="text-3xl font-extrabold text-blue-800 mb-2 tracking-tight">
                       הרשמה
                     </h1>
-                    <p className="text-blue-700 font-medium text-base sm:text-lg">
+                    <p className="text-blue-700 font-medium text-sm">
                       צור את החשבון שלך
                     </p>
                   </div>
 
                   {/* Error Message */}
                   {error && (
-                    <div className="mb-6 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                    <div className="mb-4 bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg">
                       <div className="flex items-center">
                         <span className="text-sm font-medium">{error}</span>
                       </div>
@@ -432,9 +432,9 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   )}
 
                   {/* Form Fields */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold text-blue-800 mb-2">
+                      <label className="block text-sm font-semibold text-blue-800 mb-1">
                         שם מלא
                       </label>
                       <input
@@ -443,12 +443,12 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                         placeholder="שם מלא"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                        className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-blue-800 mb-2">
+                      <label className="block text-sm font-semibold text-blue-800 mb-1">
                         אימייל
                       </label>
                       <input
@@ -457,12 +457,12 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                         placeholder="אימייל"
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                        className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-blue-800 mb-2">
+                      <label className="block text-sm font-semibold text-blue-800 mb-1">
                         מספר טלפון
                       </label>
                       <input
@@ -471,45 +471,47 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                         placeholder="מספר טלפון"
                         value={formData.phone_number}
                         onChange={handleChange}
-                        className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                        className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                         dir="rtl"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-blue-800 mb-2">
-                        סיסמה
-                      </label>
-                      <input
-                        type="password"
-                        name="password"
-                        placeholder="סיסמה"
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-semibold text-blue-800 mb-1">
+                          סיסמה
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          placeholder="סיסמה"
+                          value={formData.password}
+                          onChange={handleChange}
+                          className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-blue-800 mb-2">
-                        אימות סיסמה
-                      </label>
-                      <input
-                        type="password"
-                        name="passwordConfirm"
-                        placeholder="אימות סיסמה"
-                        value={formData.passwordConfirm}
-                        onChange={handleChange}
-                        className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
-                      />
+                      <div>
+                        <label className="block text-sm font-semibold text-blue-800 mb-1">
+                          אימות סיסמה
+                        </label>
+                        <input
+                          type="password"
+                          name="passwordConfirm"
+                          placeholder="אימות סיסמה"
+                          value={formData.passwordConfirm}
+                          onChange={handleChange}
+                          className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Next Button */}
-                  <div className="flex justify-end mt-8">
+                  <div className="flex justify-end mt-6">
                     <button
                       onClick={handleNext}
-                      className="bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-4 px-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                      className="bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-3 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
                     >
                       המשך
                     </button>
@@ -520,10 +522,10 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
               {step === 2 && (
                 <div>
                   {/* Back Button */}
-                  <div className="flex justify-start mb-6">
+                  <div className="flex justify-start mb-4">
                     <button
                       onClick={() => setStep(1)}
-                      className="px-6 py-3 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300"
+                      className="px-4 py-2 border border-blue-300 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-all duration-300"
                       disabled={isRegistering}
                     >
                       ← הקודם
@@ -531,17 +533,17 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   </div>
 
                   {/* Title */}
-                  <div className="text-center mb-8">
-                    <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">
+                  <div className="text-center mb-6">
+                    <h1 className="text-3xl font-extrabold text-blue-800 mb-2 tracking-tight">
                       בחירת מסלול
                     </h1>
-                    <p className="text-blue-700 font-medium text-base sm:text-lg">
+                    <p className="text-blue-700 font-medium text-sm">
                       בחר אפשרות מבין המסלולים השונים
                     </p>
                   </div>
 
                   {/* Route Selection */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  <div className="grid grid-cols-3 gap-3 mb-6">
                     {[
                       {
                         key: "apartment",
@@ -557,7 +559,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                       },
                       {
                         key: "rental",
-                        label: "השכרת חניות פרטיות",
+                        label: "השכרת חניות",
                         icon: "🚗",
                         color: "blue",
                       },
@@ -571,7 +573,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                           }))
                         }
                         disabled={isRegistering}
-                        className={`p-4 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 text-center ${
+                        className={`p-3 rounded-lg border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 text-center ${
                           formData.residenceType === type.key
                             ? "border-blue-400 bg-blue-50 shadow-lg"
                             : "border-blue-200 bg-white hover:border-blue-300 hover:shadow-md"
@@ -579,9 +581,9 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                           isRegistering ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                       >
-                        <div className="text-3xl mb-2">{type.icon}</div>
+                        <div className="text-2xl mb-1">{type.icon}</div>
                         <div
-                          className={`font-semibold text-sm ${
+                          className={`font-semibold text-xs ${
                             formData.residenceType === type.key
                               ? "text-blue-700"
                               : "text-blue-600"
@@ -596,11 +598,11 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   {/* Dynamic Form Fields Based on Selection */}
                   {(formData.residenceType === "apartment" ||
                     formData.residenceType === "house") && (
-                    <div className="space-y-6 mb-6">
+                    <div className="space-y-4 mb-4">
                       {formData.residenceType === "apartment" && (
                         <>
                           <div>
-                            <label className="block text-sm font-semibold text-blue-800 mb-2">
+                            <label className="block text-sm font-semibold text-blue-800 mb-1">
                               קוד בניין
                             </label>
                             <input
@@ -610,7 +612,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                               value={formData.buildingCode}
                               onChange={handleChange}
                               disabled={isRegistering}
-                              className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
+                              className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                             />
                             {loadingBuilding && (
                               <div className="flex items-center text-sm text-blue-600 mt-2">
@@ -619,33 +621,33 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                               </div>
                             )}
                             {buildingInfo && (
-                              <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                                <h4 className="font-bold text-blue-800 mb-2">
+                              <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <h4 className="font-bold text-blue-800 mb-1 text-sm">
                                   פרטי הבניין:
                                 </h4>
-                                <p className="text-sm text-blue-700">
+                                <p className="text-xs text-blue-700">
                                   כתובת:{" "}
                                   {buildingService.formatBuildingAddress(
                                     buildingInfo
                                   )}
                                 </p>
                                 {buildingInfo.building_number && (
-                                  <p className="text-sm text-blue-700">
+                                  <p className="text-xs text-blue-700">
                                     קוד בניין: {buildingInfo.building_number}
                                   </p>
                                 )}
                               </div>
                             )}
                             {feedback && !buildingInfo && (
-                              <p className="text-sm text-red-500 mt-2 font-medium">
+                              <p className="text-sm text-red-500 mt-1 font-medium">
                                 {feedback}
                               </p>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-3 gap-3">
                             <div>
-                              <label className="block text-sm font-semibold text-blue-800 mb-2">
+                              <label className="block text-sm font-semibold text-blue-800 mb-1">
                                 מספר דירה
                               </label>
                               <input
@@ -655,11 +657,11 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                                 value={formData.apartmentNumber}
                                 onChange={handleChange}
                                 disabled={isRegistering}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
+                                className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-semibold text-blue-800 mb-2">
+                              <label className="block text-sm font-semibold text-blue-800 mb-1">
                                 מספר חנייה
                               </label>
                               <input
@@ -669,11 +671,11 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                                 value={formData.parkingNumber}
                                 onChange={handleChange}
                                 disabled={isRegistering}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
+                                className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-semibold text-blue-800 mb-2">
+                              <label className="block text-sm font-semibold text-blue-800 mb-1">
                                 קומת חנייה
                               </label>
                               <input
@@ -683,7 +685,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                                 value={formData.parkingFloor}
                                 onChange={handleChange}
                                 disabled={isRegistering}
-                                className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
+                                className="w-full px-3 py-3 bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800 disabled:opacity-50"
                               />
                             </div>
                           </div>
@@ -691,7 +693,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                       )}
 
                       {formData.residenceType === "house" && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <AddressMapSelector
                             address={address}
                             setAddress={setAddress}
@@ -706,8 +708,8 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   )}
 
                   {/* Info Note */}
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 mb-6">
-                    <p className="text-sm text-blue-700 text-center font-medium">
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                    <p className="text-xs text-blue-700 text-center font-medium">
                       💡 ניתן להשכיר חניה פרטית (כולל חניה עם עמדת טעינה לרכב
                       חשמלי) בכל אחד מהמסלולים.
                     </p>
@@ -715,7 +717,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
 
                   {/* Error/Success Messages */}
                   {error && (
-                    <div className="mb-6 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                    <div className="mb-4 bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg">
                       <div className="flex items-center">
                         <span className="text-sm font-medium">{error}</span>
                       </div>
@@ -723,7 +725,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   )}
 
                   {success && (
-                    <div className="mb-6 bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl">
+                    <div className="mb-4 bg-green-100 border border-green-300 text-green-700 px-3 py-2 rounded-lg">
                       <div className="flex items-center">
                         <span className="text-sm font-medium">{success}</span>
                       </div>
@@ -731,15 +733,15 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                   )}
 
                   {/* Terms and Register Section */}
-                  <div className="space-y-6">
-                    <div className="flex items-center p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="space-y-4">
+                    <div className="flex items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <input
                         type="checkbox"
                         id="terms"
                         checked={termsAccepted}
                         onChange={(e) => setTermsAccepted(e.target.checked)}
                         disabled={isRegistering}
-                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ml-3 disabled:opacity-50"
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ml-2 disabled:opacity-50"
                       />
                       <label
                         htmlFor="terms"
@@ -761,7 +763,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                     <button
                       onClick={handleRegister}
                       disabled={!termsAccepted || isRegistering}
-                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden ${
+                      className={`w-full py-3 px-6 rounded-lg font-semibold text-base transition-all duration-300 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden ${
                         termsAccepted && !isRegistering
                           ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white hover:from-blue-700 hover:to-sky-700 hover:scale-105"
                           : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -769,7 +771,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                     >
                       {isRegistering ? (
                         <div className="flex items-center justify-center">
-                          <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin ml-2"></div>
+                          <div className="w-4 h-4 border-t-2 border-white rounded-full animate-spin ml-2"></div>
                           רושם...
                         </div>
                       ) : (

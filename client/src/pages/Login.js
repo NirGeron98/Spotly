@@ -77,31 +77,31 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
   return (
     <div className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100" dir="rtl">
       <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
-      <main className="flex-1 relative z-10 py-20">
+      <main className="flex-1 relative z-10 py-8">
         <div className="container mx-auto px-6">
-          <div className="max-w-2xl mx-auto w-full">
-            <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-3xl shadow-2xl px-10 py-14 transition-all duration-500">
-              <div className="text-center mb-8">
-                <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">ברוך שובך!</h1>
-                <p className="text-blue-700 font-medium text-base sm:text-lg">התחבר למערכת כדי לנהל ולמצוא חניות</p>
+          <div className="max-w-md mx-auto w-full">
+            <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-3xl shadow-2xl px-6 py-8 transition-all duration-500">
+              <div className="text-center mb-6">
+                <h1 className="text-3xl font-extrabold text-blue-800 mb-2 tracking-tight">ברוך שובך!</h1>
+                <p className="text-blue-700 font-medium text-sm">התחבר למערכת כדי לנהל ולמצוא חניות</p>
               </div>
 
               {error && (
-                <div className="mb-6 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                <div className="mb-4 bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-xl">
                   <div className="flex items-center">
                     <span className="text-sm font-medium">{error}</span>
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">אימייל</label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-1">אימייל</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                    className="w-full px-3 py-3 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                     placeholder="אימייל"
                     required
                     disabled={isLoading}
@@ -109,12 +109,12 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">סיסמה</label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-1">סיסמה</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
+                    className="w-full px-3 py-3 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                     placeholder="סיסמה"
                     required
                     disabled={isLoading}
@@ -124,7 +124,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-4 px-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-3 px-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
@@ -137,7 +137,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="mt-4 text-center">
                 <button
                   type="button"
                   onClick={handleForgotPassword}
@@ -148,19 +148,19 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
                 </button>
               </div>
 
-              <div className="mt-8 flex items-center">
+              <div className="mt-5 flex items-center">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
                 <span className="px-4 text-sm text-blue-600 font-medium">או</span>
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
               </div>
 
-              <div className="mt-6 text-center">
-                <p className="text-blue-700 mb-3">אין לך עדיין חשבון?</p>
+              <div className="mt-4 text-center">
+                <p className="text-blue-700 mb-2 text-sm">אין לך עדיין חשבון?</p>
                 <button
                   type="button"
                   onClick={() => navigate("/signup")}
                   disabled={isLoading}
-                  className="inline-flex items-center px-6 py-3 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300 disabled:opacity-50 text-sm"
                 >
                   הרשמה חדשה
                 </button>
