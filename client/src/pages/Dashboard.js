@@ -16,29 +16,13 @@ const Dashboard = ({ loggedIn, setLoggedIn }) => {
 
   console.log("Dashboard - User role:", role); // Debug log
 
+  // This component should only be shown to building residents/managers
+  // App.js routing should prevent other users from reaching this component
   useEffect(() => {
-    console.log("Dashboard useEffect - Role:", role); // Debug log
-    
-    // Only redirect non-building residents
-    if (role === "user" || role === "private_prop_owner") {
-      console.log("Dashboard - Redirecting non-building resident to search-parking"); // Debug log
-      localStorage.removeItem("mode");
-      navigate("/search-parking", { state: { fromDashboard: true } });
-    } else if (!role || (role !== "building_resident" && role !== "building_manager")) {
-      console.log("Dashboard - No valid role, redirecting to search-parking"); // Debug log
-      navigate("/search-parking");
+    if (!role || (role !== "building_resident" && role !== "building_manager")) {
+      console.log("Dashboard - Invalid role access, this shouldn't happen due to App.js routing");
     }
-  }, [role, navigate]);
-
-  // Show dashboard only for building residents/managers
-  if (role === "user" || role === "private_prop_owner") {
-    return null; // Will redirect in useEffect
-  }
-
-  // If not a building resident/manager and not a regular user, still show dashboard
-  if (!role || (role !== "building_resident" && role !== "building_manager" && role !== "user" && role !== "private_prop_owner")) {
-    console.log("Dashboard - Unknown role, showing dashboard anyway"); // Debug log
-  }
+  }, [role]);
 
   const today = new Date();
   const date = today.toLocaleDateString("he-IL");

@@ -28,52 +28,32 @@ function App() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-    
+
     if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        console.log("App.js - Stored user role:", parsedUser.role); // Debug log
         setUser(parsedUser);
         setLoggedIn(true);
       } catch (error) {
-        console.error("Error parsing stored user:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
+        localStorage.removeItem("mode");
+        setUser(null);
+        setLoggedIn(false);
       }
+    } else {
+      setUser(null);
+      setLoggedIn(false);
     }
+
     setIsLoading(false);
   }, []);
 
-  // Function to get the correct home route based on user role
-  const getHomeRoute = () => {
-    if (!loggedIn || !user) {
-      return <Home loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
-    }
-
-    console.log("App.jsx - User role for routing:", user.role); // Debug log
-
-    switch (user.role) {
-      case "building_resident":
-        console.log("App.jsx - Rendering Dashboard for building_resident"); // Debug log
-        return <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
-      case "user":
-      case "private_prop_owner":
-        console.log("App.jsx - Rendering SearchParking for user/private_prop_owner"); // Debug log
-        return <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
-      default:
-        console.log("App.jsx - Unknown role, rendering Home"); // Debug log
-        return <Home loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
-    }
-  };
-
-  // Function to get the default redirect route for logged in users
-  const getDefaultRedirect = () => {
+  const getDefaultRoute = () => {
     if (!user) return "/";
-    
-    console.log("App.jsx - Getting default redirect for role:", user.role); // Debug log
-    
     switch (user.role) {
       case "building_resident":
+      case "building_manager":
         return "/dashboard";
       case "user":
       case "private_prop_owner":
@@ -97,30 +77,51 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={getHomeRoute()} />
-        
-        <Route 
-          path="/login" 
+        <Route
+          path="/"
           element={
             loggedIn ? (
-              <Navigate to={getDefaultRedirect()} replace />
+              <Navigate to={getDefaultRoute()} replace />
             ) : (
-              <Login loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+              <Home loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             )
-          } 
+          }
         />
-        
+
+        <Route
+          path="/login"
+          element={
+            loggedIn ? (
+              <Navigate to={getDefaultRoute()} replace />
+            ) : (
+              <Login
+                loggedIn={loggedIn}
+                setLoggedIn={setLoggedIn}
+                setUser={setUser}
+              />
+            )
+          }
+        />
+
         <Route
           path="/forgot-password"
           element={
-            <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            loggedIn ? (
+              <Navigate to={getDefaultRoute()} replace />
+            ) : (
+              <ForgotPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            )
           }
         />
-        
+
         <Route
           path="/reset-password/:token"
           element={
-            <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            loggedIn ? (
+              <Navigate to={getDefaultRoute()} replace />
+            ) : (
+              <ResetPassword loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+            )
           }
         />
 
@@ -128,7 +129,7 @@ function App() {
           path="/signup"
           element={
             loggedIn ? (
-              <Navigate to={getDefaultRedirect()} replace />
+              <Navigate to={getDefaultRoute()} replace />
             ) : (
               <Signup
                 loggedIn={loggedIn}
@@ -138,12 +139,13 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/dashboard"
           element={
             loggedIn ? (
-              user?.role === "building_resident" ? (
+              user?.role === "building_resident" ||
+              user?.role === "building_manager" ? (
                 <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
               ) : (
                 <Navigate to="/search-parking" replace />
@@ -153,7 +155,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/active-reservations"
           element={
@@ -167,7 +169,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/profile"
           element={
@@ -178,7 +180,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/search-parking"
           element={
@@ -189,7 +191,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/release"
           element={
@@ -200,7 +202,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/usage-history"
           element={
@@ -211,7 +213,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/residential-parking-search"
           element={
@@ -226,7 +228,7 @@ function App() {
           }
         />
       </Routes>
-      
+
       <ToastContainer
         position="top-center"
         autoClose={3000}

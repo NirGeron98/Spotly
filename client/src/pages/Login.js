@@ -5,7 +5,7 @@ import Navbar from "../components/shared/Navbar";
 import { authService } from "../services/authService";
 import axios from "../axios";
 
-const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
+const Login = ({ loggedIn, setLoggedIn, isRegistering, setUser }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -14,7 +14,6 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
   useEffect(() => {
     document.title = "התחברות | Spotly";
-    // Check backend connectivity
     const checkBackend = async () => {
       try {
         await axios.get("/api/v1/ping");
@@ -32,38 +31,37 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
     try {
       const response = await authService.login({ email, password });
-      const user = response.data?.user;
+      const user =
+        response?.data?.user ||
+        response?.data?.data?.user ||
+        response?.data?.data;
 
       if (!user) {
         throw new Error("Invalid response format from server");
       }
 
-      console.log("Login - User role received:", user.role); // Debug log
-
-      localStorage.setItem("user", JSON.stringify(user));
-      
-      // Set mode based on role
       if (user.role === "building_resident") {
         localStorage.setItem("mode", "building");
       } else {
         localStorage.setItem("mode", "regular");
       }
-      
+
       setLoggedIn(true);
+      const latestUser = authService.getCurrentUser();
+      setUser(latestUser);
 
-      console.log("Login - Navigating based on role:", user.role); // Debug log
-
-      // Navigate based on role
-      if (user.role === "building_resident") {
-        console.log("Login - Redirecting to dashboard"); // Debug log
-        navigate("/dashboard");
-      } else if (user.role === "user" || user.role === "private_prop_owner") {
-        console.log("Login - Redirecting to search-parking"); // Debug log
-        navigate("/search-parking");
-      } else {
-        console.log("Login - Unknown role, redirecting to home"); // Debug log
-        navigate("/");
-      }
+      setTimeout(() => {
+        if (
+          user.role === "building_resident" ||
+          user.role === "building_manager"
+        ) {
+          navigate("/dashboard", { replace: true });
+        } else if (user.role === "user" || user.role === "private_prop_owner") {
+          navigate("/search-parking", { replace: true });
+        } else {
+          navigate("/search-parking", { replace: true });
+        }
+      }, 100);
     } catch (error) {
       console.error("Login error:", error);
       setError(error.response?.data?.message || "אימייל או סיסמה שגויים");
@@ -77,26 +75,15 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
   };
 
   return (
-    <div
-      className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100"
-      dir="rtl"
-    >
-      <Navbar
-        loggedIn={loggedIn}
-        setLoggedIn={setLoggedIn}
-        isRegistering={isRegistering}
-      />
+    <div className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100" dir="rtl">
+      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} isRegistering={isRegistering} />
       <main className="flex-1 relative z-10 py-20">
         <div className="container mx-auto px-6">
           <div className="max-w-2xl mx-auto w-full">
             <div className="bg-white/70 backdrop-blur-lg border border-blue-100 rounded-3xl shadow-2xl px-10 py-14 transition-all duration-500">
               <div className="text-center mb-8">
-                <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">
-                  ברוך שובך!
-                </h1>
-                <p className="text-blue-700 font-medium text-base sm:text-lg">
-                  התחבר למערכת כדי לנהל ולמצוא חניות
-                </p>
+                <h1 className="text-4xl font-extrabold text-blue-800 mb-3 tracking-tight">ברוך שובך!</h1>
+                <p className="text-blue-700 font-medium text-base sm:text-lg">התחבר למערכת כדי לנהל ולמצוא חניות</p>
               </div>
 
               {error && (
@@ -109,9 +96,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">
-                    אימייל
-                  </label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-2">אימייל</label>
                   <input
                     type="email"
                     value={email}
@@ -119,13 +104,12 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                     placeholder="אימייל"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">
-                    סיסמה
-                  </label>
+                  <label className="block text-sm font-semibold text-blue-800 mb-2">סיסמה</label>
                   <input
                     type="password"
                     value={password}
@@ -133,15 +117,23 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
                     className="w-full px-4 py-4 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder-gray-400 text-gray-800"
                     placeholder="סיסמה"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-4 px-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-semibold py-4 px-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  {isLoading ? "מתחבר..." : "התחברות"}
+                  {isLoading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin ml-2"></div>
+                      מתחבר...
+                    </div>
+                  ) : (
+                    "התחברות"
+                  )}
                 </button>
               </form>
 
@@ -149,7 +141,8 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-blue-600 hover:text-sky-600 font-medium transition-all duration-300 hover:underline"
+                  disabled={isLoading}
+                  className="text-blue-600 hover:text-sky-600 font-medium transition-all duration-300 hover:underline disabled:opacity-50"
                 >
                   שכחת את הסיסמה?
                 </button>
@@ -157,9 +150,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
 
               <div className="mt-8 flex items-center">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
-                <span className="px-4 text-sm text-blue-600 font-medium">
-                  או
-                </span>
+                <span className="px-4 text-sm text-blue-600 font-medium">או</span>
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
               </div>
 
@@ -168,7 +159,8 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
                 <button
                   type="button"
                   onClick={() => navigate("/signup")}
-                  className="inline-flex items-center px-6 py-3 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300"
+                  disabled={isLoading}
+                  className="inline-flex items-center px-6 py-3 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-all duration-300 disabled:opacity-50"
                 >
                   הרשמה חדשה
                 </button>

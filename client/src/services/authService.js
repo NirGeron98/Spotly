@@ -20,7 +20,7 @@ export const authService = {
 
       const { token, data } = response.data;
 
-      if (token) {
+      if (token && typeof Storage !== 'undefined') {
         localStorage.setItem(TOKEN_KEY, token);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       }
@@ -42,7 +42,7 @@ export const authService = {
 
       const { token, data } = response.data;
 
-      if (token) {
+      if (token && typeof Storage !== 'undefined') {
         localStorage.setItem(TOKEN_KEY, token);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       }
@@ -64,13 +64,17 @@ export const authService = {
   logout: async () => {
     try {
       await api.post("/api/v1/users/logout");
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+      if (typeof Storage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+      }
     } catch (error) {
       console.error("Logout error:", error.response?.data || error.message);
       // Still remove items even if the API call fails
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+      if (typeof Storage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+      }
       throw error;
     }
   },
@@ -80,6 +84,7 @@ export const authService = {
    * @returns {boolean} - True if authenticated, false otherwise
    */
   isAuthenticated: () => {
+    if (typeof Storage === 'undefined') return false;
     return !!localStorage.getItem(TOKEN_KEY);
   },
 
@@ -88,6 +93,8 @@ export const authService = {
    * @returns {Object|null} - User object or null if not authenticated
    */
   getCurrentUser: () => {
+    if (typeof Storage === 'undefined') return null;
+    
     const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
 
@@ -125,8 +132,9 @@ export const authService = {
 
     return response.data;
   },
+  
   updateParkingSpot: async (spotId, updateData) => {
-    const token = localStorage.getItem("token");
+    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
 
     const response = await api.patch(`/parking-spots/${spotId}`, updateData, {
       headers: {
@@ -138,7 +146,7 @@ export const authService = {
   },
 
   getMySpots: async () => {
-    const token = localStorage.getItem("token");
+    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
     const response = await api.get("/parking-spots/my-spots", {
       headers: { Authorization: `Bearer ${token}` },
     });
