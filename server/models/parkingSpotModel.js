@@ -176,11 +176,7 @@ parkingSpotSchema.pre("save", async function (next) {
         if (geocodeResult.success) {
           this.address.latitude = geocodeResult.latitude;
           this.address.longitude = geocodeResult.longitude;
-        } else {
-          console.log(
-            ""
-          );
-        }
+        } 
       }
     } catch (error) {
       console.error(`Error geocoding for spot ${this._id}:`, error);

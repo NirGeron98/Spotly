@@ -30,9 +30,6 @@ async function updateUserScore(userId, event, options = {}) {
       { $inc: { priority_score: points } },
       { session } // Use session if provided for transaction support
     );
-    console.log(
-      `User ${userId} score updated by ${points} points for event: ${event}.`
-    );
   } catch (error) {
     console.error(`Failed to update score for user ${userId}:`, error);
   }

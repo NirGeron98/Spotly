@@ -17,7 +17,7 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
     // Check backend connectivity
     const checkBackend = async () => {
       try {
-        const res = await axios.get("/api/v1/ping");
+        await axios.get("/api/v1/ping");
       } catch (err) {
         console.error("❌ Failed to connect to backend:", err);
       }
@@ -38,17 +38,31 @@ const Login = ({ loggedIn, setLoggedIn, isRegistering }) => {
         throw new Error("Invalid response format from server");
       }
 
+      console.log("Login - User role received:", user.role); // Debug log
+
       localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem(
-        "mode",
-        user.role === "building_resident" ? "building" : "regular"
-      );
+      
+      // Set mode based on role
+      if (user.role === "building_resident") {
+        localStorage.setItem("mode", "building");
+      } else {
+        localStorage.setItem("mode", "regular");
+      }
+      
       setLoggedIn(true);
 
-      if (user.role === "user" || user.role === "private_prop_owner") {
+      console.log("Login - Navigating based on role:", user.role); // Debug log
+
+      // Navigate based on role
+      if (user.role === "building_resident") {
+        console.log("Login - Redirecting to dashboard"); // Debug log
+        navigate("/dashboard");
+      } else if (user.role === "user" || user.role === "private_prop_owner") {
+        console.log("Login - Redirecting to search-parking"); // Debug log
         navigate("/search-parking");
       } else {
-        navigate("/dashboard");
+        console.log("Login - Unknown role, redirecting to home"); // Debug log
+        navigate("/");
       }
     } catch (error) {
       console.error("Login error:", error);

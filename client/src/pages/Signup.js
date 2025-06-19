@@ -21,7 +21,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
   const [buildingInfo, setBuildingInfo] = useState(null);
   const [loadingBuilding, setLoadingBuilding] = useState(false);
   const [showMapPopup, setShowMapPopup] = useState(false);
-  
+
   // Loading animation state
   const [isRegistering, setIsRegistering] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -88,27 +88,30 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         "מאמת פרטים...",
         "מגדיר את הפרופיל שלך...",
         "כמעט סיימנו...",
-        "מכין את הדף הבית שלך..."
+        "מכין את הדף הבית שלך...",
       ];
-      
+
       let messageIndex = 0;
       let progress = 0;
-      
+
       interval = setInterval(() => {
         progress += Math.random() * 15 + 5; // Random progress increment
         if (progress > 100) progress = 100;
-        
+
         setLoadingProgress(progress);
-        
+
         // Change message every 20% progress
         const newMessageIndex = Math.floor(progress / 20);
-        if (newMessageIndex !== messageIndex && newMessageIndex < messages.length) {
+        if (
+          newMessageIndex !== messageIndex &&
+          newMessageIndex < messages.length
+        ) {
           messageIndex = newMessageIndex;
           setLoadingMessage(messages[messageIndex]);
         }
       }, 300);
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -122,12 +125,12 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       setError("יש למלא את כל השדות");
       return;
     }
-    
+
     if (password.length < 8) {
       setError("הסיסמה חייבת להכיל לפחות 8 תווים");
       return;
     }
-    
+
     if (password !== passwordConfirm) {
       setError("הסיסמאות אינן תואמות");
       return;
@@ -255,13 +258,15 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         response?.data?.data;
 
       localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem(
-        "mode",
-        user.role === "building_resident" ? "building" : "regular"
-      );
-      
+      // Set mode based on role
+      if (user.role === "building_resident") {
+        localStorage.setItem("mode", "building");
+      } else {
+        localStorage.setItem("mode", "regular");
+      }
+
       setLoggedIn(true);
-      
+
       // Final update before redirect
       setLoadingMessage("מכין את הדף הבית שלך...");
       setLoadingProgress(100);
@@ -269,14 +274,20 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
 
       // Brief wait before redirect to show complete animation
       setTimeout(() => {
+        console.log("Signup - Navigating based on role:", user.role); // Debug log
+
         // Navigate to the appropriate home page
         if (user.role === "building_resident") {
+          console.log("Signup - Redirecting to dashboard"); // Debug log
           navigate("/dashboard");
-        } else {
+        } else if (user.role === "user" || user.role === "private_prop_owner") {
+          console.log("Signup - Redirecting to search-parking"); // Debug log
           navigate("/search-parking");
+        } else {
+          console.log("Signup - Unknown role, redirecting to dashboard"); // Debug log
+          navigate("/dashboard");
         }
       }, 1000);
-
     } catch (err) {
       console.error("Registration error:", err);
       setIsRegistering(false); // Stop loading animation on error
@@ -324,10 +335,10 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
         <h3 className="text-lg font-bold text-gray-800 text-center mb-4">
           {loadingMessage}
         </h3>
-        
+
         {/* Progress bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-3 overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-blue-500 to-sky-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
             style={{ width: `${loadingProgress}%` }}
           >
@@ -341,7 +352,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
           <p className="text-gray-600 text-sm font-medium">
             {Math.round(loadingProgress)}%
           </p>
-          
+
           {/* Bouncing dots animation */}
           <div className="flex space-x-1" dir="ltr">
             {[0, 1, 2].map((i) => (
@@ -362,10 +373,7 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
       className="pt-[68px] min-h-screen flex flex-col relative bg-gradient-to-br from-blue-50 to-sky-100"
       dir="rtl"
     >
-      <Navbar
-        loggedIn={loggedIn}
-        setLoggedIn={setLoggedIn}
-      />
+      <Navbar loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
 
       <main className="flex-1 relative z-10 py-8">
         <div className="container mx-auto px-6">
@@ -567,7 +575,9 @@ const Signup = ({ loggedIn, setLoggedIn }) => {
                           formData.residenceType === type.key
                             ? "border-blue-400 bg-blue-50 shadow-lg"
                             : "border-blue-200 bg-white hover:border-blue-300 hover:shadow-md"
-                        } ${isRegistering ? "opacity-50 cursor-not-allowed" : ""}`}
+                        } ${
+                          isRegistering ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
                       >
                         <div className="text-3xl mb-2">{type.icon}</div>
                         <div

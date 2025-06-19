@@ -32,6 +32,7 @@ function App() {
     if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser);
+        console.log("App.js - Stored user role:", parsedUser.role); // Debug log
         setUser(parsedUser);
         setLoggedIn(true);
       } catch (error) {
@@ -43,22 +44,42 @@ function App() {
     setIsLoading(false);
   }, []);
 
-  // Debug function to help understand user state
+  // Function to get the correct home route based on user role
   const getHomeRoute = () => {
     if (!loggedIn || !user) {
-      return <Home />;
+      return <Home loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
     }
 
     console.log("App.jsx - User role for routing:", user.role); // Debug log
 
     switch (user.role) {
       case "building_resident":
+        console.log("App.jsx - Rendering Dashboard for building_resident"); // Debug log
         return <Dashboard loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
       case "user":
       case "private_prop_owner":
+        console.log("App.jsx - Rendering SearchParking for user/private_prop_owner"); // Debug log
         return <SearchParking loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
       default:
-        return <Home />;
+        console.log("App.jsx - Unknown role, rendering Home"); // Debug log
+        return <Home loggedIn={loggedIn} setLoggedIn={setLoggedIn} />;
+    }
+  };
+
+  // Function to get the default redirect route for logged in users
+  const getDefaultRedirect = () => {
+    if (!user) return "/";
+    
+    console.log("App.jsx - Getting default redirect for role:", user.role); // Debug log
+    
+    switch (user.role) {
+      case "building_resident":
+        return "/dashboard";
+      case "user":
+      case "private_prop_owner":
+        return "/search-parking";
+      default:
+        return "/";
     }
   };
 
@@ -82,11 +103,7 @@ function App() {
           path="/login" 
           element={
             loggedIn ? (
-              user?.role === "building_resident" ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/search-parking" replace />
-              )
+              <Navigate to={getDefaultRedirect()} replace />
             ) : (
               <Login loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
             )
@@ -111,11 +128,7 @@ function App() {
           path="/signup"
           element={
             loggedIn ? (
-              user?.role === "building_resident" ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/search-parking" replace />
-              )
+              <Navigate to={getDefaultRedirect()} replace />
             ) : (
               <Signup
                 loggedIn={loggedIn}

@@ -22,6 +22,12 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
 
   const handleLogoClick = (e) => {
     e.preventDefault();
+    
+    if (!loggedIn) {
+      navigate("/");
+      return;
+    }
+
     const storedUser = localStorage.getItem("user");
     
     if (!storedUser) {
@@ -38,17 +44,28 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
+    console.log("Navbar - Logo click, user role:", user.role); // Debug log
+
+    // Navigate based on user role
     if (user.role === "building_resident") {
+      console.log("Navbar - Navigating to dashboard"); // Debug log
       navigate("/dashboard");
     } else if (user.role === "private_prop_owner" || user.role === "user") {
+      console.log("Navbar - Navigating to search-parking"); // Debug log
       navigate("/search-parking");
     } else {
+      console.log("Navbar - Unknown role, navigating to home"); // Debug log
       navigate("/");
     }
   };
 
   const isActive = (path) => {
     if (path === "/") {
+      // For home button, check if we're on the user's default page
+      if (!loggedIn) {
+        return location.pathname === "/";
+      }
+      
       const storedUser = localStorage.getItem("user");
       if (!storedUser) return location.pathname === "/";
       
@@ -72,7 +89,7 @@ const Navbar = ({ loggedIn, setLoggedIn }) => {
         return true;
       }
       
-      // For non-logged in users
+      // For non-logged in users on actual home page
       return location.pathname === "/";
     }
     

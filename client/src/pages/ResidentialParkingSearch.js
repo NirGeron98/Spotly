@@ -48,10 +48,45 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     return <BookingSummaryCard spot={spot} searchParams={params} />;
   };
 
+  const handleWaitlistConfirmation = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      await axios.post(
+        "/api/v1/parking-spots/building/find-available",
+        {
+          building_id: user.resident_building,
+          start_datetime: `${searchParams.date}T${searchParams.startTime}:00`,
+          end_datetime: `${searchParams.date}T${searchParams.endTime}:00`,
+          confirm_waitlist: true,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setPopupData({
+        title: "נרשמת לרשימת ההמתנה",
+        description: "הבקשה שלך נשמרה. נעדכן אותך אם תתפנה חניה.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("❌ Error during waitlist:", error);
+      setPopupData({
+        title: "שגיאה",
+        description:
+          error.response?.data?.message || "שגיאה בהרשמה לרשימת ההמתנה.",
+        type: "error",
+      });
+    }
+  };
+
   // Handle booking confirmation with proper timezone conversion
   const handleConfirmReservation = async (selectedSpot) => {
     setLoading(true);
-    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+    const token =
+      typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
     const spotToBook = selectedSpot || foundSpot;
     const bookingType = spotToBook.is_charging_station ? "charging" : "parking";
 
@@ -59,7 +94,7 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       // Convert local datetime strings to UTC for API
       const localStartString = `${searchParams.date}T${searchParams.startTime}:00`;
       const localEndString = `${searchParams.date}T${searchParams.endTime}:00`;
-      
+
       const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
 
@@ -92,7 +127,7 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
     } catch (error) {
       console.error("❌ Failed to confirm booking:", error);
       console.error("Server response:", error.response?.data);
-      
+
       // Show error message with server response if available
       setPopupData({
         title: "שגיאת הזמנה",
@@ -106,19 +141,25 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
 
   // Search for available parking spots in building
   const searchParkingSpots = async (e) => {
+    console.log("🚀 searchParkingSpots called");
+
     setLoading(true);
     e.preventDefault();
     setPopupData(null);
     setFoundSpot(null);
 
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
-      const user = typeof Storage !== 'undefined' ? JSON.parse(localStorage.getItem("user") || '{}') : {};
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
+      const user =
+        typeof Storage !== "undefined"
+          ? JSON.parse(localStorage.getItem("user") || "{}")
+          : {};
 
       // Convert local datetime to UTC for API request
       const localStartString = `${searchParams.date}T${searchParams.startTime}:00`;
       const localEndString = `${searchParams.date}T${searchParams.endTime}:00`;
-      
+
       const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
 
@@ -140,6 +181,10 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       const status = response.data?.status;
       const spot = response.data?.data?.spot;
 
+      // Handle different scenarios based on date and status
+      const isToday =
+        searchParams.date === new Date().toISOString().split("T")[0];
+
       // If spot found, show confirmation popup
       if (status === "success" && spot) {
         setFoundSpot(spot);
@@ -154,17 +199,32 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
         return;
       }
 
-      // If no spot available, offer private parking fallback
-      if (
-        status === "accepted" ||
-        status === "no_spot_today" ||
-        status === "no_spot_future"
-      ) {
+      if (status === "no_spot_today" || (status === "accepted" && isToday)) {
+        // Today's search - offer private parking directly
         setPopupData({
-          title: "לא נמצאה חניה זמינה",
+          title: "לא נמצאה חניה זמינה בבניין בזמנים שביקשת",
           description: "האם לחפש חניה פרטית באזורך?",
           type: "confirm",
           onConfirm: runPrivateParkingFallback,
+        });
+      } else if (
+        status === "no_spot_future" ||
+        (status === "accepted" && !isToday)
+      ) {
+        // Future search - offer waitlist first
+        setPopupData({
+          title: "לא נמצאה חניה בזמן שביקשת",
+          description: "האם תרצה להיכנס לרשימת ההמתנה?",
+          type: "confirm",
+          onConfirm: handleWaitlistConfirmation,
+          onCancel: () => {
+            setPopupData({
+              title: "חיפוש חניה פרטית",
+              description: "האם לחפש חניה פרטית בתשלום באזורך?",
+              type: "confirm",
+              onConfirm: runPrivateParkingFallback,
+            });
+          },
         });
       }
     } catch (err) {
@@ -183,14 +243,18 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
   const runPrivateParkingFallback = async () => {
     setLoading(true);
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
-      const user = typeof Storage !== 'undefined' ? JSON.parse(localStorage.getItem("user") || '{}') : {};
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
+      const user =
+        typeof Storage !== "undefined"
+          ? JSON.parse(localStorage.getItem("user") || "{}")
+          : {};
       const { latitude = 32.0518, longitude = 34.8585 } = user?.address || {};
 
       // Convert local datetime to UTC for private parking search
       const localStartString = `${searchParams.date}T${searchParams.startTime}:00`;
       const localEndString = `${searchParams.date}T${searchParams.endTime}:00`;
-      
+
       const startUtc = fromZonedTime(localStartString, USER_TIMEZONE);
       const endUtc = fromZonedTime(localEndString, USER_TIMEZONE);
 
@@ -220,7 +284,7 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
       );
 
       const spots = response.data?.data?.parkingSpots || [];
-      
+
       if (spots.length > 0) {
         setFallbackResults(spots);
         setPopupData({
@@ -305,8 +369,12 @@ const ResidentialParkingSearch = ({ loggedIn, setLoggedIn }) => {
           description={popupData.description}
           type={popupData.type || "info"}
           onClose={() => {
-            setPopupData(null);
-            setFoundSpot(null);
+            if (popupData.onCancel) {
+              popupData.onCancel();
+            } else {
+              setPopupData(null);
+              setFoundSpot(null);
+            }
           }}
           onConfirm={
             popupData.type === "confirm" ? popupData.onConfirm : undefined
