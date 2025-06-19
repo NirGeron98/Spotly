@@ -15,7 +15,7 @@ import { notifySuccess, notifyError, notifyInfo } from "../utils/toasts";
 import { fromZonedTime } from "date-fns-tz";
 import Loader from "../components/shared/Loader";
 import { format } from "date-fns";
-import { FaSearch, FaHome, FaSync } from "react-icons/fa";
+import { FaSearch, FaHome } from "react-icons/fa";
 
 const SearchParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "חיפוש חניה | Spotly";
@@ -33,6 +33,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
   const [distancePreference, setDistancePreference] = useState(3);
   const [pricePreference, setPricePreference] = useState(3);
   const [suppressEmptyMessage, setSuppressEmptyMessage] = useState(false);
+  
+  // New state to track if we just completed a booking
+  const [justBooked, setJustBooked] = useState(false);
 
   // Get user's current location
   const [userLocation, setUserLocation] = useState({
@@ -230,7 +233,7 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     }
   };
 
-  const searchParkingSpots = async (e) => {
+  const searchParkingSpots = async (e, isAfterBooking = false) => {
     if (e) e.preventDefault();
 
     try {
@@ -241,7 +244,6 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
 
       if (!latitude || !longitude) {
         notifyInfo("אנא הזן כתובת או אפשר גישה למיקום שלך");
-
         setLoading(false);
         return;
       }
@@ -276,8 +278,23 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
       spots = sortParkingSpots(spots);
       setParkingSpots(spots);
 
-      if (spots.length === 0 && !suppressEmptyMessage) {
-        notifyInfo("לא נמצאו חניות העונות על הקריטריונים שלך");
+      // Show appropriate message based on results
+      if (spots.length === 0) {
+        // Only show empty message if:
+        // 1. We're not suppressing the message
+        // 2. This is NOT after a booking (justBooked is false)
+        if (!suppressEmptyMessage && !isAfterBooking && !justBooked) {
+          notifyInfo("לא נמצאו חניות העונות על הקריטריונים שלך");
+        }
+      } else {
+        // Show success message when spots are found (but not after booking refresh)
+        if (!isAfterBooking && !justBooked) {
+          // const spotsText = spots.length === 1 ? "חנייה אחת" : `${spots.length} חניות`;
+          if (spots.length === 1) 
+            notifySuccess(`נמצאה חניה אחת זמינה!`);
+          else
+            notifySuccess(`נמצאו ${spots.length} חניות זמינות!`);
+        }
       }
     } catch (err) {
       console.error("שגיאה בחיפוש חניות:", err);
@@ -287,6 +304,10 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
     } finally {
       setLoading(false);
       setSuppressEmptyMessage(false);
+      // Reset the justBooked flag after search is complete
+      if (justBooked) {
+        setJustBooked(false);
+      }
     }
   };
 
@@ -344,6 +365,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
             });
 
             if (response.data?.status === "success") {
+              // Set flag that we just booked
+              setJustBooked(true);
+              
               // Show success popup
               setPopupData({
                 title: "הזמנה בוצעה בהצלחה",
@@ -352,10 +376,9 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
                 type: "success",
               });
 
-              // Refresh search results
-              setSuppressEmptyMessage(true);
+              // Refresh search results after 2 seconds, but mark it as after booking
               setTimeout(() => {
-                searchParkingSpots();
+                searchParkingSpots(null, true); // Pass true to indicate this is after booking
               }, 2000);
             }
           } catch (err) {
@@ -504,32 +527,13 @@ const SearchParking = ({ loggedIn, setLoggedIn }) => {
               title="התחל לחפש חניה"
               description="הזן מיקום, תאריך ושעות כדי למצוא חניות פרטיות זמינות."
             />
-          ) : (
-            /* Loading State - Responsive */
-            <div className="text-center py-12 md:py-16">
-              <div
-                className="inline-block bg-white/80 backdrop-blur-sm 
-                            rounded-xl md:rounded-2xl p-6 md:p-8 
-                            shadow-lg md:shadow-xl max-w-sm mx-auto"
-              >
-                <div
-                  className="bg-gradient-to-br from-blue-100 to-indigo-100 
-                              w-16 h-16 md:w-20 md:h-20 rounded-full 
-                              flex items-center justify-center mx-auto mb-4 md:mb-6"
-                >
-                  <FaSync className="animate-spin text-blue-600 text-2xl md:text-3xl" />
-                </div>
-                <p className="text-gray-600 text-base md:text-lg font-medium">
-                  טוען חניות זמינות...
-                </p>
-              </div>
-            </div>
-          )}
+          ) : null}
         </main>
       </div>
 
       <Footer />
 
+      {/* Show loading overlay when searching */}
       {loading && <Loader message="מחפש חניות זמינות..." />}
 
       {/* Popup for various actions */}
