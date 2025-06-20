@@ -26,8 +26,13 @@ import { USER_TIMEZONE } from "../utils/constants";
 const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   document.title = "ניהול החנייה שלי | Spotly";
   const [current, setCurrent] = useState("releaseParking");
-  const [user] = useState(null);
-  const isBuildingMode = typeof Storage !== 'undefined' ? localStorage.getItem("mode") === "building" : false;
+  const storedUser =
+    typeof Storage !== "undefined" ? localStorage.getItem("user") : null;
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isBuildingMode =
+    typeof Storage !== "undefined"
+      ? localStorage.getItem("mode") === "building"
+      : false;
   const [parkingSlots, setParkingSlots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
   const [popupData, setPopupData] = useState({
@@ -224,7 +229,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
   const fetchMySpots = useCallback(async () => {
     setLoadingSpots(true);
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
       const res = await axios.get("/api/v1/parking-spots/my-spots", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -331,7 +337,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
 
   const fetchBookingDetails = async (spotId, scheduleId) => {
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
       const res = await axios.get(
         `/api/v1/bookings/spot/${spotId}/schedule/${scheduleId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -497,7 +504,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
 
-    const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+    const token =
+      typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
     let targetSpot = null;
 
     if (isBuildingMode) {
@@ -611,7 +619,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
     if (!confirmDeleteId) return;
     const { spotId, scheduleId } = confirmDeleteId;
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
       await axios.delete(
         `/api/v1/parking-spots/${spotId}/availability-schedule/${scheduleId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -756,7 +765,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
       return;
     }
     try {
-      const token = typeof Storage !== 'undefined' ? localStorage.getItem("token") : null;
+      const token =
+        typeof Storage !== "undefined" ? localStorage.getItem("token") : null;
       await axios.patch(
         `/api/v1/parking-spots/${privateSpot._id}`,
         { hourly_price: parseFloat(newPrice) },
@@ -803,7 +813,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 px-2 sm:px-0">
             <div className="lg:col-span-1">
               <AddScheduleForm
@@ -823,7 +833,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               <div className="mb-3 sm:mb-4 p-2 bg-blue-50 text-blue-700 rounded text-xs sm:text-sm text-center">
                 <strong>טיפ:</strong>
                 <span className="lg:hidden"> לחץ על כרטיסיה לניהול פינוי</span>
-                <span className="hidden lg:block"> לחץ וגרור על הלוח כדי ליצור פינוי חנייה חדש</span>
+                <span className="hidden lg:block">
+                  {" "}
+                  לחץ וגרור על הלוח כדי ליצור פינוי חנייה חדש
+                </span>
               </div>
 
               <div className="mb-3 sm:mb-4">
@@ -837,7 +850,8 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               {/* Week Date Range Display - Only for mobile/tablet */}
               <div className="mb-3 sm:mb-4 text-center lg:hidden">
                 <div className="text-sm sm:text-base font-medium text-gray-600">
-                  {formatDateForDisplay(getWeekDates()[0])} - {formatDateForDisplay(getWeekDates()[6])}
+                  {formatDateForDisplay(getWeekDates()[0])} -{" "}
+                  {formatDateForDisplay(getWeekDates()[6])}
                 </div>
               </div>
 
@@ -851,7 +865,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                   <div className="flex-grow overflow-auto lg:hidden">
                     {weekViewSchedules.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                        <div className="text-4xl sm:text-5xl md:text-6xl mb-4">📅</div>
+                        <div className="text-4xl sm:text-5xl md:text-6xl mb-4">
+                          📅
+                        </div>
                         <div className="text-sm sm:text-base md:text-lg font-medium mb-2">
                           אין פינויים השבוע
                         </div>
@@ -867,13 +883,17 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                             if (a.dayOfWeek !== b.dayOfWeek) {
                               return a.dayOfWeek - b.dayOfWeek;
                             }
-                            return a.display_start_time.localeCompare(b.display_start_time);
+                            return a.display_start_time.localeCompare(
+                              b.display_start_time
+                            );
                           })
                           .map((schedule, index) => {
                             const dayName = getDayName(schedule.dayOfWeek);
-                            const dayDate = formatDateForDisplay(getWeekDates()[schedule.dayOfWeek]);
+                            const dayDate = formatDateForDisplay(
+                              getWeekDates()[schedule.dayOfWeek]
+                            );
                             const isPast = isDayInPast(schedule.dayOfWeek);
-                            
+
                             return (
                               <div
                                 key={`${schedule._id}-${index}`}
@@ -881,12 +901,20 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                   bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 
                                   rounded-lg p-3 sm:p-4 cursor-pointer transition-all duration-300 
                                   hover:shadow-lg hover:scale-105 hover:border-blue-300
-                                  ${isPast ? 'opacity-60 bg-gray-100' : ''}
-                                  ${expandedSchedule === schedule._id ? 'ring-2 ring-blue-400 shadow-lg' : ''}
+                                  ${isPast ? "opacity-60 bg-gray-100" : ""}
+                                  ${
+                                    expandedSchedule === schedule._id
+                                      ? "ring-2 ring-blue-400 shadow-lg"
+                                      : ""
+                                  }
                                 `}
-                                onClick={() => setExpandedSchedule(
-                                  expandedSchedule === schedule._id ? null : schedule._id
-                                )}
+                                onClick={() =>
+                                  setExpandedSchedule(
+                                    expandedSchedule === schedule._id
+                                      ? null
+                                      : schedule._id
+                                  )
+                                }
                               >
                                 {/* Card Header */}
                                 <div className="flex items-center justify-between mb-2 sm:mb-3">
@@ -909,13 +937,27 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                     <span>{schedule.display_end_time}</span>
                                   </div>
                                   <div className="text-xs sm:text-sm text-gray-600">
-                                    משך: {(() => {
-                                      const [startH, startM] = schedule.display_start_time.split(':').map(Number);
-                                      const [endH, endM] = schedule.display_end_time.split(':').map(Number);
-                                      const duration = (endH * 60 + endM) - (startH * 60 + startM);
+                                    משך:{" "}
+                                    {(() => {
+                                      const [startH, startM] =
+                                        schedule.display_start_time
+                                          .split(":")
+                                          .map(Number);
+                                      const [endH, endM] =
+                                        schedule.display_end_time
+                                          .split(":")
+                                          .map(Number);
+                                      const duration =
+                                        endH * 60 +
+                                        endM -
+                                        (startH * 60 + startM);
                                       const hours = Math.floor(duration / 60);
                                       const minutes = duration % 60;
-                                      return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')} שעות` : `${minutes} דקות`;
+                                      return hours > 0
+                                        ? `${hours}:${minutes
+                                            .toString()
+                                            .padStart(2, "0")} שעות`
+                                        : `${minutes} דקות`;
                                     })()}
                                   </div>
                                 </div>
@@ -923,7 +965,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 {/* Type Badge */}
                                 <div className="mb-2 sm:mb-3">
                                   <span className="inline-block bg-blue-100 text-blue-800 text-xs sm:text-sm px-2 py-1 rounded-full font-medium">
-                                    {schedule.type || 'השכרה רגילה'}
+                                    {schedule.type || "השכרה רגילה"}
                                   </span>
                                 </div>
 
@@ -933,21 +975,24 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                     <div className="flex items-center space-x-1 space-x-reverse">
                                       <span>🅿️</span>
                                       <span>
-                                        {schedule.slot.spot_number 
+                                        {schedule.slot.spot_number
                                           ? `חנייה #${schedule.slot.spot_number}`
-                                          : 'חנייה פרטית'}
+                                          : "חנייה פרטית"}
                                       </span>
                                     </div>
                                     {schedule.slot.address && (
                                       <div className="mt-1 text-xs text-gray-500">
-                                        {schedule.slot.address.street} {schedule.slot.address.number}, {schedule.slot.address.city}
+                                        {schedule.slot.address.street}{" "}
+                                        {schedule.slot.address.number},{" "}
+                                        {schedule.slot.address.city}
                                       </div>
                                     )}
-                                    {!isBuildingMode && schedule.slot.hourly_price && (
-                                      <div className="mt-1 text-xs font-medium text-green-600">
-                                        💰 {schedule.slot.hourly_price} ₪/שעה
-                                      </div>
-                                    )}
+                                    {!isBuildingMode &&
+                                      schedule.slot.hourly_price && (
+                                        <div className="mt-1 text-xs font-medium text-green-600">
+                                          💰 {schedule.slot.hourly_price} ₪/שעה
+                                        </div>
+                                      )}
                                   </div>
                                 )}
 
@@ -958,7 +1003,10 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          fetchBookingDetails(schedule.slot._id, schedule._id);
+                                          fetchBookingDetails(
+                                            schedule.slot._id,
+                                            schedule._id
+                                          );
                                         }}
                                         className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs sm:text-sm py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-1 space-x-reverse"
                                       >
@@ -970,7 +1018,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                           e.stopPropagation();
                                           setConfirmDeleteId({
                                             spotId: schedule.slot._id,
-                                            scheduleId: schedule._id
+                                            scheduleId: schedule._id,
                                           });
                                         }}
                                         className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm py-2 px-3 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-1 space-x-reverse"
@@ -979,7 +1027,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                         <span>מחק פינוי</span>
                                       </button>
                                     </div>
-                                    
+
                                     {/* Status Indicator */}
                                     <div className="text-center">
                                       {isPast ? (
@@ -998,7 +1046,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                                 {/* Click Indicator */}
                                 <div className="text-center mt-2 sm:mt-3">
                                   <div className="text-xs text-blue-500">
-                                    {expandedSchedule === schedule._id ? '🔽 סגור' : '🔽 לחץ לפרטים'}
+                                    {expandedSchedule === schedule._id
+                                      ? "🔽 סגור"
+                                      : "🔽 לחץ לפרטים"}
                                   </div>
                                 </div>
                               </div>
@@ -1045,7 +1095,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               )}
             </div>
           </div>
-          
+
           {showQuickAddPopup && (
             <QuickAddPopup
               quickAddData={quickAddData}
@@ -1094,7 +1144,9 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
                         min="0"
                         step="0.5"
                       />
-                      <span className="mr-2 text-blue-800 font-bold text-sm sm:text-base">₪</span>
+                      <span className="mr-2 text-blue-800 font-bold text-sm sm:text-base">
+                        ₪
+                      </span>
                     </div>
                     {priceError && (
                       <div className="text-red-500 text-xs sm:text-sm mt-2 bg-red-50 p-2 rounded border border-red-100">
@@ -1243,7 +1295,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
             </div>
           )}
-          
+
           {confirmDeleteId && (
             <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
               <div
@@ -1273,7 +1325,7 @@ const ReleaseParking = ({ loggedIn, setLoggedIn }) => {
               </div>
             </div>
           )}
-          
+
           {popupData.show && (
             <Popup
               title={popupData.title}
