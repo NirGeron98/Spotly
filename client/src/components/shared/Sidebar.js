@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaSearch, FaRegWindowClose, FaHistory, FaBars } from "react-icons/fa";
+import { FaSearch, FaRegWindowClose, FaClock, FaBars, FaClipboardList } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const Sidebar = ({ current, setCurrent, role }) => {
@@ -30,14 +30,14 @@ const Sidebar = ({ current, setCurrent, role }) => {
     {
       key: "activeReservations",
       label: " הזמנות פעילות שביצעתי ",
-      icon: <FaHistory className="text-lg" />,
+      icon: <FaClock className="text-lg" />,
       path: "/active-reservations",
       visible: true,
     },
     {
       key: "history",
       label: "היסטוריית שימוש",
-      icon: <FaHistory className="text-lg" />,
+      icon: <FaClipboardList className="text-lg" />,
       path: "/usage-history",
       visible: true,
     },
